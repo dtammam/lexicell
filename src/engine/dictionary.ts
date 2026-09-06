@@ -1,6 +1,6 @@
 /**
  * Word validation. The dictionary is a resource passed *into* the engine
- * (reducer context), never part of run state — a Set is not JSON, and ~170k
+ * (reducer context), never part of run state: a Set is not JSON, and ~170k
  * strings do not belong in localStorage.
  *
  * Build words.txt with `npm run dict:build`; see scripts/build-dictionary.ts

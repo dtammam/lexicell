@@ -41,7 +41,7 @@ function greedyRun(seed: number, c: EngineContext = ctx, pickIndex = 0): { final
       continue;
     }
     const best = candidateWords(s, c).sort((a, b) => b.damage - a.damage)[0];
-    if (!best) throw new Error(`seed ${seed}: no candidate word — dead grid reached the bot`);
+    if (!best) throw new Error(`seed ${seed}: no candidate word: dead grid reached the bot`);
     for (const i of candidateIndices(s, best.word) ?? []) step({ type: 'toggleTile', index: i });
     step({ type: 'submitWord' });
   }
