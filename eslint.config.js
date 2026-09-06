@@ -54,6 +54,7 @@ export default tseslint.config(
     // Tests never ship; they may read fixtures from disk. svelte/ui/DOM bans still apply.
     files: ['src/engine/**/*.test.ts', 'src/content/**/*.test.ts'],
     rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
       'no-restricted-imports': [
         'error',
         {
