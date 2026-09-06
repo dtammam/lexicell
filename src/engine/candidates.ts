@@ -30,7 +30,7 @@ export function candidateWords(state: RunState, ctx: EngineContext): Candidate[]
   const out: Candidate[] = [];
   for (const word of ctx.solver.solve(playableLetters(enc.grid))) {
     const effects = fixed ?? resolveEffects(raw, { ...base, word });
-    out.push({ word, damage: scoreWord(word, effects).damage });
+    out.push({ word, damage: scoreWord(word, effects, ctx.content.tuning).damage });
   }
   return out;
 }

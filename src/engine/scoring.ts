@@ -14,6 +14,7 @@
  * here; nothing else computes damage.
  */
 import type { Effect } from './effects';
+import type { Tuning } from './types';
 
 /** Scrabble letter values, halved for the rare letters so a lone Q isn't a run-winner. */
 export const LETTER_VALUE: Readonly<Record<string, number>> = {
@@ -26,14 +27,12 @@ export const LETTER_VALUE: Readonly<Record<string, number>> = {
   q: 8, z: 8,
 };
 
-/** Superlinear from 5 letters so long words feel like events. */
-export function lengthBonus(len: number): number {
-  if (len <= 4) return 1;
-  if (len === 5) return 1.5;
-  if (len === 6) return 2;
-  if (len === 7) return 2.5;
-  if (len === 8) return 3;
-  return 3.5 + (len - 9) * 0.5;
+/** Length multiplier from the tuning table; lengths past the table use its last entry. */
+export function lengthBonus(len: number, tuning: Tuning): number {
+  const t = tuning.lengthBonus;
+  const v = t[Math.min(len, t.length - 1)];
+  if (v === undefined) throw new RangeError('tuning.lengthBonus is empty');
+  return v;
 }
 
 export interface Score {
@@ -55,7 +54,7 @@ export function letterSum(word: string): number {
 }
 
 /** `effects` must already be resolved (no conditions). Non-scoring effects are ignored. */
-export function scoreWord(word: string, effects: readonly Effect[]): Score {
+export function scoreWord(word: string, effects: readonly Effect[], tuning: Tuning): Score {
   let letters = letterSum(word);
   let flat = 0;
   let mult = 1;
@@ -74,7 +73,7 @@ export function scoreWord(word: string, effects: readonly Effect[]): Score {
         break;
     }
   }
-  const base = letters * lengthBonus(word.length) + flat;
+  const base = letters * lengthBonus(word.length, tuning) + flat;
   const damage = Math.max(0, Math.floor(base * mult));
   return { word, letters, base, mult, damage };
 }

@@ -1,15 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { LETTER_VALUE, lengthBonus, letterSum, scoreWord } from './scoring';
+import { LETTER_VALUE, lengthBonus, letterSum, scoreWord as score } from './scoring';
+import type { Effect } from './effects';
+import type { Tuning } from './types';
+
+/** Fixed table for these tests so content tuning can move without breaking formula tests. */
+const T: Tuning = { lengthBonus: [1, 1, 1, 1, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5] };
+const scoreWord = (w: string, e: readonly Effect[]) => score(w, e, T);
 
 describe('scoring placeholder formula', () => {
   it('has a value for every letter', () => {
     for (let c = 97; c < 123; c++) expect(LETTER_VALUE[String.fromCharCode(c)]).toBeGreaterThan(0);
   });
 
-  it('length bonus is flat through 4 and strictly increasing after', () => {
-    expect(lengthBonus(3)).toBe(1);
-    expect(lengthBonus(4)).toBe(1);
-    for (let n = 5; n <= 15; n++) expect(lengthBonus(n)).toBeGreaterThan(lengthBonus(n - 1));
+  it('length bonus reads the table and clamps past its end', () => {
+    expect(lengthBonus(3, T)).toBe(1);
+    expect(lengthBonus(5, T)).toBe(1.5);
+    expect(lengthBonus(40, T)).toBe(6.5);
+    expect(() => lengthBonus(3, { lengthBonus: [] })).toThrow(RangeError);
   });
 
   it('bare word: letters * lengthBonus', () => {

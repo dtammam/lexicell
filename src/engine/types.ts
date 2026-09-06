@@ -48,12 +48,19 @@ export interface EncounterDef {
   readonly damageScale: number;
 }
 
+/** Formula numbers the sim tunes. Structure of the formula lives in scoring.ts; these are its knobs. */
+export interface Tuning {
+  /** Multiplier by word length; index = length. Lengths beyond the table use the last entry. */
+  readonly lengthBonus: readonly number[];
+}
+
 export interface Content {
   readonly items: readonly ItemDef[];
   readonly enemies: readonly EnemyDef[];
   readonly bosses: readonly EnemyDef[];
   readonly encounters: readonly EncounterDef[];
   readonly playerMaxHp: number;
+  readonly tuning: Tuning;
 }
 
 export interface PlayerState {

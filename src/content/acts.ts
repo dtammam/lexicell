@@ -3,9 +3,14 @@
  * hpScale and damageScale multiply the enemy's base numbers. This is the HP
  * curve the sim tunes; keep it here, not in the engine.
  */
-import type { EncounterDef } from '../engine/types';
+import type { EncounterDef, Tuning } from '../engine/types';
 
 export const PLAYER_MAX_HP = 100;
+
+/** Formula knobs. Index = word length. Superlinear from 5 so long words feel like events. */
+export const TUNING: Tuning = {
+  lengthBonus: [1, 1, 1, 1, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5],
+};
 
 export const ENCOUNTERS: readonly EncounterDef[] = [
   { act: 1, boss: false, hpScale: 1.0, damageScale: 1.0 },

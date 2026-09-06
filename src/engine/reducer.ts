@@ -293,7 +293,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
 
   // Player attack.
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, word));
-  const score = scoreWord(word, effects);
+  const score = scoreWord(word, effects, ctx.content.tuning);
   const enemyHp = Math.max(0, enc.enemy.hp - score.damage);
   let s: RunState = {
     ...state,
