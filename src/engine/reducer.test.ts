@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
-import { candidateWords } from './candidates';
+import { candidateIndices, candidateWords } from './candidates';
 import { isDead } from './grid';
 import { newRun, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
@@ -42,7 +42,7 @@ function greedyRun(seed: number, c: EngineContext = ctx, pickIndex = 0): { final
     }
     const best = candidateWords(s, c).sort((a, b) => b.damage - a.damage)[0];
     if (!best) throw new Error(`seed ${seed}: no candidate word — dead grid reached the bot`);
-    for (const i of best.indices) step({ type: 'toggleTile', index: i });
+    for (const i of candidateIndices(s, best.word) ?? []) step({ type: 'toggleTile', index: i });
     step({ type: 'submitWord' });
   }
   if (s.phase !== 'summary') throw new Error('run did not finish');
@@ -114,6 +114,7 @@ describe('submitWord', () => {
   it('a valid word damages the enemy, the enemy hits back, used tiles refill, turn advances', () => {
     const s0 = newRun(9, ctx);
     const best = candidateWords(s0, ctx).sort((a, b) => b.damage - a.damage)[0]!;
+    const bestIdx = candidateIndices(s0, best.word)!;
     const s1 = play(s0, best.word);
     expect(s1.rejected).toBeNull();
     expect(s1.lastTurn?.word).toBe(best.word);
@@ -123,8 +124,8 @@ describe('submitWord', () => {
       expect(s1.encounter?.enemy.hp).toBe(Math.max(0, s0.encounter!.enemy.hp - best.damage));
       expect(s1.encounter?.turn).toBe(2);
       expect(s1.encounter?.selection).toEqual([]);
-      const untouched = s0.encounter!.grid.filter((_, i) => !best.indices.includes(i));
-      const still = s1.encounter!.grid.filter((_, i) => !best.indices.includes(i));
+      const untouched = s0.encounter!.grid.filter((_, i) => !bestIdx.includes(i));
+      const still = s1.encounter!.grid.filter((_, i) => !bestIdx.includes(i));
       expect(still).toEqual(untouched);
       expect(s1.player.hp).toBeLessThanOrEqual(100);
     }

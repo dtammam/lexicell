@@ -3,7 +3,7 @@
  * returns the next action. Bot randomness uses its own RNG, seeded from the
  * run seed, so it never touches game state and stays reproducible.
  */
-import { candidateWords, type Candidate } from '../../src/engine/candidates';
+import { candidateIndices, candidateWords, type Candidate } from '../../src/engine/candidates';
 import type { Action, EngineContext } from '../../src/engine/reducer';
 import { createRng, nextInt, type Rng } from '../../src/engine/rng';
 import type { RunState } from '../../src/engine/types';
@@ -69,5 +69,7 @@ export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Actio
   if (state.phase === 'pick') return [{ type: 'pickItem', index: bot.choosePick(state) }];
   const choice = bot.chooseWord(state, candidateWords(state, ctx));
   if (!choice) throw new Error('bot has no playable word: dead grid reached the player');
-  return [...choice.indices.map((index): Action => ({ type: 'toggleTile', index })), { type: 'submitWord' }];
+  const indices = candidateIndices(state, choice.word);
+  if (!indices) throw new Error(`candidate ${choice.word} cannot be mapped to tiles`);
+  return [...indices.map((index): Action => ({ type: 'toggleTile', index })), { type: 'submitWord' }];
 }
