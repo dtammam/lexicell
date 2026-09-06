@@ -67,7 +67,7 @@ for a reproducible source; these are its numbers:
 | bot | mean word length | mean damage | letter sum only | letter sum per tile |
 |-----|------------------|-------------|-----------------|---------------------|
 | greedy (uncapped) | 9.9 | 66.8 | 16.8 | 1.70 |
-| mediocre | 4.5 | 8.3 | 6.6 | 1.47 |
+| mediocre | 4.5 | 8.3 | 6.7 | 1.48 |
 
 The damage ratio is 8.1x, of which 2.5x is letter sum before any length
 bonus. With the enemy attacking once per player turn, damage taken scales
@@ -86,7 +86,7 @@ Two observations for Dean, in the order I would take them:
    is testing.
 2. **The enemy clock.** If enemy attacks were paced by tiles consumed
    rather than words played, damage per tile is nearly equal between the
-   bots (1.70 vs 1.47 per tile at letter sum) and long words stay
+   bots (1.70 vs 1.48 per tile at letter sum) and long words stay
    events. This is a turn-structure change and therefore Dean's call.
 
 ## Open questions for Dean (numbered; reply "agree" or override per number)
@@ -112,9 +112,10 @@ Two observations for Dean, in the order I would take them:
   table. No engine change.
 - T2 (pending Dean on Q1/Q2): bot cap and/or tile-paced enemy clock as
   content-tunable knobs, with tests, sim re-run, table here.
-- T3 GATE: full two-reviewer gate over the whole pre-harness history
-  (134f4c5..9f63d34, scaffold included since it owns the purity lint),
-  since those commits predate the harness (tech-debt #1). Named attack
+- T3 GATE: full two-reviewer gate over the whole pre-harness history,
+  all 12 commits through 9f63d34 (`git log 9f63d34`; the root scaffold
+  commit owns the purity lint), since those commits predate the harness
+  (tech-debt #1). Named attack
   surfaces for the adversarial seat: RNG threading in `refill`/
   `freshGrid`/`lockTiles`, JSON round-trip of `RunState` under
   `exactOptionalPropertyTypes`, the dead-grid guard with locked tiles,

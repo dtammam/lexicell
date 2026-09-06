@@ -7,7 +7,7 @@
 import { fileURLToPath } from 'node:url';
 import { candidateWords } from '../src/engine/candidates';
 import { newRun } from '../src/engine/reducer';
-import { lengthBonus } from '../src/engine/scoring';
+import { letterSum } from '../src/engine/scoring';
 import { BOT_NAMES, makeBot, type BotName } from './lib/bots';
 import { nodeContext } from './lib/context';
 
@@ -31,7 +31,7 @@ export function wordGap(seeds: number): Row[] {
       if (!chosen) throw new Error(`seed ${seed}: no word`);
       len += chosen.word.length;
       dmg += chosen.damage;
-      letters += chosen.damage / lengthBonus(chosen.word.length, ctx.content.tuning);
+      letters += letterSum(chosen.word);
     }
     return { bot: name, meanLength: len / seeds, meanDamage: dmg / seeds, meanLetterSum: letters / seeds, letterSumPerTile: letters / len };
   });

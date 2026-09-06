@@ -83,10 +83,12 @@ you edit loses its em dashes as part of the edit.
   `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>` and
   `Claude-Session: <url>`.
 - Stage explicit paths. Blanket staging (`git add -A`, `.`, `-u`, `*`,
-  `:/`, `git commit -a` and their spellings through prefixes, global
-  options, continuations and `sh -c`) is blocked by a PreToolUse hook;
-  its known blind spot is a variable-hidden argument (tracker #2). Run
-  `git status --porcelain` and confirm the branch before every commit.
+  `:/`, `$(...)`, `xargs`, `git commit -a` and their spellings through
+  prefixes, global options, continuations and `sh -c`) is blocked by a
+  PreToolUse hook; its measured blind spots (variables, eval,
+  interpreter wrappers, aliases, a literal toplevel path) are tracker
+  #2. Run `git status --porcelain` and confirm the branch before every
+  commit.
 - Never `--no-verify`. Never force-push. Never `git checkout --` a
   dirty tree blind.
 - `.githooks/pre-commit` runs lint, typecheck, the test suite, and a

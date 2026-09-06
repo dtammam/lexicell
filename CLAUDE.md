@@ -47,7 +47,7 @@ Spawn the seats by agent type, never as ad-hoc prompts: `quality-assurance` (cor
 - Every change goes branch -> gate -> `merge --no-ff` -> main. No direct-to-main commits, no exceptions for size.
 - Test failures and sim results are reported verbatim, with counts and the command, before any framing. A regression is a regression even when inconvenient.
 - Known gaps ship DISCLOSED in ROADMAP.md and the report. Accepted residuals go in `docs/exec-plans/tech-debt-tracker.md` with a revisit trigger.
-- Stage explicit paths only. Blanket staging in any spelling (`git add -A`, `.`, `-u`, `*`, `git commit -a`, through prefixes or `sh -c`) is hook-blocked. Confirm the branch before every commit. Verify every commit landed with `git log`; the pre-commit hook refuses red.
+- Stage explicit paths only. A PreToolUse hook refuses the common blanket spellings (`git add -A`, `.`, `-u`, `*`, `$(...)`, `xargs`, `git commit -a`, through prefixes or `sh -c`); its measured blind spots are in tracker #2. The hook is a backstop, the discipline is yours. Confirm the branch before every commit. Verify every commit landed with `git log`; the pre-commit hook refuses red.
 - Never `--no-verify`, never force-push, never `git checkout --` a dirty tree blind.
 - No em dashes in any new text. Use a spaced hyphen.
 - Mutation-test against a commit, never the dirty tree. Never switch branches under an active reviewer.
