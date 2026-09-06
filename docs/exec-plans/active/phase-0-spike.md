@@ -67,7 +67,7 @@ for a reproducible source; these are its numbers:
 | bot | mean word length | mean damage | letter sum only | letter sum per tile |
 |-----|------------------|-------------|-----------------|---------------------|
 | greedy (uncapped) | 9.9 | 66.8 | 16.8 | 1.70 |
-| mediocre | 4.5 | 8.3 | 6.7 | 1.48 |
+| mediocre | 4.5 | 8.3 | 6.7 | 1.49 |
 
 The damage ratio is 8.1x, of which 2.5x is letter sum before any length
 bonus. With the enemy attacking once per player turn, damage taken scales
@@ -86,7 +86,7 @@ Two observations for Dean, in the order I would take them:
    is testing.
 2. **The enemy clock.** If enemy attacks were paced by tiles consumed
    rather than words played, damage per tile is nearly equal between the
-   bots (1.70 vs 1.48 per tile at letter sum) and long words stay
+   bots (1.70 vs 1.49 per tile at letter sum) and long words stay
    events. This is a turn-structure change and therefore Dean's call.
 
 ## Open questions for Dean (numbered; reply "agree" or override per number)
