@@ -16,12 +16,17 @@
 #   3. Per segment: strip command prefixes (env, sudo, time, then, do, !,
 #      VAR=val ...) and git global options (-C dir, -c k=v, --git-dir=...),
 #      then shlex the rest so quoted arguments are real tokens.
-#   4. `git add|stage` with any blanket argument (-A, --all, -u, --update,
-#      a cluster containing A, ., ./, ./*, *, :/, $PWD, --renormalize) and
-#      `git commit` with an auto-stage cluster (-a, -am, --all) are refused.
-#      `sh -c "..."` strings are scanned recursively.
-# Known evasions, accepted (tracker row): a blanket argument hidden in a
-# shell variable (`X=-A; git add $X`), or built by eval/printf.
+#   4. `git add|stage` with any blanket argument (-A, --all and its
+#      abbreviations --a/--al, -u, --update, a cluster containing A or u,
+#      ., ./, ./*, *, **, :/, :(top), $PWD, $HOME..., $(...), --renormalize,
+#      --pathspec-from-file) and `git commit` with an auto-stage cluster
+#      (-a, -am, --all) are refused. `sh -c "..."` strings are scanned
+#      recursively; a `git add` fed by xargs or find -exec is refused.
+# Known evasions, accepted and listed in the tech-debt tracker: a blanket
+# argument hidden in a shell variable or built by eval/printf/${IFS}; an
+# interpreter wrapper (python -c, node -e, busybox); a git alias; an
+# absolute path equal to the repository toplevel (~+, $(pwd) is caught,
+# a literal /home/... path is not).
 #
 # The payload arrives on stdin as {"tool_name":"Bash","tool_input":{"command":"..."}}.
 
@@ -84,7 +89,8 @@ def strip_heredocs(text):
     return "\n".join(kept)
 
 PREFIX = re.compile(r"^(?:(?:env|command|exec|time|nice|sudo|then|do|else|if|elif|while|until|!)\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+")
-BLANKET = {"-A", "--all", "-u", "--update", "--renormalize", ".", "./", "./*", "*", ":/", "$PWD", "${PWD}"}
+BLANKET = {"-A", "--all", "--al", "--a", "-u", "--update", "--renormalize", ".", "./", "./*", "*", "**", ":/", ":(top)", "$PWD", "${PWD}", "~+"}
+BLANKET_PREFIX = ("$(", "$HOME", "${HOME}", "--pathspec-from-file", ":(top", "--all=", "--update=")
 GIT_GLOBAL_WITH_ARG = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 
 def refuse(msg):
@@ -105,6 +111,10 @@ def check_segment(seg):
             if "git" in t:
                 scan(t)
         return
+    if toks[0] in ("xargs", "find") and "git" in toks:
+        g = toks.index("git")
+        if g + 1 < len(toks) and toks[g + 1] in ("add", "stage"):
+            refuse("'git add' fed by " + toks[0] + " stages whatever the pipeline finds")
     if toks[0].rsplit("/", 1)[-1] != "git":
         return
     i = 1
@@ -120,7 +130,7 @@ def check_segment(seg):
     sub, args = toks[i], toks[i + 1:]
     if sub in ("add", "stage"):
         for a in args:
-            if a in BLANKET or re.fullmatch(r"-[A-Za-z]*[Au][A-Za-z]*", a) or a.endswith("/.") or a.endswith("/*"):
+            if a in BLANKET or a.startswith(BLANKET_PREFIX) or re.fullmatch(r"-[A-Za-z]*[Au][A-Za-z]*", a) or a.endswith("/.") or a.endswith("/*") or a.endswith("/**"):
                 refuse("'git add' with a blanket argument (" + a + ") is forbidden")
     elif sub == "commit":
         for a in args:
