@@ -8,6 +8,7 @@
  *   npm run sim -- --items lens,leech   # restrict the pool
  *   npm run sim -- --seed 1000          # seed base
  *   npm run sim -- --json               # machine-readable output
+ *   npm run sim -- --variant act1-ease  # a named content variant (scripts/lib/variants.ts)
  */
 import { fileURLToPath } from 'node:url';
 import { CONTENT } from '../src/content/index';
@@ -15,6 +16,7 @@ import type { Content } from '../src/engine/types';
 import { BOT_NAMES, type BotName } from './lib/bots';
 import { nodeContext } from './lib/context';
 import { simulate, type Summary } from './lib/simulate';
+import { VARIANT_NAMES, applyVariant, type VariantName } from './lib/variants';
 
 interface Options {
   runs: number;
@@ -22,10 +24,11 @@ interface Options {
   items: 'all' | 'none' | string[];
   seedBase: number;
   json: boolean;
+  variant: VariantName;
 }
 
 export function parseArgs(argv: readonly string[]): Options {
-  const opts: Options = { runs: 500, bots: [...BOT_NAMES], items: 'all', seedBase: 0, json: false };
+  const opts: Options = { runs: 500, bots: [...BOT_NAMES], items: 'all', seedBase: 0, json: false, variant: 'base' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = argv[i + 1];
@@ -52,6 +55,11 @@ export function parseArgs(argv: readonly string[]): Options {
       case '--json':
         opts.json = true;
         break;
+      case '--variant':
+        if (!VARIANT_NAMES.includes(v as VariantName)) throw new Error(`unknown variant ${v ?? ''}`);
+        opts.variant = v as VariantName;
+        i++;
+        break;
       default:
         throw new Error(`unknown argument ${a ?? ''}`);
     }
@@ -60,14 +68,15 @@ export function parseArgs(argv: readonly string[]): Options {
   return opts;
 }
 
-export function contentFor(items: Options['items']): Content {
-  if (items === 'all') return CONTENT;
-  if (items === 'none') return { ...CONTENT, items: [] };
+export function contentFor(items: Options['items'], variant: VariantName = 'base'): Content {
+  const base = applyVariant(variant, CONTENT);
+  if (items === 'all') return base;
+  if (items === 'none') return { ...base, items: [] };
   const keep = new Set(items);
-  const filtered = CONTENT.items.filter((i) => keep.has(i.id));
-  const missing = items.filter((id) => !CONTENT.items.some((i) => i.id === id));
+  const filtered = base.items.filter((i) => keep.has(i.id));
+  const missing = items.filter((id) => !base.items.some((i) => i.id === id));
   if (missing.length) throw new Error(`unknown item ids: ${missing.join(', ')}`);
-  return { ...CONTENT, items: filtered };
+  return { ...base, items: filtered };
 }
 
 export interface Criteria {
@@ -114,7 +123,7 @@ export function renderTable(summaries: readonly Summary[]): string {
 
 function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const ctx = nodeContext(contentFor(opts.items));
+  const ctx = nodeContext(contentFor(opts.items, opts.variant));
   const t0 = performance.now();
   const summaries = opts.bots.map((bot) => simulate(bot, ctx, opts.runs, opts.seedBase));
   const elapsed = (performance.now() - t0) / 1000;
@@ -124,7 +133,7 @@ function main() {
     return;
   }
   const itemsLabel = opts.items === 'all' ? `all ${CONTENT.items.length} items` : opts.items === 'none' ? 'no items' : opts.items.join(',');
-  console.log(`Lexicell sim: ${opts.runs} runs per bot, seeds ${opts.seedBase}..${opts.seedBase + opts.runs - 1}, ${itemsLabel}. ${elapsed.toFixed(1)}s\n`);
+  console.log(`Lexicell sim: ${opts.runs} runs per bot, seeds ${opts.seedBase}..${opts.seedBase + opts.runs - 1}, ${itemsLabel}, variant ${opts.variant}. ${elapsed.toFixed(1)}s\n`);
   console.log(renderTable(summaries));
   console.log('\nExit criteria:');
   const mark = (v: boolean | null) => (v === null ? 'n/a ' : v ? 'PASS' : 'FAIL');

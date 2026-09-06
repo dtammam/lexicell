@@ -52,6 +52,8 @@ export interface EncounterDef {
 export interface Tuning {
   /** Multiplier by word length; index = length. Lengths beyond the table use the last entry. */
   readonly lengthBonus: readonly number[];
+  /** Item picks offered before the first encounter (a starting kit). 0 = none. */
+  readonly startingPicks: number;
 }
 
 export interface Content {
@@ -122,5 +124,7 @@ export interface RunState {
   readonly lastTurn: TurnReport | null;
   /** Why the last action was rejected, if it was. Cleared by the next accepted action. */
   readonly rejected: string | null;
+  /** Starting-kit picks still owed before encounter 0 begins. */
+  readonly pendingPicks: number;
   readonly stats: RunStats;
 }

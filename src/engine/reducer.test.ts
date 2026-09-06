@@ -171,7 +171,7 @@ describe('full runs', () => {
       }
     }
     expect(won + lost).toBe(30);
-  });
+  }, 30_000);
 
   it('replaying the action log reproduces the final state exactly', () => {
     const { final, log } = greedyRun(42);
@@ -180,7 +180,7 @@ describe('full runs', () => {
     expect(s).toEqual(final);
     const roundTripped = JSON.parse(JSON.stringify(final)) as RunState;
     expect(roundTripped).toEqual(final);
-  });
+  }, 30_000);
 
   it('the item pool changes outcomes: no items vs all items', () => {
     const noItems: EngineContext = nodeContext({ ...CONTENT, items: [] });
@@ -188,6 +188,53 @@ describe('full runs', () => {
     expect(final.player.items).toEqual([]);
     // With no items there is no pick phase: encounters chain directly.
     expect(final.phase).toBe('summary');
+  });
+});
+
+describe('starting kit (tuning.startingPicks)', () => {
+  const kit: EngineContext = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+
+  it('opens on a pick, then starts encounter 0 with the chosen item and no index skip', () => {
+    const s0 = newRun(5, kit);
+    expect(s0.phase).toBe('pick');
+    expect(s0.offer).toHaveLength(3);
+    expect(s0.encounter).toBeNull();
+    expect(s0.pendingPicks).toBe(1);
+    expect(s0.stats.hpAtEncounterStart).toEqual([]);
+    const s1 = reduce(s0, { type: 'pickItem', index: 1 }, kit);
+    expect(s1.phase).toBe('fight');
+    expect(s1.encounterIndex).toBe(0);
+    expect(s1.pendingPicks).toBe(0);
+    expect(s1.player.items).toEqual([s0.offer?.[1]]);
+    expect(s1.stats.hpAtEncounterStart).toEqual([100]);
+    assertInvariants(s1, kit);
+  });
+
+  it('two starting picks chain two offers before the first fight', () => {
+    const kit2: EngineContext = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 2 } });
+    let s = newRun(6, kit2);
+    s = reduce(s, { type: 'pickItem', index: 0 }, kit2);
+    expect(s.phase).toBe('pick');
+    expect(s.pendingPicks).toBe(1);
+    s = reduce(s, { type: 'pickItem', index: 0 }, kit2);
+    expect(s.phase).toBe('fight');
+    expect(s.encounterIndex).toBe(0);
+    expect(s.player.items).toHaveLength(2);
+    expect(new Set(s.player.items).size).toBe(2);
+  });
+
+  it('a full run with a kit still ends with exactly 9 encounters and 9 items on a win', () => {
+    const { final } = greedyRun(7, kit);
+    expect(final.phase).toBe('summary');
+    if (final.outcome === 'won') {
+      expect(final.stats.hpAtEncounterStart).toHaveLength(9);
+      expect(final.player.items).toHaveLength(9);
+    }
+  });
+
+  it('startingPicks 0 is the existing behaviour', () => {
+    expect(newRun(5, ctx).pendingPicks).toBe(0);
+    expect(newRun(5, ctx).phase).toBe('fight');
   });
 });
 

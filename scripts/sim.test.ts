@@ -79,5 +79,20 @@ describe('cli', () => {
     expect(contentFor('none').items).toEqual([]);
     expect(contentFor(['lens']).items.map((i) => i.id)).toEqual(['lens']);
     expect(() => contentFor(['nope'])).toThrow(/unknown item ids/);
+    expect(parseArgs(['--variant', 'act1-ease']).variant).toBe('act1-ease');
+    expect(() => parseArgs(['--variant', 'easy'])).toThrow(/unknown variant/);
+  });
+
+  it('variants transform content without touching the base', () => {
+    const a = contentFor('all', 'act1-ease');
+    expect(a.encounters[0]?.damageScale).toBeCloseTo(0.5);
+    expect(a.encounters[0]?.hpScale).toBeCloseTo(0.7);
+    expect(a.encounters[1]?.damageScale).toBeCloseTo(1.2 * 0.7);
+    expect(a.encounters[2]?.hpScale).toBeCloseTo(0.7);
+    expect(a.encounters[3]).toEqual(contentFor('all').encounters[3]);
+    expect(contentFor('all', 'starting-kit').tuning.startingPicks).toBe(1);
+    expect(contentFor('all', 'both').tuning.startingPicks).toBe(1);
+    expect(contentFor('all').tuning.startingPicks).toBe(0);
+    expect(contentFor('all').encounters[0]?.damageScale).toBe(1);
   });
 });

@@ -68,9 +68,11 @@ export function newRun(seed: number, ctx: EngineContext): RunState {
     outcome: null,
     lastTurn: null,
     rejected: null,
+    pendingPicks: Math.max(0, Math.floor(ctx.content.tuning.startingPicks)),
     stats: { turns: 0, damageDealt: 0, damageTaken: 0, bestWord: '', bestWordDamage: 0, hpAtEncounterStart: [] },
   };
-  return startEncounter(state, ctx);
+  // A starting kit (Dean, 2026-09-06, variant B): the run opens on a pick, not a fight.
+  return state.pendingPicks > 0 ? makeOffer(state, ctx) : startEncounter(state, ctx);
 }
 
 export function reduce(state: RunState, action: Action, ctx: EngineContext): RunState {
@@ -261,8 +263,17 @@ function makeOffer(state: RunState, ctx: EngineContext): RunState {
     pool = pool.filter((i) => i.id !== chosen.id);
   }
   const s = withRng(state, rng);
-  if (offer.length === 0) return startEncounter({ ...s, encounterIndex: s.encounterIndex + 1, encounter: null }, ctx);
+  if (offer.length === 0) return advance({ ...s, encounter: null }, ctx);
   return { ...s, phase: 'pick', offer, encounter: null };
+}
+
+/** After a pick (or an empty offer): consume a pending starting pick, or move to the next encounter. */
+function advance(state: RunState, ctx: EngineContext): RunState {
+  if (state.pendingPicks > 0) {
+    const s = { ...state, pendingPicks: state.pendingPicks - 1 };
+    return s.pendingPicks > 0 ? makeOffer(s, ctx) : startEncounter(s, ctx);
+  }
+  return startEncounter({ ...state, encounterIndex: state.encounterIndex + 1 }, ctx);
 }
 
 // ---------- actions ----------
@@ -373,7 +384,6 @@ function pickItem(state: RunState, index: number, ctx: EngineContext): RunState 
     rejected: null,
     player: { ...state.player, items: [...state.player.items, id] },
     offer: null,
-    encounterIndex: state.encounterIndex + 1,
   };
-  return startEncounter(s, ctx);
+  return advance(s, ctx);
 }
