@@ -1,0 +1,20 @@
+/**
+ * Run structure: 3 acts x (2 fights + 1 boss) = 9 encounters. Index 2, 5, 8 are bosses.
+ * hpScale and damageScale multiply the enemy's base numbers. This is the HP
+ * curve the sim tunes; keep it here, not in the engine.
+ */
+import type { EncounterDef } from '../engine/types';
+
+export const PLAYER_MAX_HP = 100;
+
+export const ENCOUNTERS: readonly EncounterDef[] = [
+  { act: 1, boss: false, hpScale: 1.0, damageScale: 1.0 },
+  { act: 1, boss: false, hpScale: 1.3, damageScale: 1.2 },
+  { act: 1, boss: true, hpScale: 1.0, damageScale: 1.2 },
+  { act: 2, boss: false, hpScale: 1.7, damageScale: 1.5 },
+  { act: 2, boss: false, hpScale: 2.0, damageScale: 1.7 },
+  { act: 2, boss: true, hpScale: 1.6, damageScale: 1.7 },
+  { act: 3, boss: false, hpScale: 2.5, damageScale: 2.0 },
+  { act: 3, boss: false, hpScale: 2.9, damageScale: 2.3 },
+  { act: 3, boss: true, hpScale: 2.3, damageScale: 2.3 },
+];
