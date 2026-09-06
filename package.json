@@ -3,12 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . && tsc --noEmit",
     "sim": "tsx scripts/sim.ts",
+    "diag:words": "tsx scripts/word-gap.ts",
     "dict:build": "tsx scripts/build-dictionary.ts"
   },
   "devDependencies": {

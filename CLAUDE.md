@@ -1,6 +1,6 @@
 # Lexicell
 
-Mobile-first PWA word-battle roguelike inspired by Bookworm Adventures. Single player, no backend, no meta-progression. Full brief: `docs/lexicell-architecture-pack.md` â€” read it before non-trivial work.
+Mobile-first PWA word-battle roguelike inspired by Bookworm Adventures. Single player, no backend, no meta-progression. Full brief: `docs/lexicell-architecture-pack.md`. Read it before non-trivial work.
 
 ## Non-negotiable rules
 
@@ -24,6 +24,44 @@ Vite + Svelte 5 + TypeScript, `vite-plugin-pwa`, vitest, ESLint. Static build â†
 
 Phase 0 (headless engine + sim harness) must meet its exit criteria before any UI code exists. Report sim results to Dean as a table.
 
+## How we work: lean mode
+
+Ported from github.com/dtammam/filetube (`docs/references/lean-mode-methodology.md` there). You, the main session, run the whole lifecycle: design, implement, test, review, merge. Subagents are used for exactly two things: the **two-reviewer gate** (codified in `.claude/agents/`) and optional design exploration on big waves. Dean's trust rests on two pillars, never traded for speed: work is never merged on your own say-so, and failures are reported verbatim.
+
+### Lifecycle of a wave
+
+1. **Intake.** For anything non-trivial, ask Dean numbered questions with your recommendation inline so he can reply "agree" or override per number. Challenge the framing before solutioning.
+2. **Design (big waves).** A written exec plan in `docs/exec-plans/active/<name>.md`: goal, Dean's decisions, design, task commits, risks, acceptance. It is the reviewers' spec and survives context compaction. Measured numbers in a plan are predictions the tools re-verify.
+3. **Implement** in small task commits on a branch, each with its tests, each green. Commit messages describe the decision and record MEASURED results, never projected ones.
+4. **Gate.** Full gate (QA seat + adversarial seat) for waves; slim gate (adversarial alone) for docs, hotfixes, harness tweaks. Anything touching the RNG, the reducer's turn order, `RunState`, or the save schema gets the full gate with the adversarial seat briefed to break replay.
+5. **Fix round.** Apply every finding, including non-blocking ones when cheap. Delta re-confirm with the SAME reviewer agents via SendMessage until both APPROVE. Verify their prescriptions too.
+6. **Merge.** `git merge --no-ff` into main. Move the exec plan to `completed/` when the wave closes. ROADMAP.md gets an honest entry: what shipped, what the gate caught, what is still open.
+7. **Memory + report.** Update persistent memory, then report: outcome first, then what the gate caught, then what Dean should check himself.
+
+### The two-reviewer gate
+
+Spawn the seats by agent type, never as ad-hoc prompts: `quality-assurance` (correctness, regressions, engine contract, standards, comment accuracy; has Bash, runs the instruments) and `adversarial-reviewer` (assumes both you and QA missed something; measures every claim, mutation-tests bindings, leaves the tree byte-identical). Your task prompt carries the wave brief: branch, commit range, exec plan, and the named attack surfaces. Both report CRITICAL/WARNING/SUGGESTION with a concrete failure scenario each, then APPROVE or REQUEST CHANGES. Both must APPROVE before merge. If an agent type does not resolve yet (registry refresh lag), brief the discipline inline from the agent file.
+
+### Standing norms (non-negotiable)
+
+- Every change goes branch -> gate -> `merge --no-ff` -> main. No direct-to-main commits, no exceptions for size.
+- Test failures and sim results are reported verbatim, with counts and the command, before any framing. A regression is a regression even when inconvenient.
+- Known gaps ship DISCLOSED in ROADMAP.md and the report. Accepted residuals go in `docs/exec-plans/tech-debt-tracker.md` with a revisit trigger.
+- Stage explicit paths only. Blanket staging in any spelling (`git add -A`, `.`, `-u`, `*`, `git commit -a`, through prefixes or `sh -c`) is hook-blocked. Confirm the branch before every commit. Verify every commit landed with `git log`; the pre-commit hook refuses red.
+- Never `--no-verify`, never force-push, never `git checkout --` a dirty tree blind.
+- No em dashes in any new text. Use a spaced hyphen.
+- Mutation-test against a commit, never the dirty tree. Never switch branches under an active reviewer.
+
+### Where the rest lives
+
+| What | Where |
+|------|-------|
+| Architecture, ADRs, roadmap, exit criteria | `docs/lexicell-architecture-pack.md` |
+| Coding standards, commands, git conventions | `docs/CONTRIBUTING.md` |
+| Active exec plans / tech debt | `docs/exec-plans/active/`, `docs/exec-plans/tech-debt-tracker.md` |
+| What shipped, what is open | `ROADMAP.md` |
+| Hard-won lessons, current state | Persistent memory (auto-loaded) |
+
 ## Working style
 
-Dean is a capable engineer who prefers blunt, skeptical collaboration. Push back on scope creep, including his own. Don't praise; report.
+Dean is a capable engineer who prefers blunt, skeptical collaboration. Push back on scope creep, including his own. Don't praise; report. Lead with the outcome; he reads on his phone.
