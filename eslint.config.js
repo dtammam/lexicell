@@ -51,6 +51,21 @@ export default tseslint.config(
     },
   },
   {
+    // Tests never ship; they may read fixtures from disk. svelte/ui/DOM bans still apply.
+    files: ['src/engine/**/*.test.ts', 'src/content/**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['svelte', 'svelte/*', '@sveltejs/*'], message: 'Engine and content are framework-free.' },
+            { group: ['**/ui/**', '**/ui'], message: 'Engine and content must not import from src/ui.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['eslint.config.js', 'vitest.config.ts'],
     ...tseslint.configs.disableTypeChecked,
   },

@@ -1,0 +1,47 @@
+# Words removed from ENABLE before it ships. One per line; '#' starts a comment.
+# Scope: slurs. Not profanity in general, not "obscure" words. Keep it small
+# (ADR-005). Words with a dominant innocent sense stay in (e.g. "niggardly").
+chink
+chinks
+coon
+coons
+cunt
+cunts
+dago
+dagos
+darkie
+darkies
+darky
+dyke
+dykes
+fag
+faggot
+faggots
+fags
+gook
+gooks
+gyp
+gypped
+gyps
+honkey
+honkies
+honky
+jigaboo
+jigaboos
+kike
+kikes
+nigger
+niggers
+redskin
+redskins
+retard
+retards
+sambo
+spic
+spics
+squaw
+squaws
+wetback
+wetbacks
+wop
+wops
