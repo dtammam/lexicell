@@ -22,11 +22,10 @@
 #      --pathspec-from-file) and `git commit` with an auto-stage cluster
 #      (-a, -am, --all) are refused. `sh -c "..."` strings are scanned
 #      recursively; a `git add` fed by xargs or find -exec is refused.
-# Known evasions, accepted and listed in the tech-debt tracker: a blanket
-# argument hidden in a shell variable or built by eval/printf/${IFS}; an
-# interpreter wrapper (python -c, node -e, busybox); a git alias; an
-# absolute path equal to the repository toplevel (~+, $(pwd) is caught,
-# a literal /home/... path is not).
+# FROZEN (Dean, 2026-09-06): no further hardening until Phase 1. This is
+# a text scanner, not a shell. The measured gaps are listed in
+# docs/exec-plans/tech-debt-tracker.md row #2; the discipline is the
+# session's, the hook is the backstop.
 #
 # The payload arrives on stdin as {"tool_name":"Bash","tool_input":{"command":"..."}}.
 

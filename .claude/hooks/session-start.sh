@@ -24,7 +24,10 @@ if [ -f "$DEBT_FILE" ]; then
 fi
 
 # Phase gate: src/ui must stay empty until Phase 0 exit criteria are met (CLAUDE.md).
-UI_FILES="$(find "$ROOT/src/ui" -type f 2>/dev/null | wc -l | tr -d ' ')"
+UI_FILES=0
+if [ -d "$ROOT/src/ui" ]; then
+  UI_FILES="$(find "$ROOT/src/ui" -type f 2>/dev/null | wc -l | tr -d ' ')"
+fi
 
 echo "=== Session Context ==="
 echo "Branch: $BRANCH ($DIRTY uncommitted changes)"
