@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest';
+import { ITEMS } from '../content/items';
+import type { Effect } from './effects';
+import { collectEffects, gatherEffects, itemDef } from './hooks';
+import type { Content, Hook } from './types';
+
+const content: Content = { items: ITEMS, enemies: [], bosses: [], encounters: [], playerMaxHp: 100 };
+const ctx = { word: 'quartz', hp: 100, maxHp: 100, turn: 1 };
+
+describe('hooks', () => {
+  it('itemDef throws on an unknown id rather than silently skipping', () => {
+    expect(() => itemDef(content, 'nope')).toThrow(/unknown item/);
+    expect(itemDef(content, 'lens').name).toBe('Lens');
+  });
+
+  it('gathers in acquisition order and only for the requested hook', () => {
+    const raw = gatherEffects('onWordScored', ['lens', 'sharp-pen', 'bandage'], content);
+    expect(raw).toEqual([
+      { type: 'addMult', value: 0.5 },
+      { type: 'addFlat', value: 5 },
+    ]);
+    expect(gatherEffects('onEncounterEnd', ['lens', 'sharp-pen', 'bandage'], content)).toEqual([{ type: 'heal', value: 15 }]);
+  });
+
+  it('collect resolves conditions and applies the fixed order', () => {
+    const items = ['lens', 'long-fuse', 'sharp-pen', 'leech'];
+    expect(collectEffects('onWordScored', items, content, ctx)).toEqual([
+      { type: 'addFlat', value: 5 },
+      { type: 'addMult', value: 0.5 },
+      { type: 'addMult', value: 1 },
+      { type: 'heal', value: 3 },
+    ]);
+    expect(collectEffects('onWordScored', items, content, { ...ctx, word: 'cat' })).toEqual([
+      { type: 'addFlat', value: 5 },
+      { type: 'addMult', value: 0.5 },
+    ]);
+  });
+
+  it('duplicates of an item stack', () => {
+    expect(collectEffects('onWordScored', ['sharp-pen', 'sharp-pen'], content, ctx)).toHaveLength(2);
+  });
+});
+
+describe('placeholder item set (roadmap deliverable 5)', () => {
+  it('has ten items with unique ids', () => {
+    expect(ITEMS).toHaveLength(10);
+    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(10);
+  });
+
+  it('uses at least three hooks and four effect types', () => {
+    const hooks = new Set<Hook>();
+    const types = new Set<string>();
+    const walk = (list: readonly Effect[]) => {
+      for (const e of list) {
+        types.add(e.type);
+        if (e.type === 'condition') walk(e.then);
+      }
+    };
+    for (const item of ITEMS) {
+      for (const [hook, effects] of Object.entries(item.hooks)) {
+        hooks.add(hook as Hook);
+        walk(effects);
+      }
+    }
+    expect(hooks.size).toBeGreaterThanOrEqual(3);
+    expect(types.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it('every item has at least one hook with at least one effect', () => {
+    for (const item of ITEMS) {
+      const lists = Object.values(item.hooks);
+      expect(lists.length, item.id).toBeGreaterThan(0);
+      for (const l of lists) expect(l.length, item.id).toBeGreaterThan(0);
+    }
+  });
+});
