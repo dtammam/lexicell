@@ -1,0 +1,5 @@
+#!/bin/sh
+# Lint + typecheck + tests on every commit. Installed via `npm run prepare` (core.hooksPath).
+set -e
+npm run --silent lint
+npm run --silent test -- --reporter=dot --passWithNoTests
