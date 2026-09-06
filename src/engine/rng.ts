@@ -3,7 +3,7 @@
  *
  * Algorithm: mulberry32. Its internal state after n draws is exactly
  * `seed + n * 0x6D2B79F5 (mod 2^32)`, so the state we carry is literally
- * `{ seed, counter }` (per ADR-004) and advancing is O(1) — no replay needed to
+ * `{ seed, counter }` (per ADR-004) and advancing is O(1): no replay needed to
  * reconstruct the generator at any point in a run.
  *
  * All functions are pure: they take an `Rng` and return the drawn value plus
