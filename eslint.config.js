@@ -1,5 +1,6 @@
 // @ts-check
 import eslint from '@eslint/js';
+import { builtinModules } from 'node:module';
 import tseslint from 'typescript-eslint';
 
 /** Names the engine and content layers must never touch. */
@@ -28,7 +29,7 @@ export default tseslint.config(
           patterns: [
             { group: ['svelte', 'svelte/*', '@sveltejs/*'], message: 'Engine and content are framework-free.' },
             { group: ['**/ui/**', '**/ui'], message: 'Engine and content must not import from src/ui.' },
-            { group: ['node:*', 'fs', 'path', 'os'], message: 'Engine and content must run in the browser and in Node alike; no Node built-ins.' },
+            { group: ['node:*', ...builtinModules], message: 'Engine and content must run in the browser and in Node alike; no Node built-ins.' },
           ],
         },
       ],

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Pre-push gate: the pre-commit checks plus a longer sim so a curve or formula
+# change that only shows at scale cannot leave the machine unnoticed.
+set -e
+if [ ! -d node_modules ]; then
+  echo "node_modules missing: run npm install before pushing." >&2
+  exit 1
+fi
+echo "-> lint + typecheck"
+npm run --silent lint
+echo "-> tests"
+npm run --silent test -- --reporter=dot --passWithNoTests
+echo "-> sim (100 runs per bot)"
+npm run --silent sim -- --runs 100
+echo "pre-push passed"

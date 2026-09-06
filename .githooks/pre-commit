@@ -1,5 +1,16 @@
 #!/bin/sh
-# Lint + typecheck + tests on every commit. Installed via `npm run prepare` (core.hooksPath).
+# Pre-commit gate: lint + typecheck + full test suite + a sim smoke.
+# Installed via `npm run prepare` (core.hooksPath). Refuses red; never bypass with --no-verify.
+# The sim smoke binds the CLAUDE.md rule "scripts/sim.ts must still run after any engine change".
 set -e
+if [ ! -d node_modules ]; then
+  echo "node_modules missing: run npm install before committing." >&2
+  exit 1
+fi
+echo "-> lint + typecheck"
 npm run --silent lint
+echo "-> tests"
 npm run --silent test -- --reporter=dot --passWithNoTests
+echo "-> sim smoke (10 runs per bot)"
+npm run --silent sim -- --runs 10 > /dev/null
+echo "pre-commit passed"
