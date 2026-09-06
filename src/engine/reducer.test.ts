@@ -7,7 +7,8 @@ import { newRun, reduce, selectedWord, type Action, type EngineContext } from '.
 import { tilesForWord } from './solver';
 import type { RunState } from './types';
 
-const ctx = nodeContext();
+/** Shipped content opens on a starting-kit pick; most tests here want the first fight directly. */
+const ctx = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
 
 function play(state: RunState, word: string, c: EngineContext = ctx): RunState {
   const enc = state.encounter;
@@ -183,7 +184,7 @@ describe('full runs', () => {
   }, 30_000);
 
   it('the item pool changes outcomes: no items vs all items', () => {
-    const noItems: EngineContext = nodeContext({ ...CONTENT, items: [] });
+    const noItems: EngineContext = nodeContext({ ...CONTENT, items: [], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
     const { final } = greedyRun(4, noItems);
     expect(final.player.items).toEqual([]);
     // With no items there is no pick phase: encounters chain directly.
@@ -232,9 +233,10 @@ describe('starting kit (tuning.startingPicks)', () => {
     }
   });
 
-  it('startingPicks 0 is the existing behaviour', () => {
+  it('startingPicks 0 opens on a fight; shipped content opens on a pick', () => {
     expect(newRun(5, ctx).pendingPicks).toBe(0);
     expect(newRun(5, ctx).phase).toBe('fight');
+    expect(newRun(5, nodeContext()).phase).toBe('pick');
   });
 });
 

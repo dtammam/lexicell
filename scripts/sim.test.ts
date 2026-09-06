@@ -6,7 +6,10 @@ import { nodeContext } from './lib/context';
 import { simulate, simulateRun, summarise } from './lib/simulate';
 import { contentFor, exitCriteria, parseArgs, renderTable } from './sim';
 
-const ctx = nodeContext();
+import { CONTENT } from '../src/content/index';
+
+/** No starting kit here so newRun lands in the first fight and candidates exist at once. */
+const ctx = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
 
 describe('bots', () => {
   it('solver plays the max-damage word; greedy the max within the cap; mediocre 4-5 letters when it can', () => {
@@ -79,20 +82,21 @@ describe('cli', () => {
     expect(contentFor('none').items).toEqual([]);
     expect(contentFor(['lens']).items.map((i) => i.id)).toEqual(['lens']);
     expect(() => contentFor(['nope'])).toThrow(/unknown item ids/);
-    expect(parseArgs(['--variant', 'act1-ease']).variant).toBe('act1-ease');
+    expect(parseArgs(['--variant', 'pre-act1']).variant).toBe('pre-act1');
     expect(() => parseArgs(['--variant', 'easy'])).toThrow(/unknown variant/);
   });
 
-  it('variants transform content without touching the base', () => {
-    const a = contentFor('all', 'act1-ease');
-    expect(a.encounters[0]?.damageScale).toBeCloseTo(0.5);
-    expect(a.encounters[0]?.hpScale).toBeCloseTo(0.7);
-    expect(a.encounters[1]?.damageScale).toBeCloseTo(1.2 * 0.7);
-    expect(a.encounters[2]?.hpScale).toBeCloseTo(0.7);
-    expect(a.encounters[3]).toEqual(contentFor('all').encounters[3]);
-    expect(contentFor('all', 'starting-kit').tuning.startingPicks).toBe(1);
-    expect(contentFor('all', 'both').tuning.startingPicks).toBe(1);
-    expect(contentFor('all').tuning.startingPicks).toBe(0);
-    expect(contentFor('all').encounters[0]?.damageScale).toBe(1);
+  it('shipped content is act-1-eased with a starting kit; pre-act1 restores the baseline', () => {
+    const now = contentFor('all');
+    expect(now.tuning.startingPicks).toBe(1);
+    expect(now.encounters[0]).toMatchObject({ hpScale: 0.7, damageScale: 0.5 });
+    expect(now.encounters[1]?.damageScale).toBeCloseTo(0.84);
+    expect(now.encounters[2]).toMatchObject({ hpScale: 0.7, damageScale: 0.84 });
+    const before = contentFor('all', 'pre-act1');
+    expect(before.tuning.startingPicks).toBe(0);
+    expect(before.encounters[0]).toMatchObject({ hpScale: 1, damageScale: 1 });
+    expect(before.encounters[1]).toMatchObject({ hpScale: 1.3, damageScale: 1.2 });
+    expect(before.encounters[2]).toMatchObject({ hpScale: 1, damageScale: 1.2 });
+    expect(before.encounters[3]).toEqual(now.encounters[3]);
   });
 });
