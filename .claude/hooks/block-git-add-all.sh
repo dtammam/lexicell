@@ -90,7 +90,7 @@ def strip_heredocs(text):
 
 PREFIX = re.compile(r"^(?:(?:env|command|exec|time|nice|sudo|then|do|else|if|elif|while|until|!)\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+")
 BLANKET = {"-A", "--all", "--al", "--a", "-u", "--update", "--renormalize", ".", "./", "./*", "*", "**", ":/", ":(top)", "$PWD", "${PWD}", "~+"}
-BLANKET_PREFIX = ("$(", "$HOME", "${HOME}", "--pathspec-from-file", ":(top", "--all=", "--update=")
+BLANKET_PREFIX = ("$(", "$HOME", "${HOME}", "--pathspec-from-file", ":(top", "--all=", "--update=", "__CMDSUBST__", "__PATHSPEC_MAGIC__")
 GIT_GLOBAL_WITH_ARG = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 
 def refuse(msg):
@@ -130,7 +130,7 @@ def check_segment(seg):
     sub, args = toks[i], toks[i + 1:]
     if sub in ("add", "stage"):
         for a in args:
-            if a in BLANKET or a.startswith(BLANKET_PREFIX) or re.fullmatch(r"-[A-Za-z]*[Au][A-Za-z]*", a) or a.endswith("/.") or a.endswith("/*") or a.endswith("/**"):
+            if a in BLANKET or a.startswith(BLANKET_PREFIX) or "__CMDSUBST__" in a or re.fullmatch(r"-[A-Za-z]*[Au][A-Za-z]*", a) or a.endswith("/.") or a.endswith("/*") or a.endswith("/**"):
                 refuse("'git add' with a blanket argument (" + a + ") is forbidden")
     elif sub == "commit":
         for a in args:
@@ -139,6 +139,11 @@ def check_segment(seg):
 
 def scan(text):
     text = strip_heredocs(text).replace("\\\n", " ")
+    # Command substitution and pathspec magic carry parentheses that the
+    # segment splitter would otherwise cut through; collapse them to marker
+    # tokens first. Both are blanket arguments to `git add` by construction.
+    text = re.sub(r"\$\([^)]*\)", "__CMDSUBST__", text)
+    text = re.sub(r":\([^)]*\)[^\s'\"]*", "__PATHSPEC_MAGIC__", text)
     for seg in re.split(r"\|\||&&|[\n;&|(){}`]", text):
         if seg.strip():
             check_segment(seg)
