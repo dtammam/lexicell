@@ -1,7 +1,7 @@
 /**
  * Phase 0 sim harness. Drives the reducer with bot policies over seeded runs.
  *
- *   npm run sim                         # both bots, 500 runs, all items
+ *   npm run sim                         # all bots, 500 runs, all items
  *   npm run sim -- --bot greedy         # one bot
  *   npm run sim -- --runs 200
  *   npm run sim -- --items none         # drop the item pool entirely
@@ -76,7 +76,11 @@ export interface Criteria {
   readonly noDeadGrids: boolean;
 }
 
-/** The roadmap's exit criteria. `null` means the bot was not run. The item-sensitivity criterion needs two runs and is judged by hand. */
+/**
+ * The roadmap's exit criteria. `null` means the bot was not run. The
+ * item-sensitivity criterion needs two runs and is judged by hand. The
+ * `solver` bot is reported but never judged (Dean, 2026-09-06).
+ */
 export function exitCriteria(summaries: readonly Summary[]): Criteria {
   const m = summaries.find((s) => s.bot === 'mediocre');
   const g = summaries.find((s) => s.bot === 'greedy');
@@ -125,7 +129,7 @@ function main() {
   console.log('\nExit criteria:');
   const mark = (v: boolean | null) => (v === null ? 'n/a ' : v ? 'PASS' : 'FAIL');
   console.log(`  ${mark(criteria.mediocreInBand)}  mediocre wins 20-40%`);
-  console.log(`  ${mark(criteria.greedyWinsButNotAlways)}  greedy wins, but < 90%`);
+  console.log(`  ${mark(criteria.greedyWinsButNotAlways)}  greedy (best word of <= 7 letters) wins, but < 90%`);
   console.log(`  ${mark(criteria.noDeadGrids)}  no run hit a grid with zero valid words`);
   console.log(`  ----  win rate moves with items: compare against --items none`);
 }
