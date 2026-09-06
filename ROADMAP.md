@@ -24,6 +24,10 @@ Blocked on Phase 0 exit criteria and Dean's explicit go. No file under
 
 ## Open
 
+- **Session paused 2026-09-06.** Resume from
+  `docs/exec-plans/active/HANDOFF.md`. The act-1 tuning wave sits on
+  `tune/greedy-cap`, tests green, owing one adversarial round before
+  merge.
 - The enforcement layer of the harness (PreToolUse staging block,
   session-start hook, `.claude/settings.json`, pre-commit sim smoke,
   pre-push hook, the Node built-ins lint ban) sits on branch
