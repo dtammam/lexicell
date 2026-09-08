@@ -1,6 +1,6 @@
 # Exec plan: the tuning wave (acts 2 and 3, the first tile hazard, the boss lock)
 
-Status: ACTIVE (started 2026-09-08). Branch `feat/tuning-wave`.
+Status: CLOSED 2026-09-08 (PR #19). Branch `feat/tuning-wave`. Results in ROADMAP.
 Engine wave, so it carries a plan and one adversarial round (iteration
 mode, CLAUDE.md). Spec of record: the pack's Phase 2 ("at least one
 enemy status effect that touches tiles"), the Phase 0 plan's Handoff

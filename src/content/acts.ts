@@ -25,10 +25,13 @@ export const ENCOUNTERS: readonly EncounterDef[] = [
   { act: 1, boss: false, hpScale: 0.7, damageScale: 0.5 },
   { act: 1, boss: false, hpScale: 1.3, damageScale: 0.84 },
   { act: 1, boss: true, hpScale: 0.7, damageScale: 0.84 },
-  { act: 2, boss: false, hpScale: 1.7, damageScale: 1.5 },
-  { act: 2, boss: false, hpScale: 2.0, damageScale: 1.7 },
+  // Tuning wave (2026-09-08), curve C of the sweep: act 2 softer so a mediocre run reaches
+  // the act-2 boss about half the time, act 3 harder so a strong run can still die there.
+  // Measured at 300 runs: mediocre 25.0% wins, 48.7% reach E6; greedy 88.0%, E9 costs it 32.6.
+  { act: 2, boss: false, hpScale: 1.4, damageScale: 1.1 },
+  { act: 2, boss: false, hpScale: 1.7, damageScale: 1.3 },
   { act: 2, boss: true, hpScale: 1.6, damageScale: 1.7 },
-  { act: 3, boss: false, hpScale: 2.5, damageScale: 2.0 },
-  { act: 3, boss: false, hpScale: 2.9, damageScale: 2.3 },
-  { act: 3, boss: true, hpScale: 2.3, damageScale: 2.3 },
+  { act: 3, boss: false, hpScale: 2.8, damageScale: 2.2 },
+  { act: 3, boss: false, hpScale: 3.2, damageScale: 2.5 },
+  { act: 3, boss: true, hpScale: 2.6, damageScale: 2.5 },
 ];

@@ -11,7 +11,7 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Toggle to see all carried items | implemented (PR #1 items panel) |
 | 2026-09-08 | Letters hard to tell apart, hard to look at | implemented (PR #1 legibility, PR #6 colour by class and serif capitals) |
 | 2026-09-08 | Shuffle button with a cost | implemented (PR #1, costs the turn) |
-| 2026-09-08 | Tile hazards that hurt you and get worse (blood cell) | to do: act-2 + E9 tuning wave, first tile-touching status effect |
+| 2026-09-08 | Tile hazards that hurt you and get worse (blood cell) | implemented (PR #19: venom, from the Polyp; bites every turn and grows to 4 until you spend the tile) |
 | 2026-09-08 | Selected tiles should turn green when the word is valid, before Attack | implemented (PR #1) |
 | 2026-09-08 | Eras and locations affecting backgrounds, items, letter pools, thematic words | no longer needed for v1: pack rules eras cosmetic; backgrounds and palettes per act shipped (PR #7), the rest is Phase 3 art, not mechanics |
 | 2026-09-08 | Items should have flavor, some absurdly strong, some weak | to do: Phase 2 item set (20 to 30, rule-benders, designed in synergy pairs); rename shipped (PR #8) |
@@ -33,7 +33,7 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Run history with export | to do, deferred behind more features (Dean, same day) |
 | 2026-09-08 | Graphics and sound direction | to do, deliberately not yet (Dean) |
 | 2026-09-08 | Design pillars | to do: write the three into the pack once Dean confirms them (long word = event; attrition is the tension; vocabulary is the character) |
-| 2026-09-08 | Boss lock mostly lost (found by the gate, not by Dean) | to do: tracker #5, with the tuning wave |
+| 2026-09-08 | Boss lock mostly lost (found by the gate, not by Dean) | implemented (PR #19) |
 | 2026-09-08 | Log everything I say as perception / request with a next step | implemented (this file; CLAUDE.md intake rule) |
 | 2026-09-08 | Build sha is hard to read at a glance; is this normal? | implemented (PR #10: `build 42 · a1b0b52`, run number plus sha; sha-stamped builds are standard, the counter is the readable part) |
 | 2026-09-08 | The amoeba should evolve into other things as the run progresses, not always the same path | implemented in part (PR #11: your sprite changes per act); to do: the act-2 and act-3 form chosen by the items carried, once the item set is bigger |
@@ -46,3 +46,4 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Wife playtest: the first pick screen made no sense, what am I doing here; wants a silly one-screen intro with the cell dividing | implemented (PR #16: one onboarding screen after New run with the cell dividing, and an instruction line on the pick screen); onboarding, not story, per the pack |
 | 2026-09-08 | A public URL via GitHub Pages so people can play from a link without Docker | implemented (PR #15: https://dtammam.github.io/lexicell/ on every merge to main) |
 | 2026-09-08 | The intro should do something with me, a little graphic at least | implemented (PR #17: three animated beats, pond, portal, arrival, using the sprites; tap to skip; button always available) |
+| 2026-09-08 | Tempo: fights that drag feel like grinding (from the fun discussion) | implemented in part (PR #19: act 2 softer, act 3 harder; all Phase 0 criteria pass); Dean to judge on the phone |

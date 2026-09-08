@@ -46,6 +46,40 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Tuning wave (PR #19, 2026-09-08): the boss lock lands, venom, acts 2 and 3
+
+The boss's lock now skips the tiles of the word just played, so it
+locks its full count (tracker #5 closed). Venom is the first tile
+hazard: the Polyp venoms one tile every third turn; it bites at each
+turn start and grows to `tuning.venomMax` (4) until spent, shuffled or
+scrambled. Save version is 2; v1 saves are dropped on load, no
+migration (no users yet). The bots now spend a venomed tile when a
+word allows, as any human would; without that venom took mediocre from
+22% to 9%. Curve C from a 300-run sweep: act 2 softer, act 3 harder.
+
+Shipped content, `npx tsx scripts/sim.ts`:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    87.2% |           9 |       21.2 |         8 |   100 |    99 |    97 |    91 |    91 |    91 |    62 |    64 |    65 |
+| mediocre |  500 |    24.6% |           5 |       34.9 |        10 |   100 |    92 |    70 |    35 |    32 |    30 |    17 |    19 |    20 |
+|   solver |  500 |    98.8% |           9 |       15.4 |         5 |   100 |   100 |    99 |    96 |    97 |    98 |    83 |    86 |    86 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+All three measurable Phase 0 criteria pass at 500 runs for the first
+time. Dean's E9 targets: greedy's E9 costs 32.6 HP (25 to 35 asked);
+48.7% of mediocre runs reach E6 (49% asked); the mediocre E9 cost is
+not measurable with bots, since the only mediocre runs that reach E9
+are the ones that win. `--variant pre-act1` (act 1 at full strength)
+now reads greedy 56.8%, mediocre 8.8%, solver 89.2%.
+
 ### Gravity and cleaner tiles (PR #3, 2026-09-08)
 
 Used tiles leave, survivors rise in their column, fresh letters land at
