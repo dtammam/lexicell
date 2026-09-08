@@ -213,7 +213,7 @@
   }
   .hit {
     color: var(--score);
-    font-family: var(--font-letter);
+    font-family: var(--font-hud);
     font-weight: 400;
     font-size: var(--hud-m);
     animation: pop var(--dur-settle) var(--ease-settle);
