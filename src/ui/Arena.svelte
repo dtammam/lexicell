@@ -6,6 +6,10 @@
   // flash and floating damage numbers keyed on the turn counter so they replay each turn.
   let { run }: { run: RunState } = $props();
 
+  // Vite's base ("/" in production, "/absproxy/5173/" on the LAN dev route) prefixes every asset URL.
+  const base = import.meta.env.BASE_URL;
+  const unknown = `${base}sprites/unknown.png`;
+
   const enc = $derived(run.encounter);
   const act = $derived(Math.floor(run.encounterIndex / 3) + 1);
   const dealt = $derived(run.lastTurn?.damage ?? 0);
@@ -13,7 +17,7 @@
 
   function fallback(e: Event) {
     const img = e.currentTarget as HTMLImageElement;
-    if (!img.src.endsWith('/sprites/unknown.png')) img.src = '/sprites/unknown.png';
+    if (!img.src.endsWith('sprites/unknown.png')) img.src = unknown;
   }
 </script>
 
@@ -27,13 +31,13 @@
     <div class="stage">
       {#key run.stats.turns}
         <figure class="fighter you" class:shake={taken > 0}>
-          <img src="/sprites/player.png" alt="You" onerror={fallback} />
+          <img src="{base}sprites/player.png" alt="You" onerror={fallback} />
           {#if taken > 0}<span class="float taken">-{taken}</span>{/if}
           <figcaption>You</figcaption>
         </figure>
         <span class="vs">vs</span>
         <figure class="fighter enemy" class:hit={dealt > 0}>
-          <img src="/sprites/{enc.enemy.id}.png" alt={enemyName(enc.enemy.id)} onerror={fallback} />
+          <img src="{base}sprites/{enc.enemy.id}.png" alt={enemyName(enc.enemy.id)} onerror={fallback} />
           {#if dealt > 0}<span class="float dealt">-{dealt}</span>{/if}
           <figcaption>{enemyName(enc.enemy.id)}</figcaption>
         </figure>

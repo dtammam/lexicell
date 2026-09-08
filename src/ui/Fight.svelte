@@ -23,7 +23,7 @@
   // Shuffle costs the turn (Dean, 2026-09-08). The first tap arms it, the second fires;
   // the arm drops on any other action so a stray tap never spends a turn.
   let armedAt: string | null = $state.raw(null);
-  const armKey = $derived(`${run.stats.turns}:${enc?.selection.length ?? 0}`);
+  const armKey = $derived(`${run.stats.turns}:${enc?.selection.length ?? 0}:${run.rejected ?? ''}`);
   const shuffleArmed = $derived(armedAt === armKey);
   // Once the key moves (a tap, a clear, a turn), the arm is dropped for good rather than
   // coming back if the selection returns to the same length.
@@ -50,12 +50,19 @@
 
     <div class="report">
       {#key run.stats.turns}
-        {#if run.lastTurn && (run.lastTurn.word !== '' || run.lastTurn.damage > 0 || run.lastTurn.enemyDamage > 0)}
-          <!-- An empty word is the turn-start report: item damage before any word was played. -->
-          <span class="hit">{run.lastTurn.word === '' ? `Turn start: ${run.lastTurn.damage} damage` : `${run.lastTurn.word.toUpperCase()} hit for ${run.lastTurn.damage}`}</span>
+        {#if run.lastTurn && (run.lastTurn.word !== '' || run.lastTurn.scrambled || run.lastTurn.damage > 0 || run.lastTurn.enemyDamage > 0)}
+          <!-- Empty word + scrambled is a shuffle; empty word alone is the turn-start report (item damage before a word). -->
+          {#if run.lastTurn.word !== ''}
+            <span class="hit">{run.lastTurn.word.toUpperCase()} hit for {run.lastTurn.damage}</span>
+            {#if run.lastTurn.scrambled}<span class="note">grid scrambled</span>{/if}
+          {:else if run.lastTurn.scrambled}
+            <span class="hit">Shuffled the grid</span>
+            {#if run.lastTurn.damage > 0}<span class="note">turn start: {run.lastTurn.damage} damage</span>{/if}
+          {:else}
+            <span class="hit">Turn start: {run.lastTurn.damage} damage</span>
+          {/if}
           {#if run.lastTurn.enemyDamage > 0}<span class="taken">you took {run.lastTurn.enemyDamage}</span>{/if}
           {#if run.lastTurn.healed > 0}<span class="healed">healed {run.lastTurn.healed}</span>{/if}
-          {#if run.lastTurn.scrambled}<span class="note">grid scrambled</span>{/if}
         {:else}
           <span class="note">Spell a word of 3+ letters</span>
         {/if}
@@ -71,6 +78,7 @@
     <div class="grid">
       {#each enc.grid as tile, i (i)}
         {@const order = orderOf(i)}
+        <div class="cell">
         <button
           class="tile"
           class:selected={order > 0}
@@ -84,6 +92,7 @@
           <span class="value">{tile.lockedTurns > 0 ? `\u{1F512}${tile.lockedTurns}` : (LETTER_VALUE[tile.letter] ?? '')}</span>
           {#if order > 0}<span class="order">{order}</span>{/if}
         </button>
+        </div>
       {/each}
     </div>
 
@@ -141,12 +150,24 @@
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* minmax(0, 1fr): a column may shrink below the letter's min-content width, so the
+       four columns always fit the row after an orientation change. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
   }
-  .tile {
+  /* Square cells by percentage padding, which resolves against the cell's width on every
+     layout pass. iOS Safari mishandles aspect-ratio on buttons after a rotation (Dean saw
+     tiles spill past the fourth column until a repaint); this never does. */
+  .cell {
     position: relative;
-    aspect-ratio: 1;
+    width: 100%;
+    padding-top: 100%;
+  }
+  .tile {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     border: 2px solid #3d3d5c;
     border-radius: 12px;
     background: #2a2a45;

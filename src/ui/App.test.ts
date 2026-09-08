@@ -19,6 +19,21 @@ function gridLetters(): string[] {
   return tiles().map((b) => b.querySelector('.letter')?.textContent?.toLowerCase() ?? '');
 }
 
+/** Three unlocked tiles in grid order whose letters are not a word. */
+function nonWordTriple(): number[] {
+  const all = gridLetters();
+  for (let a = 0; a < 16; a++) {
+    for (let b = 0; b < 16; b++) {
+      if (b === a) continue;
+      for (let c = 0; c < 16; c++) {
+        if (c === a || c === b) continue;
+        if (!ctx.dictionary.has(`${all[a]}${all[b]}${all[c]}`) && ![a, b, c].some((i) => tiles()[i]?.disabled)) return [a, b, c];
+      }
+    }
+  }
+  throw new Error('every triple is a word; impossible grid');
+}
+
 function mainHtml(): string {
   return document.querySelector('main')?.innerHTML ?? '';
 }
@@ -121,6 +136,13 @@ describe('App', () => {
     expect(document.querySelector('.word')?.classList.contains('valid')).toBe(true);
     expect(document.querySelectorAll('button.tile .order')).toHaveLength(idx.length);
     expect(Array.from(document.querySelectorAll('button.tile .order')).map((o) => o.textContent)).toEqual(idx.map((_, n) => String(n + 1)));
+    // A 3+ letter non-word must stay yellow: this is what separates isWord from a length check.
+    await click(getButton('Clear'));
+    for (const i of nonWordTriple()) await click(tiles()[i] ?? null);
+    expect(document.querySelectorAll('button.tile.selected')).toHaveLength(3);
+    expect(document.querySelectorAll('button.tile.selected.valid')).toHaveLength(0);
+    expect(getButton('Attack').classList.contains('ready')).toBe(false);
+    expect(document.querySelector('.word')?.classList.contains('valid')).toBe(false);
   });
 
   it('a played word shows its definition under the report once the table loads', async () => {
@@ -136,19 +158,7 @@ describe('App', () => {
 
   it('rejects a non-word without spending the turn, and Clear empties the selection', async () => {
     await startRun();
-    const all = gridLetters();
-    let triple: number[] | null = null;
-    for (let a = 0; a < 16 && !triple; a++) {
-      for (let b = 0; b < 16 && !triple; b++) {
-        if (b === a) continue;
-        for (let c = 0; c < 16 && !triple; c++) {
-          if (c === a || c === b) continue;
-          if (!ctx.dictionary.has(`${all[a]}${all[b]}${all[c]}`) && ![a, b, c].some((i) => tiles()[i]?.disabled)) triple = [a, b, c];
-        }
-      }
-    }
-    if (!triple) throw new Error('every triple is a word; impossible grid');
-    for (const i of triple) await click(tiles()[i] ?? null);
+    for (const i of nonWordTriple()) await click(tiles()[i] ?? null);
     expect(document.querySelectorAll('button.tile.selected')).toHaveLength(3);
     await click(getButton('Attack'));
     expect(document.querySelector('.rejected')?.textContent).toMatch(/word/i);
@@ -228,6 +238,46 @@ describe('App', () => {
     expect(after.rng.seed).not.toBe(before.rng.seed);
   });
 
+  it('a fresh page load with a save: New run asks, and confirming starts over instead of resuming the old save', async () => {
+    // Gate W2: without persist.clear() in onPlay, openStore would load the old save and resume it.
+    await startRun();
+    await attackOnce('short');
+    cleanup();
+    render(App);
+    expect(await findByText('Continue', 15000)).toBeTruthy();
+    await click(getButton('New run'));
+    vi.spyOn(Date, 'now').mockReturnValue(SEED + 7);
+    await click(getButton('Abandon the current run and start over?'));
+    expect(await findByText('Choose a starting item')).toBeTruthy();
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { stats: { turns: number }; rng: { seed: number } };
+    expect(saved.stats.turns).toBe(0);
+    expect(saved.rng.seed).toBe(SEED + 7);
+  });
+
+  it('a rejected Attack disarms Shuffle', async () => {
+    await startRun();
+    for (const i of nonWordTriple()) await click(tiles()[i] ?? null);
+    await click(getButton('Shuffle'));
+    expect(getButton('Shuffle? Costs a turn')).toBeTruthy();
+    await click(getButton('Attack'));
+    expect(document.querySelector('.rejected')).not.toBeNull();
+    expect(getButton('Shuffle')).toBeTruthy();
+  });
+
+  it('a finished run does not offer Continue on the title', async () => {
+    await startRun();
+    for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {
+      const offer = document.querySelector('button.offer');
+      if (offer) await click(offer);
+      else await attackOnce();
+    }
+    expect(getByText(/^You (won|died)$/)).toBeTruthy();
+    cleanup();
+    render(App);
+    await findByText('New run', 15000);
+    expect(queryButton('Continue')).toBeNull();
+  }, 60000);
+
   it('the arena shows you and the enemy by sprite id, and replays hit and shake on a turn', async () => {
     await startRun();
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { encounter: { enemy: { id: string } } };
@@ -266,7 +316,7 @@ describe('App', () => {
     await click(getButton('Shuffle? Costs a turn'));
     if (queryByText('Choose an item')) throw new Error('a shuffle deals no damage; the enemy cannot have died');
     expect(getByText('Turn 2')).toBeTruthy();
-    expect(getByText('grid scrambled')).toBeTruthy();
+    expect(getByText('Shuffled the grid')).toBeTruthy();
     expect(getButton('Shuffle')).toBeTruthy();
     const after = gridLetters();
     expect(after).not.toEqual(before);

@@ -43,6 +43,7 @@ describe('service worker generator', () => {
     const sw = serviceWorkerSource(files(['index.html', 'a']));
     for (const evt of ['install', 'activate', 'fetch']) expect(sw).toContain(`addEventListener('${evt}'`);
     expect(sw).toContain("caches.match('/index.html')");
+    expect(sw).toMatch(/if \(response\.ok\)[\s\S]*cache\.put\('\/index\.html'/);
     expect(sw).toContain('skipWaiting');
     expect(sw).toContain('clients.claim');
     expect(sw).not.toMatch(/import |require\(/);

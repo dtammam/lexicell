@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
 import { candidateIndices, candidateWords } from './candidates';
-import { isDead } from './grid';
+import { isDead, refill } from './grid';
 import { newRun, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
 import type { Encounter, RunState } from './types';
@@ -331,6 +331,35 @@ describe('shuffle (costs the turn)', () => {
     const same = g2.filter((t, i) => i !== 3 && i !== 9 && t.letter === grid[i]?.letter).length;
     expect(same).toBeLessThan(14);
     expect(isDead(g2, ctx.solver)).toBe(false);
+  });
+
+  it('with fourteen tiles locked the guard fires after a shuffle and the grid comes back live', () => {
+    const s0 = inFight(16);
+    const enc0 = s0.encounter as Encounter;
+    const grid = enc0.grid.map((t, i) => (i < 14 ? { ...t, lockedTurns: 3 } : t));
+    const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
+    const s2 = reduce(s1, { type: 'shuffle' }, ctx);
+    if (s2.phase !== 'fight') return; // the enemy's turn can kill at low HP; not this seed's concern
+    expect(isDead((s2.encounter as Encounter).grid, ctx.solver)).toBe(false);
+    expect(s2.lastTurn?.scrambled).toBe(true);
+  });
+
+  it('a shuffle draws with the onTileDraw vowel weight, exactly as refill would', () => {
+    const s0 = inFight(17);
+    const s1: RunState = { ...s0, player: { ...s0.player, items: ['vowel-magnet'] } };
+    const enc = s1.encounter as Encounter;
+    const all = enc.grid.map((_, i) => i);
+    const [expected] = refill(s1.rng, enc.grid, all, 1.5);
+    const [unweighted] = refill(s1.rng, enc.grid, all, 1);
+    const s2 = reduce(s1, { type: 'shuffle' }, ctx);
+    if (s2.phase !== 'fight') return;
+    expect((s2.encounter as Encounter).grid).toEqual(expected);
+    expect(expected).not.toEqual(unweighted);
+  });
+
+  it('clears a stale rejection', () => {
+    const s0: RunState = { ...inFight(18), rejected: 'not a word' };
+    expect(reduce(s0, { type: 'shuffle' }, ctx).rejected).toBeNull();
   });
 
   it('is deterministic and JSON-clean', () => {

@@ -26,7 +26,8 @@
   loadContext()
     .then((c) => {
       ctx = c;
-      hasSave = persist.load() !== null;
+      const saved = persist.load();
+      hasSave = saved !== null && saved.phase !== 'summary';
     })
     .catch((e: unknown) => {
       error = e instanceof Error ? e.message : String(e);
