@@ -71,7 +71,18 @@ Exit criteria:
 ```
 
 Mediocre sits at the top of its band; the per-item table shows the
-mythics between 50% and 100% with, which is the intent.
+mythics winning between 50% and 100% of the runs that hold them, which
+is the intent.
+
+Gate (adversarial, one round): the reduceDamage floor at zero had no
+test and Tardigrade's 999 made it load-bearing (a mutant dropping it
+turned an enemy hit into a full heal); Sheath's text said odd turns
+but turnEvery 1 fires every turn, now even turns; the mythic offer
+weight had no binding test. All three fixed in the round. Disclosed:
+the mediocre bot's offer score rates five of the eight mythics no
+higher than an ordinary two-effect common and passed on 43% of the
+mythics it was offered, so "22% pick a mythic" is a bot artefact, not
+the items' pull (tracker #6).
 
 ### Item pool 24 to 50 (PR #30, 2026-09-08)
 

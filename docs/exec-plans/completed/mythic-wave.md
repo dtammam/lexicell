@@ -13,9 +13,11 @@ powered."
 
 - `Rarity` gains `mythic`. `RARITY_WEIGHT` gains `mythic: 0.35`. With
   64 regular items (common 3, uncommon 2, rare 1) and 8 mythics, a
-  mythic fills about 2.5% of offer slots, so roughly 7% of offers and
-  about half of all runs see one. Rare enough to be an event, common
-  enough to be real.
+  mythic fills about 2% of offer slots (8 x 0.35 over a fresh pool
+  weight of 141.8 is 1.97%; the gate measured 2.0-2.1% over 500 runs),
+  so roughly 6% of offers and 35-43% of runs see one. The plan's first
+  draft said 2.5% / 7% / half; the reviewer's measurement corrected it.
+  Rare enough to be an event, common enough to be real.
 - Mythics are overpowered on purpose and bounded by the vocabulary:
   triple damage on everything, heal to full after each fight, an enemy
   that takes heavy damage every turn, immunity on even turns. No new

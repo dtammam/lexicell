@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
+import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { candidateIndices, candidateWords } from './candidates';
 import { isDead, refill, settle } from './grid';
-import { newRun, reduce, selectedWord, type Action, type EngineContext } from './reducer';
+import { newRun, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
 import type { Encounter, RunState } from './types';
 
@@ -682,6 +683,40 @@ describe('boss mechanic and dead-grid guard', () => {
       }
     }
     expect(scrambles).toBeGreaterThan(3);
+  });
+});
+
+describe('mythic tier (PR #31 gate)', () => {
+  it('reduceDamage floors at zero: Tardigrade on an even turn takes nothing and heals nothing', () => {
+    // The adversarial round dropped the Math.max(0, ...) floor and every test stayed green while the
+    // enemy's hit healed the player to full and damageTaken went negative. Before the mythics the
+    // largest reduceDamage was 8, so the floor was dead code; with 999 it is the whole item.
+    const s0 = newRun(7, ctx);
+    if (s0.phase !== 'fight') throw new Error('expected a fight');
+    const armoured: RunState = { ...s0, player: { ...s0.player, hp: 40, items: ['tardigrade'] } };
+    const s1 = reduce(armoured, { type: 'shuffle' }, ctx); // turn 1: odd, the hit lands
+    expect(s1.phase).toBe('fight');
+    expect(s1.player.hp).toBeLessThan(40);
+    const s2 = reduce(s1, { type: 'shuffle' }, ctx); // turn 2: even, 999 reduction, floored at 0
+    expect(s2.phase).toBe('fight');
+    expect(s2.player.hp).toBe(s1.player.hp);
+    expect(s2.stats.damageTaken).toBe(s1.stats.damageTaken);
+    expect(s2.lastTurn?.enemyDamage).toBe(0);
+  });
+
+  it('mythics can be offered: a pool of only mythics still fills a three-item offer', () => {
+    // Binds RARITY_WEIGHT.mythic > 0: at weight 0 weightedPick throws on an all-mythic pool.
+    const mythics = CONTENT.items.filter((i) => i.rarity === 'mythic');
+    expect(mythics).toHaveLength(8);
+    const onlyMythic: EngineContext = nodeContext({ ...CONTENT, items: mythics, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const s = newRun(3, onlyMythic);
+    expect(s.phase).toBe('pick');
+    expect(s.offer).toHaveLength(3);
+    for (const id of s.offer ?? []) expect(mythics.map((m) => m.id)).toContain(id);
+  });
+
+  it('the content mirror of the rarity weights matches the engine constant', () => {
+    expect(CONTENT_RARITY_WEIGHT).toEqual(RARITY_WEIGHT);
   });
 });
 

@@ -457,9 +457,9 @@ export const ITEMS: readonly ItemDef[] = [
     id: 'sheath',
     name: 'Sheath',
     rarity: 'common',
-    description: 'On odd turns, take 5 less damage from every hit.',
+    description: 'On even turns, take 5 less damage from every hit.',
     flavor: 'It opens and closes.',
-    hooks: { onDamageTaken: [{ type: 'condition', when: { kind: 'turnEvery', value: 1 }, then: [{ type: 'reduceDamage', value: 5 }] }] },
+    hooks: { onDamageTaken: [{ type: 'condition', when: { kind: 'turnEvery', value: 2 }, then: [{ type: 'reduceDamage', value: 5 }] }] },
   },
   {
     id: 'carotenoid',
