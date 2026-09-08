@@ -36,11 +36,17 @@ context; they are defined on the arena and stay inside it.
 
 ## Type
 
-- `--font-hud` (Silkscreen): tile letters, numbers, labels, the word
-  line. Sizes are multiples of 8 px only (`--hud-s` 8, `--hud-m` 16,
-  `--hud-l` 24, `--hud-xl` 32). At other sizes it aliases.
-- `--font-ui` (Space Grotesk): sentences, buttons, descriptions,
-  definitions. 13 to 16 px for reading.
+- Legibility comes first (Dean, 2026-09-08): nobody burns a mental
+  cycle on U versus V. Anything a player must READ as a word is set in
+  `--font-letter`, Atkinson Hyperlegible, designed so U/V, I/l/1, O/0
+  and C/G cannot be confused: tile letters, the word line, the missed
+  word, item names, headings.
+- `--font-ui` (also Atkinson Hyperlegible): sentences, buttons,
+  descriptions, definitions. 13 to 16 px for reading.
+- `--font-hud` (Silkscreen): numbers and short labels only: HP, turn,
+  act, damage floats, the build stamp, tile badges. Never a word.
+  Sizes are multiples of 8 px only (`--hud-s` 8, `--hud-m` 16,
+  `--hud-l` 24, `--hud-xl` 32); at other sizes it aliases.
 - Two faces, no third. Both vendored under `public/fonts` with their
   Open Font License texts; nothing loads from a third party.
 
@@ -65,8 +71,8 @@ context; they are defined on the arena and stay inside it.
 
 ## Component rules
 
-- Tiles: `--tile` fill, letter in `--font-hud` at the largest size the
-  grid allows, tier by border colour (vowel fill `--score`, mid edge
+- Tiles: `--tile` fill, letter in `--font-letter` bold at half the
+  tile's side, tier by border colour (vowel fill `--score`, mid edge
   `--mid`, rare edge `--rare` with a glow), selection overrides tier
   (`--select` fill, then `--life` fill when the word is valid), locked
   tiles dashed and dimmed, venom edge `--venom` with a glow and a
@@ -80,6 +86,7 @@ context; they are defined on the arena and stay inside it.
 
 ## What "slop" looks like, so it stays out
 
-A component with its own hex values. A third font. A pill button. A
+A component with its own hex values. A third font. A word set in the
+pixel face. A pill button. A
 soft drop shadow. A gradient on a card. An easing curve on a state
 change. Text under 13 px in the UI face. Emoji as icons.

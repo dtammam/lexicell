@@ -188,8 +188,9 @@
     box-shadow: 2px 2px 0 var(--shade);
     background: var(--score);
     color: var(--ground);
-    font-family: var(--font-hud);
-    font-size: var(--hud-m);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -266,8 +267,9 @@
   }
   h2 {
     margin: 0;
-    font-family: var(--font-hud);
-    font-size: var(--hud-l);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 26px;
   }
   li {
     margin: 0;

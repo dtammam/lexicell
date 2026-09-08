@@ -19,10 +19,16 @@
   src: url('/fonts/silkscreen-700.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Space Grotesk';
-  font-weight: 300 700;
+  font-family: 'Atkinson Hyperlegible';
+  font-weight: 400;
   font-display: swap;
-  src: url('/fonts/space-grotesk.woff2') format('woff2');
+  src: url('/fonts/atkinson-hyperlegible-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/atkinson-hyperlegible-700.woff2') format('woff2');
 }
 
 :root {
@@ -56,10 +62,13 @@
   --tile-valid-ink: var(--ground);
   --tile-locked-ink: #6a5599;
 
-  /* Type. HUD = pixel face for numbers, labels, tile letters; UI = text. Silkscreen is built on
-     an 8px grid: use 8, 16, 24, 32 px sizes only. */
+  /* Type. Legibility first (Dean, 2026-09-08: nobody burns a cycle on U versus V). Letters,
+     words, names and text are Atkinson Hyperlegible, built so U/V, I/l/1, O/0 and C/G cannot
+     be confused. The pixel face is for NUMBERS and short labels only, never for a word a
+     player must read; Silkscreen sits on an 8px grid: 8, 16, 24, 32 px sizes only. */
   --font-hud: 'Silkscreen', ui-monospace, monospace;
-  --font-ui: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-ui: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
+  --font-letter: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
   --hud-s: 8px;
   --hud-m: 16px;
   --hud-l: 24px;

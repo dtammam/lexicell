@@ -207,8 +207,9 @@
   }
   .hit {
     color: var(--score);
-    font-family: var(--font-hud);
-    font-size: var(--hud-m);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 15px;
     animation: pop var(--dur-settle) var(--ease-settle);
   }
   .taken {
@@ -231,8 +232,9 @@
   }
   .missed strong {
     color: var(--score);
-    font-family: var(--font-hud);
-    font-size: var(--hud-m);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    letter-spacing: 0.08em;
   }
   .missed.best {
     color: var(--life);
@@ -243,9 +245,10 @@
     justify-content: center;
     align-items: baseline;
     gap: var(--s3);
-    font-family: var(--font-hud);
-    font-size: var(--hud-l);
-    letter-spacing: 0.1em;
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: 0.14em;
     min-height: 2rem;
     line-height: 2rem;
     color: var(--ink);
@@ -290,10 +293,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--font-hud);
-    /* Silkscreen wants multiples of 8px: round the tile-scaled size down to one. */
-    font-size: 24px;
-    font-size: round(down, calc(min(100cqw, 100cqh) / 4 * 0.45), 8px);
+    font-family: var(--font-letter);
+    /* The letter is the thing: half the tile's side, bold, in the legible face. */
+    font-size: calc(min(100cqw, 100cqh) / 4 * 0.52);
     font-weight: 700;
     line-height: 1;
     touch-action: manipulation;
