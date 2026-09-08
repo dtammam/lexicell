@@ -22,6 +22,7 @@
           <span class="text">
             <span class="name">{item.name} <small class={item.rarity}>{item.rarity}</small></span>
             <span class="desc">{item.description}</span>
+            <span class="flavor">{item.flavor}</span>
           </span>
         </li>
       {/each}
@@ -97,6 +98,11 @@
     display: flex;
     gap: var(--s2);
     align-items: baseline;
+  }
+  .flavor {
+    color: var(--score);
+    font-style: italic;
+    font-size: 12px;
   }
   .desc {
     color: var(--muted);

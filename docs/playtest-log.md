@@ -54,3 +54,7 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | The pixel font (regular weight) in the battle area is right; the hyperlegible face is off-vibe | implemented (PR #24: Silkscreen regular for letters, words, names, numbers and buttons at pixel-true sizes; system sans for running text; Atkinson removed) |
 | 2026-09-08 | Desktop: pressing Attack makes the item drawer show a scrollbar, glitchy | implemented (PR #25: the screen never scrolls; the grid absorbs the report growing a line) |
 | 2026-09-08 | A menu to see all items and what they do | implemented (PR #26: Organelles on the title screen, every item with icon and text by rarity) |
+| 2026-09-08 | A single line of flavor text for each item | implemented (PR #27: `flavor` on every item, shown in its own voice under the mechanic on offers, the panel and the compendium) |
+| 2026-09-08 | Occasional tiles should shake or shiver, subtly, as if biologically unstable | to do (PR #28) |
+| 2026-09-08 | Intro's third beat: fill all sixteen tiles with the phrase, and make the closing line say that the longest words are how you evolve and deal damage | to do (PR #28) |
+| 2026-09-08 | Graft picked items onto the organism so it visibly evolves with the build | to do (PR #29: item glyphs attached to the player sprite in the arena) |

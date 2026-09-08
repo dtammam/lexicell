@@ -25,7 +25,10 @@ export interface ItemDef {
   readonly id: string;
   readonly name: string;
   readonly rarity: Rarity;
+  /** What it does, in one sentence a player can act on. */
   readonly description: string;
+  /** One line of voice (Dean, 2026-09-08). Never mechanics; the description carries those. */
+  readonly flavor: string;
   readonly hooks: Partial<Record<Hook, readonly Effect[]>>;
 }
 

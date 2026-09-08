@@ -10,5 +10,5 @@ export function enemyName(id: string): string {
 }
 
 export function itemDef(id: string): ItemDef {
-  return items.get(id) ?? { id, name: id, rarity: 'common', description: '', hooks: {} };
+  return items.get(id) ?? { id, name: id, rarity: 'common', description: '', flavor: '', hooks: {} };
 }
