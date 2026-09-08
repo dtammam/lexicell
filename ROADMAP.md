@@ -34,11 +34,16 @@ cells).
   measurable; the 3000-run tables catch degenerate and never-picked
   items only.
 - **Run history with export** (Dean, deferred behind features, now
-  queued after the wave): a per-device list of finished runs, exported
-  as a file. Touches persistence: plan and reviewer round.
-- **Starting cells** (Dean, 2026-09-08): a few playable cells to start
-  a run as (balanced, aggressive, defensive, ...). Engine: numbered
-  questions first, then a plan and a reviewer round.
+  next): plan `docs/exec-plans/active/run-history.md` (PR #48), four
+  questions for Dean. Touches persistence: reviewer round.
+- **Starting cells** (Dean, 2026-09-08): plan
+  `docs/exec-plans/active/starting-cells.md` (PR #48), five questions
+  for Dean. Engine and save schema: reviewer round. Builds after run
+  history.
+- **"Best there" reveal** (Dean, 2026-09-08, a design question): the
+  missed-word line can hand the player a word still on the grid.
+  Proposed: reveal only words that shared a tile with the word played.
+  Waiting on Dean's word.
 - **Daily seed** as the return hook (Phase 3 in the pack; no
   achievements). **Sound and graphics direction**: deliberately not
   yet (Dean).
