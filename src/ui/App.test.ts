@@ -296,6 +296,16 @@ describe('App', () => {
     expect(document.querySelector('.fighter.you.shake') !== null).toBe(took > 0);
   });
 
+  it('the arena backdrop picks a pattern by enemy and carries the act', async () => {
+    await startRun();
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { encounter: { enemy: { id: string } } };
+    const patterns: Record<string, string> = { amoeba: 'dots', flagellate: 'stripes', polyp: 'cells', colony: 'rings' };
+    const bg = document.querySelector<HTMLElement>('.arena .bg');
+    expect(bg?.dataset.pattern).toBe(patterns[saved.encounter.enemy.id]);
+    expect(bg?.querySelectorAll('.layer')).toHaveLength(2);
+    expect(document.querySelector('.arena')?.classList.contains('act-1')).toBe(true);
+  });
+
   it('a sprite that fails to load falls back to the unknown sprite', async () => {
     await startRun();
     const img = document.querySelector<HTMLImageElement>('.fighter.enemy img');

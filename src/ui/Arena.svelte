@@ -12,6 +12,9 @@
 
   const enc = $derived(run.encounter);
   const act = $derived(Math.floor(run.encounterIndex / 3) + 1);
+  /** Earthbound-style battle backdrop: a pattern per enemy, a palette per act, slow drift. */
+  const PATTERNS: Readonly<Record<string, string>> = { amoeba: 'dots', flagellate: 'stripes', polyp: 'cells', colony: 'rings' };
+  const pattern = $derived(PATTERNS[enc?.enemy.id ?? ''] ?? 'dots');
   const dealt = $derived(run.lastTurn?.damage ?? 0);
   const taken = $derived(run.lastTurn?.enemyDamage ?? 0);
 
@@ -23,6 +26,10 @@
 
 {#if enc}
   <div class="arena act-{act}" data-act={act}>
+    <div class="bg" data-pattern={pattern} aria-hidden="true">
+      <div class="layer a"></div>
+      <div class="layer b"></div>
+    </div>
     <div class="row">
       <span>Act {act}</span>
       <span>Encounter {run.encounterIndex + 1} / 9</span>
@@ -60,20 +67,101 @@
 
 <style>
   .arena {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
     flex: none;
     border-radius: 14px;
     padding: 0.4rem 0.8rem 0.6rem;
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    background: linear-gradient(180deg, #1f2b3a 0%, #142033 100%);
+    /* Three acts, three palettes: pond, tide pool, deep. Cosmetic only (pack: theme is art). */
+    --bg0: #16263a;
+    --bg1: #1e4d5c;
+    --bg2: #3fb8b0;
+    --bg3: #a9e6c8;
+    background: linear-gradient(180deg, var(--bg0) 0%, #0f1a2a 100%);
   }
-  /* Three acts, three moods: pond, tide pool, deep. Cosmetic only (pack: theme is art). */
   .act-2 {
-    background: linear-gradient(180deg, #2b2340 0%, #1a1530 100%);
+    --bg0: #24183d;
+    --bg1: #4a2a7a;
+    --bg2: #9b6bff;
+    --bg3: #ffb3f0;
   }
   .act-3 {
-    background: linear-gradient(180deg, #3a1f2b 0%, #241420 100%);
+    --bg0: #3a1420;
+    --bg1: #7a2a3a;
+    --bg2: #ff6b6b;
+    --bg3: #ffd166;
+  }
+  /* The backdrop: two oversized pattern layers that drift and breathe on the compositor
+     (transform and opacity only), behind everything in the arena. Earthbound's trick was
+     layered, palette-cycled patterns; this is the CSS-sized version of it. */
+  .bg {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+  .layer {
+    position: absolute;
+    inset: -30%;
+    opacity: 0.55;
+    will-change: transform;
+  }
+  .layer.a {
+    animation: drift 24s linear infinite;
+  }
+  .layer.b {
+    animation: breathe 11s ease-in-out infinite alternate;
+    mix-blend-mode: screen;
+    opacity: 0.35;
+  }
+  .bg[data-pattern='dots'] .layer.a {
+    background: radial-gradient(circle at 30% 30%, var(--bg2) 0 9%, transparent 10%) 0 0 / 56px 56px;
+  }
+  .bg[data-pattern='dots'] .layer.b {
+    background: radial-gradient(circle at 60% 60%, var(--bg1) 0 18%, transparent 19%) 0 0 / 90px 90px;
+  }
+  .bg[data-pattern='stripes'] .layer.a {
+    background: repeating-linear-gradient(115deg, var(--bg1) 0 14px, transparent 14px 40px);
+  }
+  .bg[data-pattern='stripes'] .layer.b {
+    background: repeating-linear-gradient(65deg, var(--bg2) 0 4px, transparent 4px 58px);
+  }
+  .bg[data-pattern='cells'] .layer.a {
+    background: radial-gradient(circle at 50% 50%, transparent 0 34%, var(--bg1) 35% 40%, transparent 41%) 0 0 / 70px 70px;
+  }
+  .bg[data-pattern='cells'] .layer.b {
+    background: radial-gradient(circle at 50% 50%, var(--bg2) 0 6%, transparent 7%) 20px 20px / 70px 70px;
+  }
+  .bg[data-pattern='rings'] .layer.a {
+    background: repeating-radial-gradient(circle at 50% 50%, var(--bg1) 0 10px, transparent 10px 34px);
+  }
+  .bg[data-pattern='rings'] .layer.b {
+    background: repeating-radial-gradient(circle at 50% 50%, transparent 0 20px, var(--bg3) 20px 22px, transparent 22px 60px);
+  }
+  @keyframes drift {
+    from {
+      transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+    to {
+      transform: translate3d(-56px, -56px, 0) rotate(2deg);
+    }
+  }
+  @keyframes breathe {
+    from {
+      transform: scale(1) rotate(0deg);
+    }
+    to {
+      transform: scale(1.18) rotate(-3deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .layer {
+      animation: none;
+    }
   }
   .row,
   .bar-label {
@@ -110,7 +198,12 @@
   }
   figcaption {
     font-size: 0.8rem;
-    color: #9a9ab5;
+    color: #d8d8ea;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+  .row,
+  .bar-label {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   }
   .vs {
     align-self: center;
