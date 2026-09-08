@@ -64,7 +64,8 @@
   }
   dd {
     margin: 0;
-    font-family: var(--font-letter);
+    font-family: var(--font-hud);
+    font-variant-numeric: tabular-nums;
     font-weight: 400;
     font-size: var(--hud-m);
   }

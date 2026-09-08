@@ -19,6 +19,12 @@
   src: url('/fonts/silkscreen-700.woff2') format('woff2');
 }
 @font-face {
+  font-family: 'DotGothic16';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/dotgothic16.woff2') format('woff2');
+}
+@font-face {
   font-family: 'Pixelify Sans';
   font-weight: 400 700;
   font-display: swap;
@@ -57,18 +63,21 @@
   --tile-valid-ink: var(--ground);
   --tile-locked-ink: #6a5599;
 
-  /* Type (Dean, 2026-09-08, second ruling): the pixel face in its REGULAR weight is the voice
-     of the game: tile letters, words, names, headings, numbers. Legibility is kept by size,
-     not by face: Silkscreen sits on an 8px grid, so letters use 16, 24 or 32 px and never
-     bold. Running text (descriptions, definitions, the intro) is the system sans, since a
-     paragraph in a pixel face is unreadable. Two faces: one vendored, one the device's. */
-  --font-hud: 'Silkscreen', ui-monospace, monospace;
+  /* Type (Dean, 2026-09-08, three rulings). The pixel face in its REGULAR weight is the voice
+     of the game, never bold. Silkscreen (5px grid, 8px multiples) is the LETTER face: tile
+     letters, the word line, the missed word, the wordmark, headings. Its digits were the
+     problem (3 8 6 9 0 share most of their dots), so the HUD role moved to DotGothic16
+     (Dean's pick from seven faces): numbers, HP lines, names, badges, buttons, the build
+     stamp. DotGothic16 is a 16px grid: 16 or 32 px, never 8, never 24. Three faces, all
+     pixel, all vendored. */
+  --font-hud: 'DotGothic16', ui-monospace, monospace;
   --font-letter: 'Silkscreen', ui-monospace, monospace;
   /* Running text is Pixelify Sans (Dean, 2026-09-08: the normal text was too normal): a pixel
      face with a real lowercase that stays readable at 16px. Never below 16px. */
   --font-ui: 'Pixelify Sans', system-ui, -apple-system, sans-serif;
   --text: 16px;
-  --hud-s: 8px;
+  /* No digit under 16px anywhere (Dean, 2026-09-08): the small HUD size is the HUD face's floor. */
+  --hud-s: 16px;
   --hud-m: 16px;
   --hud-l: 24px;
   --hud-xl: 32px;
@@ -112,7 +121,8 @@ body {
 
 /* Shared control shapes. Components add role colours; the shape is the same everywhere. */
 .btn {
-  font-family: var(--font-letter);
+  font-family: var(--font-hud);
+  font-variant-numeric: tabular-nums;
   font-weight: 400;
   font-size: var(--hud-m);
   padding: var(--s3) var(--s2);
@@ -154,11 +164,13 @@ body {
 .hud {
   font-family: var(--font-hud);
   font-size: var(--hud-m);
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 .hud-s {
   font-family: var(--font-hud);
   font-size: var(--hud-s);
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 

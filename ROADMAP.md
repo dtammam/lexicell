@@ -46,6 +46,22 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Small PRs under iteration mode (one line each, newest first)
+
+- PR #36 (2026-09-08): DotGothic16 vendored as the HUD face (Dean's
+  pick from seven faces); Silkscreen keeps tiles, the word line and
+  headings; no digit under 16 px; tabular digits.
+- PR #35 (2026-09-08): CI runs once per commit (pull_request only);
+  the push twin of a green run had failed jobless and tripped the
+  merge watcher, which had not gated the merge on it. Chains gate now.
+- PR #34 (2026-09-08): fit any viewport after an iPhone 17 playtest
+  (top lost in portrait, actions lost in landscape): hidden-scrollbar
+  fallback, two-column landscape fight, grid floor 160 px, capped items
+  sheet, no double-tap zoom. Not verified on the device.
+- PR #33 (2026-09-08): v1 scope changed to a 200-item pool (pack
+  updated); effects wave exec plan opened with six questions for Dean.
+- PR #32 (2026-09-08): intro grid reads LONG WORD HITS HARD.
+
 ### Mythic tier and 72 items (PR #31, 2026-09-08)
 
 Dean: even more items, and a mythic pool, explicitly powered. `Rarity`
