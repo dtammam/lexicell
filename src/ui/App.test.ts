@@ -105,7 +105,17 @@ describe('App', () => {
     expect((document.querySelector('.wotd .gloss')?.textContent ?? '').length).toBeGreaterThan(0);
     await click(play);
     expect(await findByText('You are a cell.')).toBeTruthy();
-    expect(document.querySelectorAll('.dish .cell')).toHaveLength(2);
+    // Three beats: auto-play, and a tap on the scene skips ahead; the button never waits for them.
+    expect(getByText('Something ate your pond.')).toBeTruthy();
+    expect(document.querySelector('.pond .predator')?.getAttribute('src')).toBe('/sprites/amoeba.png');
+    await click(document.querySelector('.scene'));
+    expect(getByText(/a portal made of letters/)).toBeTruthy();
+    expect(document.querySelector('.portal .ring')).not.toBeNull();
+    await click(document.querySelector('.scene'));
+    expect(getByText('In here, words are teeth.')).toBeTruthy();
+    expect(document.querySelectorAll('.arrival .tile')).toHaveLength(16);
+    await click(document.querySelector('.scene'));
+    expect(getByText('In here, words are teeth.')).toBeTruthy();
     await click(getButton('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
     expect(getByText(/Tap one\. You keep it/)).toBeTruthy();
