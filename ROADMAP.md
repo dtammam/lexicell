@@ -46,6 +46,65 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Effects wave, UI and content batch 1 (PR #40, 2026-09-08)
+
+Stacked on PR #39. UI: the shield rides the HP bar as a second segment
+with a "+n" label, poison and stun badge the enemy sprite, the shuffle
+button reads "Free xN" in the life colour while a charge is held and
+needs no arming, report lines for poison, stun, shield and redraws,
+redrawn tiles blink in place, the compendium states the two-commons
+rule; `--shield` token. Content: forty items on the new verbs (20
+common, 12 uncommon, 7 rare, 1 mythic) for 112 in total, glyphs from
+the templates. Curve D: act 2 damage 1.2 / 1.4 / 1.9 (was 1.1 / 1.3 /
+1.7), act 3 hp 3.1 / 3.5 / 3.0 and damage 2.8 / 3.1 / 3.2 (was 2.8 /
+3.2 / 2.6 and 2.2 / 2.5 / 2.5), because the new pool and the offer
+rule made act 3 a cruise for the mediocre bot (HP rising through acts
+3 on curve C). Act 1 untouched. 193 tests.
+
+`npx tsx scripts/sim.ts` on curve C with the 112 items (before the
+curve change; mediocre out of band, tracker #7):
+
+```
+|   greedy |  500 |    81.6% |           9 |       20.7 |        16 |   100 |   100 |    98 |    92 |    92 |    92 |    74 |    76 |    77 |
+| mediocre |  500 |    45.8% |           9 |       37.1 |        13 |   101 |    95 |    80 |    59 |    59 |    60 |    47 |    56 |    63 |
+|   solver |  500 |    95.6% |           9 |       14.9 |         6 |   100 |   101 |   100 |    98 |    98 |    99 |    88 |    89 |    89 |
+```
+
+The first per-item table (1500 runs per bot) caught a degenerate item:
+Paralytic stunned on every word, a permanent lock against every-turn
+attackers, 98% wins for the mediocre bot in the 154 runs that held it.
+It now stuns every second turn. Carapace 8 to 12 shield and Chrysalis 3
+to 4 shield were the two shield items with n > 100 sitting under the
+base rate. Mediocre on curve D before those three edits: 35.2%.
+
+`npx tsx scripts/sim.ts` on curve D with the three edits (shipped):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    66.0% |           9 |       20.6 |        13 |   100 |   100 |    98 |    92 |    91 |    91 |    70 |    72 |    74 |
+| mediocre |  500 |    30.8% |           6 |       34.0 |        10 |   101 |    95 |    79 |    58 |    57 |    58 |    38 |    45 |    53 |
+|   solver |  500 |    85.0% |           9 |       15.3 |         6 |   100 |   101 |   100 |    98 |    98 |    98 |    85 |    84 |    83 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+All three criteria pass; tracker #7 closes. Greedy fell from 78% to
+66%: the harder act 3 costs the strong human too, and 66% is inside
+the criterion but worth watching in Dean's own runs. Per-item table:
+`docs/sim/batch-1-impact.md` (1500 runs per bot, pasted). The plan's
+cut rule (an item within 2 points of base for both bots is a reskin)
+is not measurable at this sample: an item is held in roughly 100 of
+1500 runs, so its win-with rate carries about plus or minus 10 points.
+At 1500 runs the table catches degenerate items (Paralytic) and items
+the mediocre bot never takes (seven, all gated on conditions its 4-5
+letter words cannot meet), not two-point reskins. A 10,000-run table
+is a batch-2 job.
+
 ### Effects wave, engine PR (PR #39, 2026-09-08)
 
 Dean agreed all six plan questions. Nine verbs (poisonEnemy, stun,

@@ -518,6 +518,18 @@ TEMPLATED = {
     "lateral-line": ("rare", "wave"), "nucleolus": ("rare", "ring"), "exoskeleton": ("rare", "shield"), "lysozyme": ("rare", "drop"),
     "apex-genome": ("mythic", "star"), "immortal-line": ("mythic", "ring"), "plague": ("mythic", "cluster"), "tardigrade": ("mythic", "blob"),
     "lexicon": ("mythic", "shield"), "mirror-membrane": ("mythic", "spike"), "primordial-soup": ("mythic", "drop"), "hydrothermal-vent": ("mythic", "rod"),
+    # Effects wave, batch 1.
+    "venom-gland": ("common", "drop"), "numbing-barb": ("common", "spike"), "capsule": ("common", "shield"), "siphon": ("common", "wave"),
+    "flick": ("common", "wave"), "molt": ("common", "ring"), "chemotaxis": ("common", "cluster"), "growth-factor": ("common", "blob"),
+    "vesicle": ("common", "ring"), "polymerase": ("common", "rod"), "capsid": ("common", "star"), "tail-fiber": ("common", "rod"),
+    "diploid": ("common", "cluster"), "haploid": ("common", "blob"), "primer": ("common", "spike"), "coagulant": ("common", "shield"),
+    "tannin": ("common", "drop"), "scavenger": ("common", "star"), "digestive-vacuole": ("common", "ring"), "pulse": ("common", "wave"),
+    "keratin": ("uncommon", "shield"), "neurotoxin": ("uncommon", "drop"), "carapace": ("uncommon", "shield"), "hemolymph": ("uncommon", "drop"),
+    "telomere": ("uncommon", "rod"), "kinesin": ("uncommon", "wave"), "coccus": ("uncommon", "blob"), "sporangium": ("uncommon", "cluster"),
+    "ink-sac": ("uncommon", "blob"), "amylase": ("uncommon", "star"), "cnidocyte": ("uncommon", "spike"), "antitoxin": ("uncommon", "ring"),
+    "opsonin": ("rare", "cluster"), "cortex": ("rare", "shield"), "paralytic": ("rare", "spike"), "zooxanthellae": ("rare", "star"),
+    "reflex-arc": ("rare", "wave"), "blastula": ("rare", "blob"), "chrysalis": ("rare", "ring"),
+    "ouroboros": ("mythic", "ring"),
 }
 
 

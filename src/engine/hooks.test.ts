@@ -42,10 +42,10 @@ describe('hooks', () => {
 });
 
 describe('placeholder item set (roadmap deliverable 5)', () => {
-  it('has seventy-two items with unique ids, eight of them mythic', () => {
-    expect(ITEMS).toHaveLength(72);
-    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(72);
-    expect(ITEMS.filter((i) => i.rarity === 'mythic')).toHaveLength(8);
+  it('has one hundred and twelve items with unique ids, nine of them mythic', () => {
+    expect(ITEMS).toHaveLength(112);
+    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(112);
+    expect(ITEMS.filter((i) => i.rarity === 'mythic')).toHaveLength(9);
   });
 
   it('uses at least three hooks and four effect types', () => {
