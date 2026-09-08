@@ -1,5 +1,6 @@
 <script lang="ts">
   import { selectedWord, type Action } from '../engine/reducer';
+  import { LETTER_VALUE } from '../engine/scoring';
   import type { RunState } from '../engine/types';
   import Arena from './Arena.svelte';
   import Definition from './Definition.svelte';
@@ -12,6 +13,16 @@
   }: { run: RunState; dispatch: (action: Action) => void; isWord: (word: string) => boolean } = $props();
 
   const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
+  /**
+   * Colour carries what the corner number used to (Dean, 2026-09-08: tiles must read at a
+   * glance): vowels warm, common consonants plain, mid-value consonants teal-edged, rare
+   * ones (K J X Q Z) magenta with a glow. Selection colours override all of it.
+   */
+  function tier(letter: string): 'vowel' | 'common' | 'mid' | 'rare' {
+    if (VOWELS.has(letter)) return 'vowel';
+    const v = LETTER_VALUE[letter] ?? 1;
+    return v >= 5 ? 'rare' : v >= 3 ? 'mid' : 'common';
+  }
 
   const enc = $derived(run.encounter);
   const word = $derived(selectedWord(run));
@@ -103,7 +114,7 @@
           style={move ? `--dy: ${move.dy}` : undefined}
           class:selected={order > 0}
           class:valid={order > 0 && valid}
-          class:vowel={VOWELS.has(tile.letter)}
+          data-tier={tier(tile.letter)}
           class:locked={tile.lockedTurns > 0}
           disabled={tile.lockedTurns > 0}
           onclick={() => { dispatch({ type: 'toggleTile', index: i }); }}
@@ -162,6 +173,7 @@
   }
   .word {
     flex: none;
+    font-family: ui-serif, 'New York', Georgia, 'Times New Roman', serif;
     text-align: center;
     font-size: 1.7rem;
     letter-spacing: 0.18em;
@@ -207,6 +219,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Serif capitals (Dean, 2026-09-08: Wordle-like, not cartoony; I and L must be obvious).
+       ui-serif is New York on iOS; Georgia everywhere else. No font file shipped. */
+    font-family: ui-serif, 'New York', Georgia, 'Times New Roman', serif;
     /* Letter scales with the tile: a quarter of the grid's side, less padding. */
     font-size: min(2.1rem, calc(min(100cqw, 100cqh) / 4 * 0.5));
     font-weight: 800;
@@ -243,9 +258,20 @@
       opacity: 1;
     }
   }
-  .tile.vowel {
-    background: #33304f;
-    border-color: #55507a;
+  .tile[data-tier='vowel'] {
+    background: #f1e3c0;
+    border-color: #e6d19c;
+    color: #2a2417;
+  }
+  .tile[data-tier='mid'] {
+    border-color: #3fb8b0;
+  }
+  .tile[data-tier='rare'] {
+    border-color: #d95fd0;
+    box-shadow: 0 0 10px rgba(217, 95, 208, 0.45), inset 0 0 6px rgba(217, 95, 208, 0.25);
+  }
+  .tile[data-tier='vowel'] .order {
+    color: #2a2417;
   }
   .tile .value {
     position: absolute;

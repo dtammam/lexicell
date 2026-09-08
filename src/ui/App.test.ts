@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
+import { LETTER_VALUE } from '../engine/scoring';
 import { tilesForWord } from '../engine/solver';
 import App from './App.svelte';
 import { SAVE_KEY } from './persist';
@@ -344,6 +345,17 @@ describe('App', () => {
       expect(dy === '' ? 0 : Number(dy), `tile ${i}`).toBe(expectedDy);
     });
     expect(document.querySelectorAll('button.tile .value')).toHaveLength(0);
+  });
+
+  it('every tile carries a tier that matches its letter: vowel, common, mid, or rare', async () => {
+    await startRun();
+    const vowels = new Set(['a', 'e', 'i', 'o', 'u']);
+    for (const b of tiles()) {
+      const letter = b.querySelector('.letter')?.textContent?.toLowerCase() ?? '';
+      const v = LETTER_VALUE[letter] ?? 1;
+      const expected = vowels.has(letter) ? 'vowel' : v >= 5 ? 'rare' : v >= 3 ? 'mid' : 'common';
+      expect(b.dataset.tier, letter).toBe(expected);
+    }
   });
 
   it('the item strip opens a panel listing every carried item with its description', async () => {
