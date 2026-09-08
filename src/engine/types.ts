@@ -62,7 +62,7 @@ export interface CellDef {
   readonly description: string;
   readonly flavor: string;
   readonly maxHp: number;
-  /** Item ids granted before the starting-kit pick. */
+  /** Item ids granted before the starting-kit pick, each firing its onPick once. No duplicates (content test). */
   readonly startingItems: readonly string[];
   /** Starting-kit picks on top of tuning.startingPicks. */
   readonly extraPicks: number;

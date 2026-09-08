@@ -61,7 +61,12 @@ describe('content bundle', () => {
     expect(new Set(CONTENT.cells.map((c) => c.id)).size).toBe(5);
     expect(CONTENT.cells[0]?.id).toBe('balanced');
     expect(CONTENT.cells[0]?.traits).toEqual({});
+    expect(CONTENT.cells[0]?.maxHp).toBe(CONTENT.playerMaxHp);
     for (const c of CONTENT.cells) {
+      expect(Number.isInteger(c.maxHp), c.id).toBe(true);
+      expect(Number.isInteger(c.extraPicks) && c.extraPicks >= 0, c.id).toBe(true);
+      expect(new Set(c.startingItems).size, c.id).toBe(c.startingItems.length);
+      expect(c.traits.onPick, `${c.id}: a cell has no pick moment; onPick traits would never fire`).toBeUndefined();
       expect(c.maxHp).toBeGreaterThanOrEqual(60);
       expect(c.maxHp).toBeLessThanOrEqual(150);
       expect(c.description.length).toBeGreaterThan(10);

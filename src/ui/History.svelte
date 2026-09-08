@@ -2,6 +2,8 @@
   import ItemIcon from './ItemIcon.svelte';
   import { exportCsv, exportJson, type HistoryEntry } from './history';
   import { itemDef } from './lookup';
+  import { CONTENT } from '../content/index';
+  const cellName = (id: string) => CONTENT.cells.find((c) => c.id === id)?.name ?? id;
 
   let { runs, onBack, onClear }: { runs: readonly HistoryEntry[]; onBack: () => void; onClear: () => void } = $props();
 
@@ -75,7 +77,7 @@
         </button>
         {#if open === i}
           <p class="detail">
-            Seed <code>{r.seed}</code>, build {r.build}{r.cell ? `, cell ${r.cell}` : ''}. Dealt {r.damageDealt}, took {r.damageTaken}.
+            Seed <code>{r.seed}</code>, build {r.build}{r.cell ? `, ${cellName(r.cell)}` : ''}. Dealt {r.damageDealt}, took {r.damageTaken}.
             {r.items.length > 0 ? r.items.map((id) => itemDef(id).name).join(', ') : 'No organelles.'}
           </p>
         {/if}

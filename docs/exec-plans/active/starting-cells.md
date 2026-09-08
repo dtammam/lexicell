@@ -72,4 +72,5 @@ shipped numbers are in the ROADMAP.
   within 10 points of balanced for the mediocre bot, none above 90%
   for greedy.
 - Determinism replay with each cell.
-- A run's cell is visible on the arena, the summary and in history.
+- A run's cell is visible on the summary and in history (the arena's
+  sprite stays per act until the sprite pass gives each cell its own).

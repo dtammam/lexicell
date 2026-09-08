@@ -98,8 +98,14 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
     pendingPicks: Math.max(0, Math.floor(ctx.content.tuning.startingPicks) + Math.max(0, Math.floor(cell.extraPicks))),
     stats: { turns: 0, damageDealt: 0, damageTaken: 0, bestWord: '', bestWordDamage: 0, hpAtEncounterStart: [] },
   };
+  // A starting item is a picked item: its onPick fires here, once, in order (gate W4, cells round).
+  let s: RunState = state;
+  for (const id of cell.startingItems) {
+    const onPick = resolveEffects(itemDef(ctx.content, id).hooks.onPick ?? [], conditionCtx(s, ctx));
+    if (onPick.length > 0) s = applyEffects(s, onPick, ctx).state;
+  }
   // A starting kit (Dean, 2026-09-06, variant B): the run opens on a pick, not a fight.
-  return state.pendingPicks > 0 ? makeOffer(state, ctx) : startEncounter(state, ctx);
+  return s.pendingPicks > 0 ? makeOffer(s, ctx) : startEncounter(s, ctx);
 }
 
 export function reduce(state: RunState, action: Action, ctx: EngineContext): RunState {

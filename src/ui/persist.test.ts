@@ -60,6 +60,9 @@ describe('persist', () => {
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 3 }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull();
     expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 4, cell: 'balanced' });
+    // The cell must be a string (gate S1); an unknown id is the render boundary's job, like an unknown item.
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, cell: 7 }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, cell: null }) })).load()).toBeNull();
     expect(migrate('x')).toBe('x');
     // A v2-shaped player under a forged v: 3 is dropped by the shape check, one missing field at a time.
     const omit = (o: object, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key));

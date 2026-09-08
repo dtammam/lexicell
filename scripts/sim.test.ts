@@ -88,6 +88,12 @@ describe('summary', () => {
 });
 
 describe('cli', () => {
+  it('parses --cell and rejects an unknown cell (gate S4)', () => {
+    expect(parseArgs(['--cell', 'aggro']).cell).toBe('aggro');
+    expect(parseArgs([]).cell).toBe('balanced');
+    expect(() => parseArgs(['--cell', 'nope'])).toThrow(/--cell needs one of/);
+  });
+
   it('parses options and validates item ids', () => {
     expect(parseArgs([])).toMatchObject({ runs: 500, bots: ['greedy', 'mediocre', 'solver'], items: 'all' });
     expect(parseArgs(['--bot', 'greedy', '--runs', '7', '--items', 'lens,leech', '--seed', '9'])).toMatchObject({
