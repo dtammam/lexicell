@@ -144,12 +144,14 @@ describe('submitWord', () => {
       expect(new Set(p.offer).size).toBe(3);
       for (const id of p.offer ?? []) expect(p.player.items).not.toContain(id);
     }
-    // The fight after a pick starts at the HP the previous one ended with (plus any onEncounterEnd heal).
+    // The fight after a pick starts at the HP the previous one ended with, plus whatever the picked
+    // item's onPick added (maxHp heals the new room: Growth Factor, Cocoon); never less.
     for (let i = 1; i < states.length; i++) {
       const prev = states[i - 1]!;
       const cur = states[i]!;
       if (prev.phase === 'pick' && cur.phase === 'fight') {
-        expect(cur.encounter?.playerHpAtStart).toBe(prev.player.hp);
+        expect(cur.encounter?.playerHpAtStart).toBeGreaterThanOrEqual(prev.player.hp);
+        expect(cur.encounter?.playerHpAtStart).toBeLessThanOrEqual(cur.player.maxHp);
         expect(cur.player.items).toHaveLength(prev.player.items.length + 1);
       }
     }
@@ -707,7 +709,7 @@ describe('mythic tier (PR #31 gate)', () => {
   it('mythics can be offered: a pool of only mythics still fills a three-item offer', () => {
     // Binds RARITY_WEIGHT.mythic > 0: at weight 0 weightedPick throws on an all-mythic pool.
     const mythics = CONTENT.items.filter((i) => i.rarity === 'mythic');
-    expect(mythics).toHaveLength(11);
+    expect(mythics).toHaveLength(12);
     const onlyMythic: EngineContext = nodeContext({ ...CONTENT, items: mythics, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
     const s = newRun(3, onlyMythic);
     expect(s.phase).toBe('pick');
