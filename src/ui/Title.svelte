@@ -1,6 +1,9 @@
 <script lang="ts">
   import { wordOfTheDay } from './definitions';
 
+  // The mark (Dean's pick, 2026-09-08): the Bookends wordmark, drawn by scripts/logo.py.
+  const base = import.meta.env.BASE_URL;
+
   let {
     hasSave,
     onPlay,
@@ -38,8 +41,7 @@
 
 <section class="title">
   <div class="mark">
-    <span class="cell">L</span>
-    <h2>Lexicell</h2>
+    <h2><img class="wordmark" src="{base}logo/bookends-wordmark.svg" alt="Lexicell" width="312" height="78" /></h2>
     <p class="tag">Spell words. Hit things. Evolve.</p>
   </div>
 
@@ -84,25 +86,17 @@
     align-items: center;
     gap: var(--s2);
   }
-  .cell {
-    width: 72px;
-    height: 72px;
-    border: 2px solid var(--shade);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    background: var(--score);
-    color: var(--ground);
-    font-family: var(--font-tile);
-    font-size: var(--hud-xl);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
   h2 {
     margin: 0;
-    font-family: var(--font-head);
-    font-weight: 400;
-    font-size: var(--head);
+    line-height: 0;
+  }
+  .wordmark {
+    display: block;
+    width: min(100%, 312px);
+    height: auto;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(4px 4px 0 var(--shade));
   }
   .tag {
     margin: 0;
