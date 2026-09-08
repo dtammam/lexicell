@@ -233,6 +233,40 @@ describe('starting kit (tuning.startingPicks)', () => {
     }
   });
 
+  it('a kit with an empty item pool skips the offer and still starts encounter 0', () => {
+    // Binds makeOffer's empty-offer path to advance(): before the kit, it bumped encounterIndex directly,
+    // which with a pick pending would skip encounter 0 and leave pendingPicks stuck at 1 for the whole run.
+    const bare: EngineContext = nodeContext({ ...CONTENT, items: [], tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const s0 = newRun(5, bare);
+    expect(s0.phase).toBe('fight');
+    expect(s0.encounterIndex).toBe(0);
+    expect(s0.pendingPicks).toBe(0);
+    expect(s0.player.items).toEqual([]);
+    expect(s0.stats.hpAtEncounterStart).toEqual([100]);
+    const { final } = greedyRun(5, bare);
+    expect(final.pendingPicks).toBe(0);
+    expect(final.stats.hpAtEncounterStart).toHaveLength(final.encounterIndex + 1);
+  });
+
+  it('three picks against a two-item pool: the pool runs out mid-kit and encounter 0 still starts', () => {
+    const two = CONTENT.items.slice(0, 2);
+    const kit3: EngineContext = nodeContext({ ...CONTENT, items: two, tuning: { ...CONTENT.tuning, startingPicks: 3 } });
+    let s = newRun(8, kit3);
+    expect(s.phase).toBe('pick');
+    expect(s.pendingPicks).toBe(3);
+    s = reduce(s, { type: 'pickItem', index: 0 }, kit3);
+    expect(s.phase).toBe('pick');
+    expect(s.offer).toHaveLength(1);
+    expect(s.pendingPicks).toBe(2);
+    s = reduce(s, { type: 'pickItem', index: 0 }, kit3);
+    expect(s.phase).toBe('fight');
+    expect(s.encounterIndex).toBe(0);
+    expect(s.pendingPicks).toBe(0);
+    expect([...s.player.items].sort()).toEqual(two.map((i) => i.id).sort());
+    expect(s.stats.hpAtEncounterStart).toEqual([100]);
+    assertInvariants(s, kit3);
+  });
+
   it('startingPicks 0 opens on a fight; shipped content opens on a pick', () => {
     expect(newRun(5, ctx).pendingPicks).toBe(0);
     expect(newRun(5, ctx).phase).toBe('fight');

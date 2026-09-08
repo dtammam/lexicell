@@ -12,6 +12,11 @@ import { CONTENT } from '../src/content/index';
 const ctx = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
 
 describe('bots', () => {
+  it('the greedy cap is 7 (Dean, 2026-09-06: greedy models a strong human, not a solver)', () => {
+    // Pinned on purpose: the exit criterion "greedy < 90%" is judged on THIS bot. A different cap is a different ruling.
+    expect(GREEDY_MAX_LENGTH).toBe(7);
+  });
+
   it('solver plays the max-damage word; greedy the max within the cap; mediocre 4-5 letters when it can', () => {
     const s = newRun(1, ctx);
     const cands = candidateWords(s, ctx);

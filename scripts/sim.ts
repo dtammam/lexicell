@@ -8,12 +8,12 @@
  *   npm run sim -- --items lens,leech   # restrict the pool
  *   npm run sim -- --seed 1000          # seed base
  *   npm run sim -- --json               # machine-readable output
- *   npm run sim -- --variant act1-ease  # a named content variant (scripts/lib/variants.ts)
+ *   npm run sim -- --variant pre-act1   # a named content variant (scripts/lib/variants.ts)
  */
 import { fileURLToPath } from 'node:url';
 import { CONTENT } from '../src/content/index';
 import type { Content } from '../src/engine/types';
-import { BOT_NAMES, type BotName } from './lib/bots';
+import { BOT_NAMES, GREEDY_MAX_LENGTH, type BotName } from './lib/bots';
 import { nodeContext } from './lib/context';
 import { simulate, type Summary } from './lib/simulate';
 import { VARIANT_NAMES, applyVariant, type VariantName } from './lib/variants';
@@ -138,7 +138,7 @@ function main() {
   console.log('\nExit criteria:');
   const mark = (v: boolean | null) => (v === null ? 'n/a ' : v ? 'PASS' : 'FAIL');
   console.log(`  ${mark(criteria.mediocreInBand)}  mediocre wins 20-40%`);
-  console.log(`  ${mark(criteria.greedyWinsButNotAlways)}  greedy (best word of <= 7 letters) wins, but < 90%`);
+  console.log(`  ${mark(criteria.greedyWinsButNotAlways)}  greedy (best word of <= ${GREEDY_MAX_LENGTH} letters) wins, but < 90%`);
   console.log(`  ${mark(criteria.noDeadGrids)}  no run hit a grid with zero valid words`);
   console.log(`  ----  win rate moves with items: compare against --items none`);
 }
