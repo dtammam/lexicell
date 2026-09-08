@@ -19,6 +19,10 @@ SCALE = 4
 # id -> (fill, highlight, outline)
 PALETTE = {
     "player": ((90, 201, 138), (200, 255, 220), (30, 80, 55)),
+    # The player evolves per act (Dean, 2026-09-08): same green, more body each act.
+    "player-1": ((90, 201, 138), (200, 255, 220), (30, 80, 55)),
+    "player-2": ((80, 190, 160), (190, 255, 235), (25, 75, 65)),
+    "player-3": ((70, 180, 190), (180, 245, 255), (20, 65, 80)),
     "amoeba": ((224, 90, 90), (255, 170, 160), (90, 30, 30)),
     "flagellate": ((120, 110, 220), (190, 180, 255), (40, 35, 90)),
     "polyp": ((230, 160, 70), (255, 220, 160), (100, 60, 20)),
@@ -41,9 +45,19 @@ def blob(seed: str, cells: int) -> set[tuple[int, int]]:
     return alive
 
 
-def sprite(name: str, cells: int, eyes: bool = True) -> Image.Image:
+def sprite(name: str, cells: int, eyes: bool = True, limbs: int = 0) -> Image.Image:
     fill, hi, outline = PALETTE.get(name, PALETTE["unknown"])
     body = blob(name, cells)
+    # Limbs: mirrored one-pixel-wide stalks growing out of the body, more each act.
+    rng_l = random.Random(name + "limbs")
+    for _ in range(limbs):
+        x, y = rng_l.choice(sorted(body))
+        dx = 1 if x >= SIZE // 2 else -1
+        for step in range(1, 4):
+            nx = x + dx * step
+            if 1 <= nx < SIZE - 1:
+                body.add((nx, y))
+                body.add((SIZE - 1 - nx, y))
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     px = img.load()
     for (x, y) in body:
@@ -69,10 +83,10 @@ def sprite(name: str, cells: int, eyes: bool = True) -> Image.Image:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    specs = {"player": 60, "amoeba": 70, "flagellate": 52, "polyp": 84, "colony": 110, "unknown": 64}
-    for name, cells in specs.items():
-        sprite(name, cells).save(OUT / f"{name}.png", optimize=True)
-        print(f"wrote {name}.png ({cells} cells)")
+    specs = {"player": (60, 0), "player-1": (56, 0), "player-2": (78, 2), "player-3": (96, 4), "amoeba": (70, 0), "flagellate": (52, 0), "polyp": (84, 0), "colony": (110, 0), "unknown": (64, 0)}
+    for name, (cells, limbs) in specs.items():
+        sprite(name, cells, limbs=limbs).save(OUT / f"{name}.png", optimize=True)
+        print(f"wrote {name}.png ({cells} cells, {limbs} limbs)")
 
 
 if __name__ == "__main__":
