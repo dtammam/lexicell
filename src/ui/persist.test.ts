@@ -61,6 +61,11 @@ describe('persist', () => {
       { ...s, encounter: { enemy: {}, grid: [], selection: [] } },
       { ...s, pendingPicks: 'one' },
       { ...s, stats: null },
+      { ...s, player: { ...s.player, items: 'lens' } },
+      { ...s, player: { ...s.player, hp: '100' } },
+      { ...s, encounterIndex: 1.5 },
+      { ...s, lastTurn: 'none' },
+      { ...s, offer: 'lens' },
     ];
     for (const blob of bad) {
       const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify(blob) });
