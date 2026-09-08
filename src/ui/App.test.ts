@@ -322,13 +322,16 @@ describe('App', () => {
     expect(await findByText('Encounter 1 / 9')).toBeTruthy();
     await click(getButton('Menu'));
     await click(getButton('New run'));
-    expect(getButton('Abandon the current run and start over?')).toBeTruthy();
-    await click(getButton('Keep it'));
+    expect(getByText('Abandon the current run and start over?')).toBeTruthy();
+    expect(queryButton('Continue')).toBeNull(); // no third option while asking (a tester read it as "continue to a new game")
+    expect(queryButton('New run')).toBeNull();
+    await click(getButton('Keep my run'));
     expect(getButton('New run')).toBeTruthy();
-    expect(queryButton('Keep it')).toBeNull();
+    expect(queryButton('Keep my run')).toBeNull();
+    expect(getButton('Continue')).toBeTruthy();
     await click(getButton('New run'));
     vi.spyOn(Date, 'now').mockReturnValue(SEED + 1);
-    await click(getButton('Abandon the current run and start over?'));
+    await click(getButton('Yes, start over'));
     await click(await findByText('Divide and conquer'));
     expect(await findByText('Choose a starting item')).toBeTruthy();
     const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { rng: { seed: number }; player: { items: string[] } };
@@ -346,7 +349,7 @@ describe('App', () => {
     expect(await findByText('Continue', 15000)).toBeTruthy();
     await click(getButton('New run'));
     vi.spyOn(Date, 'now').mockReturnValue(SEED + 7);
-    await click(getButton('Abandon the current run and start over?'));
+    await click(getButton('Yes, start over'));
     await click(await findByText('Divide and conquer'));
     expect(await findByText('Choose a starting item')).toBeTruthy();
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { stats: { turns: number }; rng: { seed: number } };
