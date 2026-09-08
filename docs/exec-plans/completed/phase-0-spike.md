@@ -1,8 +1,9 @@
 # Exec plan: Phase 0 spike - is the loop fun?
 
-Status: ACTIVE. Engine and sim built (main through 9f63d34, 2026-09-06).
-Exit criteria NOT met. Awaiting Dean's decision on the structural finding
-below before any further tuning or any item change.
+Status: CLOSED 2026-09-08. Dean signed Phase 0 off as met: three of four
+criteria pass at n=500 and greedy at 91.0% against the 90% bar is ruled
+noise. The act-2 + E9 tuning wave in the Handoff section below is
+deferred behind Phase 1 (Dean, 2026-09-08). Final numbers: ROADMAP.md.
 
 Owner: main session (lean mode). This doc is the reviewers' spec and
 survives context compaction. Spec of record: `docs/lexicell-architecture-pack.md`,
@@ -88,6 +89,74 @@ Two observations for Dean, in the order I would take them:
    rather than words played, damage per tile is nearly equal between the
    bots (1.70 vs 1.49 per tile at letter sum) and long words stay
    events. This is a turn-structure change and therefore Dean's call.
+
+## Results after the act-1 wave (branch tune/greedy-cap, pasted from the sim)
+
+Dean's rulings (2026-09-06): greedy capped at 7 letters, uncapped policy
+reported as `solver`; attacks stay per word; act 1 eased (variant A) AND
+one starting pick (variant B) both become content; act 1 is not touched
+again. The `pre-act1` variant restores the previous content so the
+baseline stays reproducible.
+
+Shipped content, `npx tsx scripts/sim.ts`:
+
+```
+Lexicell sim: 500 runs per bot, seeds 0..499, all 10 items, variant base. 125.8s
+
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    91.0% |           9 |       21.1 |         5 |   100 |    99 |    97 |    91 |    88 |    85 |    58 |    63 |    66 |
+| mediocre |  500 |    23.2% |           4 |       32.6 |         8 |   100 |    92 |    71 |    34 |    25 |    19 |    16 |    19 |    19 |
+|   solver |  500 |    99.2% |           9 |       15.3 |         4 |   100 |   100 |    99 |    96 |    96 |    96 |    81 |    86 |    89 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  FAIL  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+Previous content, `npx tsx scripts/sim.ts --variant pre-act1` (the `solver`
+row is the old uncapped greedy, i.e. the baseline; `greedy` is cap only):
+
+```
+Lexicell sim: 500 runs per bot, seeds 0..499, all 10 items, variant pre-act1. 39.9s
+
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    59.4% |           9 |       21.2 |         4 |   100 |    96 |    89 |    62 |    60 |    58 |    39 |    44 |    47 |
+| mediocre |  500 |     8.4% |           3 |       21.2 |         1 |   100 |    65 |    33 |     8 |    11 |    13 |    14 |    16 |    18 |
+|   solver |  500 |    92.4% |           9 |       17.1 |         9 |   100 |    99 |    96 |    85 |    85 |    84 |    66 |    71 |    73 |
+
+Exit criteria:
+  FAIL  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+Where mediocre dies now (300 seeds, scratch diagnostic, shipped content):
+reached E1..E9 then won: 300 300 299 258 147 90 71 71 71 71. HP lost per
+encounter: 10 26 50 | 33 36 72 | 45 49 92. The wall moved from act 1 to
+act 2, and E9 costs mediocre ~92-99 HP in every variant tried.
+
+## Handoff (2026-09-06, session paused by Dean)
+
+Immediate next step: the act-1 wave's single adversarial round (engine
+files changed: `types.ts`, `reducer.ts`), then `merge --no-ff` into main
+with a ROADMAP entry carrying the two pasted tables above. Then the
+act-2 + E9 wave, content only, no gate:
+
+- Targets (Dean): E9 costs mediocre 50-60 HP with a full kit (now ~92),
+  greedy 25-35 (now ~54). Act 2 (E4-E6) so that more than 147 of 300
+  mediocre runs reach E6. Do not touch act 1. Measure with
+  `npx tsx scripts/sim.ts` and paste, never type.
+- Levers are `src/content/acts.ts` (hpScale, damageScale per encounter)
+  and `src/content/bosses.ts` (base hp 120, dmg 12, lockTiles every 3).
+  A separate final-boss definition is allowed (content), a new effect
+  type is not.
+- Then the length-bonus question (ruling 3: lower exponent before
+  linear) only if greedy still runs away after acts 2-3.
 
 ## Open questions for Dean (answered 2026-09-06; kept for the record)
 

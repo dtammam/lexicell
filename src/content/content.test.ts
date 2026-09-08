@@ -29,6 +29,13 @@ describe('content bundle', () => {
     }
   });
 
+  it('tuning knobs are finite: startingPicks is a non-negative integer', () => {
+    // newRun floors and clamps, but NaN/Infinity would still leave pendingPicks non-JSON. Content must never carry them.
+    expect(Number.isInteger(CONTENT.tuning.startingPicks)).toBe(true);
+    expect(CONTENT.tuning.startingPicks).toBeGreaterThanOrEqual(0);
+    for (const b of CONTENT.tuning.lengthBonus) expect(Number.isFinite(b)).toBe(true);
+  });
+
   it('the boss has a distinct mechanic', () => {
     expect(CONTENT.bosses[0]?.special?.effects.some((e) => e.type === 'lockTiles')).toBe(true);
     for (const e of CONTENT.enemies) expect(e.special).toBeUndefined();

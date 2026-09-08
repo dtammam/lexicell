@@ -8,8 +8,17 @@ import type { Action, EngineContext } from '../../src/engine/reducer';
 import { createRng, nextInt, type Rng } from '../../src/engine/rng';
 import type { RunState } from '../../src/engine/types';
 
-export type BotName = 'greedy' | 'mediocre';
-export const BOT_NAMES: readonly BotName[] = ['greedy', 'mediocre'];
+export type BotName = 'greedy' | 'mediocre' | 'solver';
+export const BOT_NAMES: readonly BotName[] = ['greedy', 'mediocre', 'solver'];
+
+/**
+ * Dean's ruling (2026-09-06): the greedy bot models a strong HUMAN, not a
+ * solver. Sixteen unconstrained letters routinely contain a 10-letter word;
+ * a person finds 6-7. So greedy plays the best word of at most this length.
+ * The uncapped `solver` bot is still run and reported as an upper bound, but
+ * it is not an exit criterion.
+ */
+export const GREEDY_MAX_LENGTH = 7;
 
 export interface Bot {
   readonly name: BotName;
@@ -25,11 +34,25 @@ function best(candidates: readonly Candidate[]): Candidate | null {
   return top;
 }
 
-/** Plays the highest-damage word available. */
+/** Plays the highest-damage word of at most GREEDY_MAX_LENGTH letters; falls back to the best available if none. */
 export function greedyBot(seed: number): Bot {
   let rng = createRng(seed ^ 0x9e3779b9);
   return {
     name: 'greedy',
+    chooseWord: (_s, candidates) => best(candidates.filter((c) => c.word.length <= GREEDY_MAX_LENGTH)) ?? best(candidates),
+    choosePick: (state) => {
+      let i: number;
+      [i, rng] = nextInt(rng, state.offer?.length ?? 1);
+      return i;
+    },
+  };
+}
+
+/** Plays the highest-damage word available, any length. Upper bound; not a criterion. */
+export function solverBot(seed: number): Bot {
+  let rng = createRng(seed ^ 0x9e3779b9);
+  return {
+    name: 'solver',
     chooseWord: (_s, candidates) => best(candidates),
     choosePick: (state) => {
       let i: number;
@@ -60,7 +83,14 @@ export function mediocreBot(seed: number): Bot {
 }
 
 export function makeBot(name: BotName, seed: number): Bot {
-  return name === 'greedy' ? greedyBot(seed) : mediocreBot(seed);
+  switch (name) {
+    case 'greedy':
+      return greedyBot(seed);
+    case 'mediocre':
+      return mediocreBot(seed);
+    case 'solver':
+      return solverBot(seed);
+  }
 }
 
 /** Next action for the bot given the current state, or null when the run is over. */

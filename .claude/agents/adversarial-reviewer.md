@@ -62,8 +62,9 @@ references to anything it deletes.
   enumerated). A review that dirties the tree is itself a finding
   against you. Use the session scratchpad for scratch scripts, never
   the repo. Never remove, prune, or reset a git worktree you did not
-  create in this review: the main session keeps its own worktrees under
-  the scratchpad, and a review once deleted two of them.
+  create in this review, and never run `git worktree prune` there: the
+  main session keeps its own worktrees under the scratchpad, and two of
+  them vanished during a review (cause unconfirmed; the seat denied it).
 - **Every finding needs a concrete failure scenario**: inputs/state ->
   wrong outcome, with severity CRITICAL / WARNING / SUGGESTION. If you
   cannot construct the scenario, you have a suspicion, not a finding;

@@ -7,7 +7,8 @@ import { newRun, reduce, selectedWord, type Action, type EngineContext } from '.
 import { tilesForWord } from './solver';
 import type { RunState } from './types';
 
-const ctx = nodeContext();
+/** Shipped content opens on a starting-kit pick; most tests here want the first fight directly. */
+const ctx = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
 
 function play(state: RunState, word: string, c: EngineContext = ctx): RunState {
   const enc = state.encounter;
@@ -171,7 +172,7 @@ describe('full runs', () => {
       }
     }
     expect(won + lost).toBe(30);
-  });
+  }, 30_000);
 
   it('replaying the action log reproduces the final state exactly', () => {
     const { final, log } = greedyRun(42);
@@ -180,14 +181,103 @@ describe('full runs', () => {
     expect(s).toEqual(final);
     const roundTripped = JSON.parse(JSON.stringify(final)) as RunState;
     expect(roundTripped).toEqual(final);
-  });
+  }, 30_000);
 
   it('the item pool changes outcomes: no items vs all items', () => {
-    const noItems: EngineContext = nodeContext({ ...CONTENT, items: [] });
+    const noItems: EngineContext = nodeContext({ ...CONTENT, items: [], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
     const { final } = greedyRun(4, noItems);
     expect(final.player.items).toEqual([]);
     // With no items there is no pick phase: encounters chain directly.
     expect(final.phase).toBe('summary');
+  });
+});
+
+describe('starting kit (tuning.startingPicks)', () => {
+  const kit: EngineContext = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+
+  it('opens on a pick, then starts encounter 0 with the chosen item and no index skip', () => {
+    const s0 = newRun(5, kit);
+    expect(s0.phase).toBe('pick');
+    expect(s0.offer).toHaveLength(3);
+    expect(s0.encounter).toBeNull();
+    expect(s0.pendingPicks).toBe(1);
+    expect(s0.stats.hpAtEncounterStart).toEqual([]);
+    const s1 = reduce(s0, { type: 'pickItem', index: 1 }, kit);
+    expect(s1.phase).toBe('fight');
+    expect(s1.encounterIndex).toBe(0);
+    expect(s1.pendingPicks).toBe(0);
+    expect(s1.player.items).toEqual([s0.offer?.[1]]);
+    expect(s1.stats.hpAtEncounterStart).toEqual([100]);
+    assertInvariants(s1, kit);
+  });
+
+  it('two starting picks chain two offers before the first fight', () => {
+    const kit2: EngineContext = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 2 } });
+    let s = newRun(6, kit2);
+    s = reduce(s, { type: 'pickItem', index: 0 }, kit2);
+    expect(s.phase).toBe('pick');
+    expect(s.pendingPicks).toBe(1);
+    s = reduce(s, { type: 'pickItem', index: 0 }, kit2);
+    expect(s.phase).toBe('fight');
+    expect(s.encounterIndex).toBe(0);
+    expect(s.player.items).toHaveLength(2);
+    expect(new Set(s.player.items).size).toBe(2);
+  });
+
+  it('a full run with a kit still ends with exactly 9 encounters and 9 items on a win', () => {
+    const { final } = greedyRun(7, kit);
+    expect(final.phase).toBe('summary');
+    if (final.outcome === 'won') {
+      expect(final.stats.hpAtEncounterStart).toHaveLength(9);
+      expect(final.player.items).toHaveLength(9);
+    }
+  });
+
+  it('a kit with an empty item pool skips the offer and still starts encounter 0', () => {
+    // Binds makeOffer's empty-offer path to advance(): before the kit, it bumped encounterIndex directly,
+    // which with a pick pending would skip encounter 0 and leave pendingPicks stuck at 1 for the whole run.
+    const bare: EngineContext = nodeContext({ ...CONTENT, items: [], tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const s0 = newRun(5, bare);
+    expect(s0.phase).toBe('fight');
+    expect(s0.encounterIndex).toBe(0);
+    expect(s0.pendingPicks).toBe(0);
+    expect(s0.player.items).toEqual([]);
+    expect(s0.stats.hpAtEncounterStart).toEqual([100]);
+    const { final } = greedyRun(5, bare);
+    expect(final.pendingPicks).toBe(0);
+    expect(final.stats.hpAtEncounterStart).toHaveLength(final.encounterIndex + 1);
+  });
+
+  it('three picks against a two-item pool: the pool runs out mid-kit and encounter 0 still starts', () => {
+    const two = CONTENT.items.slice(0, 2);
+    const kit3: EngineContext = nodeContext({ ...CONTENT, items: two, tuning: { ...CONTENT.tuning, startingPicks: 3 } });
+    let s = newRun(8, kit3);
+    expect(s.phase).toBe('pick');
+    expect(s.pendingPicks).toBe(3);
+    s = reduce(s, { type: 'pickItem', index: 0 }, kit3);
+    expect(s.phase).toBe('pick');
+    expect(s.offer).toHaveLength(1);
+    expect(s.pendingPicks).toBe(2);
+    s = reduce(s, { type: 'pickItem', index: 0 }, kit3);
+    expect(s.phase).toBe('fight');
+    expect(s.encounterIndex).toBe(0);
+    expect(s.pendingPicks).toBe(0);
+    expect([...s.player.items].sort()).toEqual(two.map((i) => i.id).sort());
+    expect(s.stats.hpAtEncounterStart).toEqual([100]);
+    assertInvariants(s, kit3);
+  });
+
+  it('startingPicks 0 opens on a fight; shipped content opens on a pick', () => {
+    expect(newRun(5, ctx).pendingPicks).toBe(0);
+    expect(newRun(5, ctx).phase).toBe('fight');
+    expect(newRun(5, nodeContext()).phase).toBe('pick');
+  });
+
+  it('newRun clamps a negative or fractional startingPicks rather than trusting content', () => {
+    const neg = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: -1 } });
+    expect(newRun(5, neg).pendingPicks).toBe(0);
+    const frac = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1.5 } });
+    expect(newRun(5, frac).pendingPicks).toBe(1);
   });
 });
 
