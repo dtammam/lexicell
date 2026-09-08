@@ -162,7 +162,15 @@ pick screen; new report lines in the report colours.
   mediocre to 35.2%; the per-item table then caught Paralytic as a
   permanent stun lock (98% wins), reworked to every second turn, and
   two shield buffs; shipped numbers mediocre 30.8%, greedy 66.0%,
-  solver 85.0%: all three criteria PASS. Tracker #7 closed. The rework of the original 72 onto the new
+  solver 85.0%: all three criteria PASS. Tracker #7 closed.
+- Batch 2 (PR #45): 45 items in synergy pairs to 157 (46+22 / 35+13 /
+  22+8 / 9+2 = 68 / 48 / 30 / 11); harness fixes from the gate
+  (shuffles column, free-shuffle rule that fires, item-impact in the
+  repo). The 3000-run table caught Numbing Barb and Neurotoxin as stun
+  locks (98% greedy) and Zooxanthellae as a full heal (100%): fixed.
+  Sim after: mediocre 22.0%, greedy 53.4%, solver 79.6%, all PASS;
+  both rates fell with the pool and the lock removals, curve left for
+  the final pass at batch 3 (target: greedy back in the sixties). Batch 3 finishes the pool: 22 / 12 / 8 / 1 to 200. The rework of the original 72 onto the new
   verbs did not happen in this batch; none of them needed a new verb
   to keep its identity, and the per-item table decides cuts.
 
