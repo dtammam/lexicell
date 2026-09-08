@@ -355,7 +355,8 @@ describe('App', () => {
     const patterns: Record<string, string> = { amoeba: 'dots', flagellate: 'stripes', polyp: 'cells', colony: 'rings' };
     const bg = document.querySelector<HTMLElement>('.arena .bg');
     expect(bg?.dataset.pattern).toBe(patterns[saved.encounter.enemy.id]);
-    expect(bg?.querySelectorAll('.layer')).toHaveLength(2);
+    expect(bg?.querySelectorAll('.layer')).toHaveLength(3);
+    expect(document.querySelector<HTMLElement>('.arena')?.dataset.pattern).toBe(patterns[saved.encounter.enemy.id]);
     expect(document.querySelector('.arena')?.classList.contains('act-1')).toBe(true);
   });
 
