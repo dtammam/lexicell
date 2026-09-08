@@ -58,21 +58,30 @@ export type Effect =
   | { readonly type: 'poisonEnemy'; readonly value: number }
   /** The enemy skips its next `value` attacks. */
   | { readonly type: 'stun'; readonly value: number }
-  /** Add `value` shield, capped by tuning.shieldMax. Shield absorbs enemy damage before HP. */
+  /**
+   * Add `value` shield, capped by tuning.shieldMax. Shield absorbs the enemy's ATTACK before HP
+   * (after reduceDamage). A special's damagePlayer and venom bites go straight to HP, as does
+   * reduceDamage's absence there; no shipped enemy uses damagePlayer in a special.
+   */
   | { readonly type: 'shield'; readonly value: number }
-  /** Heal `fraction` of the damage the word just dealt, floored. */
+  /** Heal `fraction` of the damage the word actually dealt (capped by the enemy's remaining HP), floored. */
   | { readonly type: 'lifesteal'; readonly fraction: number }
   /** Grant `value` shuffles that do not cost the turn. */
   | { readonly type: 'freeShuffle'; readonly value: number }
-  /** Redraw `count` random unlocked, unselected tiles in place. */
+  /**
+   * Redraw `count` random unlocked, unselected tiles in place. A redrawn tile is a fresh tile:
+   * this cures its venom, and at onTurnStart it runs before the bite.
+   */
   | { readonly type: 'redrawTiles'; readonly count: number }
   /** Multiply the draw weight of each of `letters` by `value` (vowelWeight is the vowel case). */
   | { readonly type: 'letterWeight'; readonly letters: string; readonly value: number }
   /** Raise max HP by `value` and heal the same amount. */
   | { readonly type: 'maxHp'; readonly value: number }
   /**
-   * Scale every child's number by the count of `unit` (an addMult child is capped at
-   * tuning.perUnitMultCap after scaling). A count of zero drops the children.
+   * Scale every child's number by the count of `unit`. A count of zero drops the children.
+   * Children with nothing to scale (scramble, vowelWeight, letterWeight) are dropped at any
+   * count: a perUnit is a multiplier, not a gate; use a condition for gating. The addMult
+   * total contributed by every perUnit in the list is capped at tuning.perUnitMultCap.
    */
   | { readonly type: 'perUnit'; readonly unit: Unit; readonly then: readonly Effect[] };
 
@@ -143,7 +152,8 @@ export function evaluateCondition(c: Condition, ctx: ConditionContext): boolean 
     case 'hpBelow':
       return ctx.hp < ctx.maxHp * c.fraction;
     case 'turnEvery':
-      return c.value > 0 && ctx.turn % c.value === 0;
+      // turn is 0 outside a fight (onPick): no turn, no cadence.
+      return c.value > 0 && ctx.turn > 0 && ctx.turn % c.value === 0;
     case 'startsWith':
       return ctx.word !== undefined && ctx.word.length > 0 && c.letters.includes(ctx.word.charAt(0));
     case 'endsWith':
@@ -224,28 +234,43 @@ export function scaleEffect(e: Effect, times: number, multCap: number): Effect |
  * Flatten a list of effects: resolve conditions against the context, dropping
  * the ones that fail and splicing in the children of the ones that pass;
  * resolve perUnit by scaling its children by the unit's count (zero drops
- * them). Then stable-sort by EFFECT_ORDER so application order never depends
+ * them, and so does a count of one for a child with nothing to scale). The
+ * addMult that perUnits contribute in total is capped at ctx.perUnitMultCap
+ * (gate W1: the first draft capped each child, and skipped the cap at count
+ * one). Then stable-sort by EFFECT_ORDER so application order never depends
  * on item order or on how an item author nested things.
  */
 export function resolveEffects(effects: readonly Effect[], ctx: ConditionContext): Effect[] {
   const flat: Effect[] = [];
+  const scaledMult: number[] = []; // indices into flat of addMult entries that came through a perUnit
   const cap = ctx.perUnitMultCap ?? DEFAULT_PER_UNIT_MULT_CAP;
-  const walk = (list: readonly Effect[], times: number) => {
+  const walk = (list: readonly Effect[], times: number, inPerUnit: boolean) => {
     for (const e of list) {
       if (e.type === 'condition') {
-        if (evaluateCondition(e.when, ctx)) walk(e.then, times);
+        if (evaluateCondition(e.when, ctx)) walk(e.then, times, inPerUnit);
       } else if (e.type === 'perUnit') {
         const n = unitCount(e.unit, ctx);
-        if (n > 0) walk(e.then, times * n);
-      } else if (times === 1) {
+        if (n > 0) walk(e.then, times * n, true);
+      } else if (!inPerUnit) {
         flat.push(e);
       } else {
         const scaled = scaleEffect(e, times, cap);
-        if (scaled) flat.push(scaled);
+        if (!scaled) continue;
+        if (scaled.type === 'addMult') scaledMult.push(flat.length);
+        flat.push(scaled);
       }
     }
   };
-  walk(effects, 1);
+  walk(effects, 1, false);
+  // Cap the perUnit multiplier as a total, not per child: two scalers cannot stack past the cap.
+  const multTotal = scaledMult.reduce((sum, i) => sum + (flat[i] as { value: number }).value, 0);
+  if (multTotal > cap && multTotal > 0) {
+    const shrink = cap / multTotal;
+    for (const i of scaledMult) {
+      const e = flat[i] as { type: 'addMult'; value: number };
+      flat[i] = { ...e, value: e.value * shrink };
+    }
+  }
   const rank = (e: Effect) => EFFECT_ORDER.indexOf(e.type);
   return flat
     .map((e, i) => ({ e, i }))

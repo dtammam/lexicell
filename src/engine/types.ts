@@ -10,7 +10,7 @@ export interface Tile {
   readonly letter: string;
   /** Turns remaining locked. 0 = usable. Locked tiles cannot be selected and are invisible to the solver. */
   readonly lockedTurns: number;
-  /** Venom: bites the player for this much at the start of every turn and then grows by one. 0 = clean. Cured by playing the tile, a shuffle, or a scramble. */
+  /** Venom: bites the player for this much at the start of every turn and then grows by one. 0 = clean. Cured by playing the tile, a shuffle, a scramble, or a redraw (redrawTiles). */
   readonly venom: number;
 }
 
