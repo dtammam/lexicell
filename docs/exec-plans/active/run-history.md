@@ -1,7 +1,7 @@
 # Exec plan: run history with export
 
-Status: DRAFT 2026-09-08 (PR #48), awaiting Dean's answers to the four
-numbered questions. Opened as the effects wave closed (PR #47), per
+Status: BUILT 2026-09-08 (PR #51), one adversarial round pending. Dean
+answered the four questions "agree with all" the same day. Opened as the effects wave closed (PR #47), per
 Dean's order: wave in full, then run history, then starting cells.
 Touches persistence, so a plan and one adversarial round under
 iteration mode.
