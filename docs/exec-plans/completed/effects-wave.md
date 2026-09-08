@@ -1,6 +1,7 @@
 # Exec plan: the effects wave (the road to 200 items)
 
-Status: ACTIVE 2026-09-08. Dean answered all six questions "agree"
+Status: CLOSED 2026-09-08 (PR #47: the pool is 200, all three criteria
+pass on curve F). Opened the same day. Dean answered all six questions "agree"
 (1 "I like", 2 "Agree", 3 "Yep looks good", 4 "Okay", 5 "Seems good
 agree", 6 "yep works"). Engine wave: new effect types, new hooks, new
 state, save v3. One adversarial round at the end of the engine PR
@@ -170,7 +171,13 @@ pick screen; new report lines in the report colours.
   locks (98% greedy) and Zooxanthellae as a full heal (100%): fixed.
   Sim after: mediocre 22.0%, greedy 53.4%, solver 79.6%, all PASS;
   both rates fell with the pool and the lock removals, curve left for
-  the final pass at batch 3 (target: greedy back in the sixties). Batch 3 finishes the pool: 22 / 12 / 8 / 1 to 200. The rework of the original 72 onto the new
+  the final pass at batch 3 (target: greedy back in the sixties).
+- Batch 3 (PR #47): 43 items to 200 at exactly 90 / 60 / 38 / 12.
+  Curve F (act 3 damage 2.4 / 2.7 / 2.8): greedy 59.4%, mediocre
+  33.6%, solver 81.0% before the table; the table then caught the
+  lifesteal family and Pressure (see ROADMAP); shipped: greedy 57.6%,
+  mediocre 25.2%, solver 80.0%, all PASS. Per-item table at 3000 runs in
+  docs/sim/batch-3-impact.md. Wave closed. Batch 3 finishes the pool: 22 / 12 / 8 / 1 to 200. The rework of the original 72 onto the new
   verbs did not happen in this batch; none of them needed a new verb
   to keep its identity, and the per-item table decides cuts.
 
