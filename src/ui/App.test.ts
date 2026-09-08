@@ -254,6 +254,27 @@ describe('App', () => {
     expect(img.getAttribute('src')).toBe('/sprites/unknown.png');
   });
 
+  it('Shuffle arms on the first tap, disarms on another action, and on the second tap redraws the grid and spends the turn', async () => {
+    await startRun();
+    const before = gridLetters();
+    await click(getButton('Shuffle'));
+    expect(getButton('Shuffle? Costs a turn')).toBeTruthy();
+    await click(tiles()[0] ?? null); // any other action disarms
+    expect(getButton('Shuffle')).toBeTruthy();
+    await click(getButton('Clear'));
+    await click(getButton('Shuffle'));
+    await click(getButton('Shuffle? Costs a turn'));
+    if (queryByText('Choose an item')) throw new Error('a shuffle deals no damage; the enemy cannot have died');
+    expect(getByText('Turn 2')).toBeTruthy();
+    expect(getByText('grid scrambled')).toBeTruthy();
+    expect(getButton('Shuffle')).toBeTruthy();
+    const after = gridLetters();
+    expect(after).not.toEqual(before);
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { stats: { turns: number }; lastTurn: { word: string } };
+    expect(saved.stats.turns).toBe(1);
+    expect(saved.lastTurn.word).toBe('');
+  });
+
   it('the item strip opens a panel listing every carried item with its description', async () => {
     await startRun();
     const strip = getByText(/^Items \(1\): /);

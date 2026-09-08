@@ -14,6 +14,9 @@
  *   refill used tiles (onTileDraw vowelWeight), tick locks, dead-grid scramble
  *   next turn: onTurnStart effects; if enemy dead: same as above
  *
+ * shuffle: redraw every unlocked tile, count a turn, then the enemy turn and end of
+ *   turn above with nothing refilled (Dean, 2026-09-08: a shuffle costs the turn).
+ *
  * Conditions on onDamageTaken see the player's HP *before* the hit.
  */
 import type { Dictionary } from './dictionary';
@@ -36,7 +39,8 @@ export type Action =
   | { readonly type: 'toggleTile'; readonly index: number }
   | { readonly type: 'clearSelection' }
   | { readonly type: 'submitWord' }
-  | { readonly type: 'pickItem'; readonly index: number };
+  | { readonly type: 'pickItem'; readonly index: number }
+  | { readonly type: 'shuffle' };
 
 export const SAVE_VERSION = 1;
 export const OFFER_SIZE = 3;
@@ -87,6 +91,8 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return submitWord(state, ctx);
     case 'pickItem':
       return pickItem(state, action.index, ctx);
+    case 'shuffle':
+      return shuffle(state, ctx);
   }
 }
 
@@ -320,7 +326,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   };
   const extras = applyEffects(s, effects, ctx);
   s = extras.state;
-  let report: TurnReport = {
+  const report: TurnReport = {
     ...EMPTY_REPORT,
     word,
     base: score.base,
@@ -332,7 +338,17 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   s = { ...s, lastTurn: report, stats: { ...s.stats, damageDealt: s.stats.damageDealt + extras.enemyDamage } };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
 
-  // Enemy turn.
+  const after = enemyTurn(s, ctx, report);
+  if (after.state.phase === 'summary') return after.state;
+  return endTurn(after.state, ctx, after.report, enc.selection);
+}
+
+/**
+ * The enemy's half of a turn: attack on its cadence (reduced by onDamageTaken items),
+ * then its special. Returns the summary state on a kill so callers stop there.
+ */
+function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { state: RunState; report: TurnReport } {
+  let s = state;
   const enc2 = s.encounter as Encounter;
   const enemyDef = [...ctx.content.enemies, ...ctx.content.bosses].find((e) => e.id === enc2.enemy.id);
   if (!enemyDef) throw new Error(`unknown enemy ${enc2.enemy.id}`);
@@ -358,13 +374,16 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   }
   report = { ...report, enemyDamage };
   if (s.player.hp <= 0) {
-    return { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null, lastTurn: report };
+    return { state: { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null, lastTurn: report }, report };
   }
+  return { state: s, report };
+}
 
-  // Refill, tick locks, guard against a dead grid.
+/** End of a turn: refill the used tiles, tick locks, guard against a dead grid, then the next turn starts. */
+function endTurn(state: RunState, ctx: EngineContext, report: TurnReport, used: readonly number[]): RunState {
+  let s = state;
   const enc3 = s.encounter as Encounter;
-  const used = enc.selection;
-  const [refilled, rng] = refill(s.rng, enc3.grid, used, vowelWeight(s, ctx));
+  const [refilled, rng] = used.length > 0 ? refill(s.rng, enc3.grid, used, vowelWeight(s, ctx)) : [enc3.grid, s.rng];
   const grid = refilled.map((t) => (t.lockedTurns > 0 ? { ...t, lockedTurns: t.lockedTurns - 1 } : t));
   s = { ...s, rng, encounter: { ...enc3, grid, selection: [], turn: enc3.turn + 1 } };
   if (isDead(grid, ctx.solver)) {
@@ -372,6 +391,30 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
     report = { ...report, scrambled: true };
   }
   return turnStart(s, ctx, report);
+}
+
+/**
+ * Shuffle (Dean, 2026-09-08): redraw every unlocked tile and give the turn to the enemy,
+ * as if a word had been played for zero damage. Locked tiles stay locked, so a shuffle
+ * never answers a boss's lock. The redraw goes through refill, the same RNG-threaded
+ * path a played word uses, and the dead-grid guard still applies afterwards.
+ */
+function shuffle(state: RunState, ctx: EngineContext): RunState {
+  const enc = state.encounter;
+  if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
+  const unlocked = enc.grid.map((t, i) => (t.lockedTurns > 0 ? -1 : i)).filter((i) => i >= 0);
+  const [grid, rng] = refill(state.rng, enc.grid, unlocked, vowelWeight(state, ctx));
+  const s: RunState = {
+    ...state,
+    rng,
+    rejected: null,
+    encounter: { ...enc, grid, selection: [] },
+    stats: { ...state.stats, turns: state.stats.turns + 1 },
+  };
+  const report: TurnReport = { ...EMPTY_REPORT, scrambled: true };
+  const after = enemyTurn(s, ctx, report);
+  if (after.state.phase === 'summary') return after.state;
+  return endTurn(after.state, ctx, after.report, []);
 }
 
 function pickItem(state: RunState, index: number, ctx: EngineContext): RunState {

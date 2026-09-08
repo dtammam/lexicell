@@ -20,6 +20,25 @@
   const valid = $derived(word.length >= 3 && isWord(word));
   const canAttack = $derived(word.length >= 3);
 
+  // Shuffle costs the turn (Dean, 2026-09-08). The first tap arms it, the second fires;
+  // the arm drops on any other action so a stray tap never spends a turn.
+  let armedAt: string | null = $state.raw(null);
+  const armKey = $derived(`${run.stats.turns}:${enc?.selection.length ?? 0}`);
+  const shuffleArmed = $derived(armedAt === armKey);
+  // Once the key moves (a tap, a clear, a turn), the arm is dropped for good rather than
+  // coming back if the selection returns to the same length.
+  $effect(() => {
+    if (armedAt !== null && armedAt !== armKey) armedAt = null;
+  });
+  function onShuffle() {
+    if (!shuffleArmed) {
+      armedAt = armKey;
+      return;
+    }
+    armedAt = null;
+    dispatch({ type: 'shuffle' });
+  }
+
   function orderOf(index: number): number {
     return (enc?.selection.indexOf(index) ?? -1) + 1;
   }
@@ -70,6 +89,7 @@
 
     <div class="actions">
       <button class="secondary" disabled={enc.selection.length === 0} onclick={() => { dispatch({ type: 'clearSelection' }); }}>Clear</button>
+      <button class="secondary shuffle" class:armed={shuffleArmed} onclick={onShuffle}>{shuffleArmed ? 'Shuffle? Costs a turn' : 'Shuffle'}</button>
       <button class="primary" class:ready={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>Attack</button>
     </div>
 
@@ -216,6 +236,10 @@
   }
   .secondary:disabled {
     color: #6a6a85;
+  }
+  .shuffle.armed {
+    background: #e05a5a;
+    color: white;
   }
   @keyframes pop {
     from {

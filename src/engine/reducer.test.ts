@@ -5,7 +5,7 @@ import { candidateIndices, candidateWords } from './candidates';
 import { isDead } from './grid';
 import { newRun, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
-import type { RunState } from './types';
+import type { Encounter, RunState } from './types';
 
 /** Shipped content opens on a starting-kit pick; most tests here want the first fight directly. */
 const ctx = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
@@ -278,6 +278,95 @@ describe('starting kit (tuning.startingPicks)', () => {
     expect(newRun(5, neg).pendingPicks).toBe(0);
     const frac = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1.5 } });
     expect(newRun(5, frac).pendingPicks).toBe(1);
+  });
+});
+
+describe('shuffle (costs the turn)', () => {
+  function inFight(seed: number): RunState {
+    const s = newRun(seed, ctx);
+    if (s.phase !== 'fight') throw new Error('expected a fight');
+    return s;
+  }
+
+  it('is rejected outside a fight and leaves the state otherwise untouched', () => {
+    const kit = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const s0 = newRun(5, kit);
+    const s1 = reduce(s0, { type: 'shuffle' }, kit);
+    expect(s1.rejected).toBe('not in a fight');
+    expect({ ...s1, rejected: null }).toEqual({ ...s0, rejected: null });
+  });
+
+  it('redraws through the RNG, clears the selection, counts a turn, and the enemy attacks once', () => {
+    let s = inFight(11);
+    s = reduce(s, { type: 'toggleTile', index: 0 }, ctx);
+    const before = s;
+    const enemy = (before.encounter as Encounter).enemy;
+    const def = [...CONTENT.enemies, ...CONTENT.bosses].find((e) => e.id === enemy.id);
+    if (!def) throw new Error('enemy def');
+    const s2 = reduce(s, { type: 'shuffle' }, ctx);
+    assertInvariants(s2, ctx);
+    const enc = s2.encounter as Encounter;
+    expect(s2.rng.counter).toBeGreaterThan(before.rng.counter);
+    expect(enc.selection).toEqual([]);
+    expect(enc.turn).toBe(2);
+    expect(s2.stats.turns).toBe(before.stats.turns + 1);
+    expect(enc.enemy.hp).toBe(enemy.hp); // no damage dealt by a shuffle
+    expect(s2.lastTurn).toMatchObject({ word: '', damage: 0, scrambled: true });
+    const expectedHit = 1 % def.attackEvery === 0 ? enemy.damage : 0;
+    expect(before.player.hp - s2.player.hp).toBe(expectedHit);
+    expect(s2.lastTurn?.enemyDamage).toBe(expectedHit);
+    expect(s2.stats.damageTaken).toBe(before.stats.damageTaken + expectedHit);
+  });
+
+  it('keeps locked tiles in place (and ticks them) while every unlocked tile is redrawn', () => {
+    const s0 = inFight(12);
+    const enc0 = s0.encounter as Encounter;
+    const grid = enc0.grid.map((t, i) => (i === 3 || i === 9 ? { ...t, lockedTurns: 2 } : t));
+    const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
+    const s2 = reduce(s1, { type: 'shuffle' }, ctx);
+    const g2 = (s2.encounter as Encounter).grid;
+    expect(g2[3]).toEqual({ letter: grid[3]?.letter, lockedTurns: 1 });
+    expect(g2[9]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1 });
+    // Fourteen fresh draws: identical to the old grid only by a 1-in-astronomical chance.
+    const same = g2.filter((t, i) => i !== 3 && i !== 9 && t.letter === grid[i]?.letter).length;
+    expect(same).toBeLessThan(14);
+    expect(isDead(g2, ctx.solver)).toBe(false);
+  });
+
+  it('is deterministic and JSON-clean', () => {
+    const s = inFight(13);
+    const a = reduce(s, { type: 'shuffle' }, ctx);
+    const b = reduce(s, { type: 'shuffle' }, ctx);
+    expect(a).toEqual(b);
+    expect(JSON.parse(JSON.stringify(a))).toEqual(a);
+  });
+
+  it('can kill you: the enemy turn runs and the run ends in a loss', () => {
+    // Pick a seed whose enemy attacks every turn, so turn 1 carries a hit.
+    let seed = 14;
+    let s0 = inFight(seed);
+    const attacksEveryTurn = (s: RunState) => CONTENT.enemies.find((e) => e.id === (s.encounter as Encounter).enemy.id)?.attackEvery === 1;
+    while (!attacksEveryTurn(s0)) s0 = inFight(++seed);
+    const s1: RunState = { ...s0, player: { ...s0.player, hp: 1 } };
+    const s2 = reduce(s1, { type: 'shuffle' }, ctx);
+    expect(s2.phase).toBe('summary');
+    expect(s2.outcome).toBe('lost');
+    expect(s2.encounter).toBeNull();
+    expect(s2.lastTurn?.enemyDamage).toBeGreaterThan(0);
+  });
+
+  it('a played word after a shuffle behaves as before: the refill path is unchanged', () => {
+    // submitWord was split into enemyTurn + endTurn for shuffle; the same seed and word must
+    // reach byte-identical state whether or not the split exists. Bound by the sim tables too.
+    const s0 = inFight(15);
+    const best = candidateWords(s0, ctx).sort((a, b) => b.damage - a.damage)[0];
+    if (!best) throw new Error('no word');
+    const s1 = play(s0, best.word);
+    assertInvariants(s1, ctx);
+    if (s1.phase === 'fight') {
+      expect((s1.encounter as Encounter).turn).toBe(2);
+      expect((s1.encounter as Encounter).selection).toEqual([]);
+    }
   });
 });
 
