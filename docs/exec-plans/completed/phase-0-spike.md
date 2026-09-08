@@ -1,11 +1,9 @@
 # Exec plan: Phase 0 spike - is the loop fun?
 
-Status: ACTIVE. Engine and sim built (main through 9f63d34, 2026-09-06).
-Act-1 wave done on branch `tune/greedy-cap` (greedy cap, starting kit,
-act-1 ease), awaiting its one adversarial round (engine changed) and
-merge. Exit criteria: 3 of 4 pass on that branch; greedy 91.0% is noise
-around the 90% line at n=500 (Dean). NEXT WAVE: act 2 (E4-E6) and the
-final boss E9. See "Handoff" at the end.
+Status: CLOSED 2026-09-08. Dean signed Phase 0 off as met: three of four
+criteria pass at n=500 and greedy at 91.0% against the 90% bar is ruled
+noise. The act-2 + E9 tuning wave in the Handoff section below is
+deferred behind Phase 1 (Dean, 2026-09-08). Final numbers: ROADMAP.md.
 
 Owner: main session (lean mode). This doc is the reviewers' spec and
 survives context compaction. Spec of record: `docs/lexicell-architecture-pack.md`,
