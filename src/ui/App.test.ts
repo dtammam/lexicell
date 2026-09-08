@@ -6,6 +6,7 @@ import type { RunState } from '../engine/types';
 import { newRun } from '../engine/reducer';
 import { LETTER_VALUE } from '../engine/scoring';
 import { tilesForWord } from '../engine/solver';
+import { tick } from 'svelte';
 import App from './App.svelte';
 import { SAVE_KEY } from './persist';
 import { cleanup, click, findByText, getButton, getByText, queryButton, queryByText, render } from './test-utils';
@@ -390,6 +391,47 @@ describe('App', () => {
     expect(after.stats.turns).toBe(seeded.stats.turns);
     expect(getButton('Shuffle')).toBeTruthy();
     expect(queryButton('Free x1')).toBeNull();
+  });
+
+  it('keyboard play: letters select matching tiles, Backspace undoes, Escape clears, Enter attacks', async () => {
+    await startRun();
+    const state = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = state.encounter as NonNullable<RunState['encounter']>;
+    const letters = enc.grid.map((t) => t.letter);
+    const word = ctx.solver.solve(letters).filter((w) => w.length <= 7).sort((a, b) => b.length - a.length)[0] as string;
+    const press = (key: string) => window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    for (const ch of word) {
+      press(ch);
+      await tick();
+    }
+    expect(getByText(word.toUpperCase())).toBeTruthy();
+    expect(document.querySelectorAll('.tile.selected')).toHaveLength(word.length);
+    press('Backspace');
+    await tick();
+    expect(document.querySelectorAll('.tile.selected')).toHaveLength(word.length - 1);
+    press('Escape');
+    await tick();
+    expect(document.querySelectorAll('.tile.selected')).toHaveLength(0);
+    // A letter that is not on the grid does nothing; a modifier chord is ignored.
+    const missing = 'abcdefghijklmnopqrstuvwxyz'.split('').find((c) => !letters.includes(c));
+    if (missing) {
+      press(missing);
+      await tick();
+      expect(document.querySelectorAll('.tile.selected')).toHaveLength(0);
+    }
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: word[0] as string, ctrlKey: true, bubbles: true }));
+    await tick();
+    expect(document.querySelectorAll('.tile.selected')).toHaveLength(0);
+    for (const ch of word) {
+      press(ch);
+      await tick();
+    }
+    const turnsBefore = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState).stats.turns;
+    press('Enter');
+    await tick();
+    const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    expect(after.stats.turns).toBe(turnsBefore + 1);
+    expect(after.lastTurn?.word).toBe(word);
   });
 
   it('a finished run does not offer Continue on the title', async () => {

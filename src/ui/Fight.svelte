@@ -122,7 +122,52 @@
   function orderOf(index: number): number {
     return (enc?.selection.indexOf(index) ?? -1) + 1;
   }
+
+  /**
+   * Keyboard play (Dean, 2026-09-08, for desktop players): a letter key selects an unselected,
+   * unlocked tile carrying that letter, a venomed one first since it wants spending; Backspace
+   * drops the last tile; Enter attacks when the button would; Escape clears. Modifier chords and
+   * typing into a control are left alone. Touch devices never send these, so nothing changes there.
+   */
+  function onKey(e: KeyboardEvent) {
+    if (!enc || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    const key = e.key;
+    if (key === 'Escape') {
+      if (enc.selection.length > 0) dispatch({ type: 'clearSelection' });
+      armedAt = null;
+      e.preventDefault();
+      return;
+    }
+    if (key === 'Backspace') {
+      const last = enc.selection[enc.selection.length - 1];
+      if (last !== undefined) dispatch({ type: 'toggleTile', index: last });
+      e.preventDefault();
+      return;
+    }
+    if (key === 'Enter') {
+      if (canAttack) dispatch({ type: 'submitWord' });
+      e.preventDefault();
+      return;
+    }
+    if (key.length !== 1 || !/[a-z]/i.test(key)) return;
+    const letter = key.toLowerCase();
+    const selected = new Set(enc.selection);
+    let pick = -1;
+    for (let i = 0; i < enc.grid.length; i++) {
+      const tile = enc.grid[i];
+      if (!tile || tile.letter !== letter || tile.lockedTurns > 0 || selected.has(i)) continue;
+      if (pick < 0 || (tile.venom > 0 && (enc.grid[pick]?.venom ?? 0) === 0)) pick = i;
+    }
+    if (pick >= 0) {
+      dispatch({ type: 'toggleTile', index: pick });
+      e.preventDefault();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={onKey} />
 
 {#if enc}
   <section class="fight">
@@ -206,6 +251,7 @@
     </div>
 
     <ItemsPanel items={run.player.items} />
+    <p class="kbd">Type letters to select, Backspace to undo, Enter to attack, Esc to clear.</p>
   </section>
 {/if}
 
@@ -344,6 +390,10 @@
     }
     .fight > :global(.panel) {
       grid-area: items;
+    }
+    /* No room for the hint in the two-column layout; a landscape phone has no keyboard anyway. */
+    .kbd {
+      display: none;
     }
   }
   .grid {
@@ -498,6 +548,19 @@
     flex: none;
     display: flex;
     gap: var(--s2);
+  }
+  /* The keyboard hint exists only where a keyboard is likely: a fine pointer that can hover. */
+  .kbd {
+    display: none;
+    flex: none;
+    margin: 0;
+    font-size: var(--text);
+    color: var(--muted);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .kbd {
+      display: block;
+    }
   }
   .actions .btn {
     flex: 1;
