@@ -196,7 +196,7 @@
           {#if run.lastTurn.redrawn.length > 0}<span class="note">{run.lastTurn.redrawn.length} tiles redrawn</span>{/if}
         {:else}
           <span class="note">Spell a word of 3+ letters</span>
-          {#if run.encounterIndex === 0 && enc.turn <= 3}<span class="note">Yellow tiles are vowels, pink-edged ones are rare letters worth the most. How to play is on the menu.</span>{/if}
+          {#if run.encounterIndex === 0 && enc.turn <= 3}<span class="note">Tiles do not need to touch: pick letters anywhere. Yellow tiles are vowels, pink-edged ones are rare letters worth the most. How to play is on the menu.</span>{/if}
         {/if}
       {/key}
       {#if run.rejected}<span class="rejected">{run.rejected}</span>{/if}
