@@ -17,6 +17,7 @@
 
   <div class="body">
     <p class="lead">Spell words from the sixteen tiles. Every word is an attack. Long words hit hard.</p>
+    <p class="lead">Tiles do not need to touch. Pick any letters anywhere on the grid, in the order you want to spell them.</p>
 
     <h3>Damage</h3>
     <p>Each letter has a value. The word's letters are added up, multiplied by a bonus for its length, then by your organelles. A seven-letter word is worth many times a four-letter one.</p>
