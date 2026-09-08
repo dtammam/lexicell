@@ -51,6 +51,24 @@ describe('persist', () => {
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, extra: 1 }) })).load()).toBeNull();
   });
 
+  it('drops a blob with the right keys and wrong types (gate W1: it would throw inside render on every reload)', () => {
+    const s = newRun(3, ctx);
+    const bad: Record<string, unknown>[] = [
+      { ...s, player: [] },
+      { ...s, phase: 42 },
+      { ...s, rng: null },
+      { ...s, phase: 'fight', encounter: null },
+      { ...s, encounter: { enemy: {}, grid: [], selection: [] } },
+      { ...s, pendingPicks: 'one' },
+      { ...s, stats: null },
+    ];
+    for (const blob of bad) {
+      const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify(blob) });
+      expect(createPersist(storage).load(), JSON.stringify(blob).slice(0, 60)).toBeNull();
+      expect(storage.data.has(SAVE_KEY)).toBe(false);
+    }
+  });
+
   it('drops corrupt JSON and non-object blobs', () => {
     for (const raw of ['{not json', '42', 'null', '[]', '"str"']) {
       const storage = fakeStorage({ [SAVE_KEY]: raw });

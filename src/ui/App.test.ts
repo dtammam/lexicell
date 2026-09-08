@@ -126,6 +126,39 @@ describe('App', () => {
     expect(mainHtml()).toBe(snapshot);
   });
 
+  it('tapping the third offer picks the third item, and a turn-start item reports "Turn start" (seed 20260918)', async () => {
+    // Gate W2 and S1 for Phase 1. At this seed the offer is long-fuse, sharp-pen, spores; spores deals
+    // 4 at turn start, so the fight opens on the turn-start report with no word played yet.
+    vi.spyOn(Date, 'now').mockReturnValue(20260918);
+    render(App);
+    await screen.findByText('Choose a starting item', {}, { timeout: 15000 });
+    const offered = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { offer: string[] }).offer;
+    expect(offered).toHaveLength(3);
+    const third = document.querySelectorAll('button.offer')[2] ?? null;
+    await click(third);
+    await screen.findByText('Encounter 1 / 9');
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { player: { items: string[] } };
+    expect(saved.player.items).toEqual([offered[2]]);
+    expect(offered[2]).toBe('spores');
+    expect(screen.getByText('Turn start: 4 damage')).toBeTruthy();
+    expect(screen.queryByText(/hit for/)).toBeNull();
+  });
+
+  it('a save that passes the shape check but breaks a screen is dropped and a new run starts', async () => {
+    // Sixteen numbers where tiles should be: persist cannot tell, Fight throws on tile.letter.
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { encounter: { grid: unknown[] } };
+    blob.encounter.grid = Array.from({ length: 16 }, () => 7);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(blob));
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(App);
+    expect(await screen.findByText('Choose a starting item', {}, { timeout: 15000 })).toBeTruthy();
+    expect(quiet).toHaveBeenCalled();
+    const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { phase: string; encounter: null };
+    expect(after.phase).toBe('pick');
+  });
+
   it('plays a whole run to the summary and can start a new one', async () => {
     await startRun();
     for (let guard = 0; guard < 400; guard++) {

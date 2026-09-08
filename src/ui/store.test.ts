@@ -47,15 +47,26 @@ describe('store', () => {
     const got = store.dispatch({ type: 'pickItem', index: 0 });
     expect(got).toEqual(expected);
     expect(store.state).toBe(got);
-    expect(persist.saves).toEqual([got]);
+    expect(persist.saves).toEqual([newRun(11, ctx), got]);
     expect(seen.at(-1)).toBe(got);
     store.dispatch({ type: 'toggleTile', index: 0 });
-    expect(persist.saves).toHaveLength(2);
+    expect(persist.saves).toHaveLength(3);
     expect(seen).toHaveLength(3);
     unsubscribe();
     store.dispatch({ type: 'clearSelection' });
     expect(seen).toHaveLength(3);
-    expect(persist.saves).toHaveLength(3);
+    expect(persist.saves).toHaveLength(4);
+  });
+
+  it('saves before publishing, so a throwing listener cannot lose the step', () => {
+    const persist = memoryPersist();
+    const store = createStore(ctx, persist, () => 11);
+    store.subscribe((s) => {
+      if (s.player.items.length > 0) throw new Error('listener broke');
+    });
+    expect(() => store.dispatch({ type: 'pickItem', index: 0 })).toThrow('listener broke');
+    expect(persist.saves).toHaveLength(2);
+    expect(persist.load()).toEqual(store.state);
   });
 
   it('newRun through dispatch replaces the run and the save', () => {

@@ -81,7 +81,7 @@ jobs:
           fail() { echo "::error::smoke failed: $1"; docker logs smoke || true; docker rm -f smoke || true; exit 1; }
           code=000
           for i in $(seq 1 30); do
-            code=$(curl -s --max-time 5 -o /tmp/index.html -w '%{http_code}' http://127.0.0.1:8080/ || echo 000)
+            code=$(curl -s --max-time 5 -o /tmp/index.html -w '%{http_code}' http://127.0.0.1:8080/ || true)
             [ "$code" = "200" ] && break
             sleep 1
           done
@@ -89,10 +89,10 @@ jobs:
           grep -q '<title>Lexicell</title>' /tmp/index.html || fail "index.html is not Lexicell"
           grep -q 'manifest.webmanifest' /tmp/index.html || fail "index.html does not link the manifest"
           for p in /manifest.webmanifest /sw.js /icons/icon-192.png; do
-            c=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:8080$p" || echo 000)
+            c=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:8080$p" || true)
             [ "$c" = "200" ] || fail "GET $p returned $c"
           done
-          c=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/some/deep/route || echo 000)
+          c=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/some/deep/route || true)
           [ "$c" = "200" ] || fail "SPA fallback returned $c"
           echo "smoke OK"
           docker rm -f smoke

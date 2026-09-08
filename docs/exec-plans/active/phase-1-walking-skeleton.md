@@ -54,7 +54,7 @@ public/icons/               PWA icons (generated, committed)
 src/ui/main.ts              mounts App, boots the browser context
 src/ui/context.ts           EngineContext for the browser (dictionary via ?raw import)
 src/ui/persist.ts           localStorage save/load, versioned, injectable Storage
-src/ui/store.svelte.ts      runes state: current RunState, dispatch(action)
+src/ui/store.ts             plain TS: current RunState, dispatch(action), subscribe
 src/ui/App.svelte           phase switch
 src/ui/Fight.svelte         grid, enemy, attack
 src/ui/Pick.svelte          three buttons
@@ -73,8 +73,9 @@ Dockerfile, nginx.conf      static build served by nginx
   not wait on it and the service worker caches it as part of the app.
   ADR's "fetch once, cached by SW" is satisfied without a second
   request path. Revisit if the bundle size bites on cold start.
-- **Store, not components, owns state.** One `$state` holding the
-  `RunState`; `dispatch(action)` calls `reduce` and then `persist.save`.
+- **Store, not components, owns state.** A plain-TS store holds the
+  `RunState`; `dispatch(action)` calls `reduce`, then `persist.save`,
+  then publishes. App.svelte mirrors it into a `$state.raw` rune.
   Components render state and call `dispatch`. Nothing else mutates.
 - **Persist is injectable.** `createPersist(storage: StorageLike)` so
   tests run without a DOM and the UI passes `localStorage`. Load

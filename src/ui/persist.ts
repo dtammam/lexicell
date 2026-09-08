@@ -39,11 +39,54 @@ export interface Persist {
   clear(): void;
 }
 
-function sameKeys(value: unknown): value is RunState {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'summary']);
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+function isNum(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+
+/**
+ * Key set plus the field types the screens dereference on first paint. A blob with the
+ * right keys and wrong types (player: []) would otherwise load, throw inside render, and
+ * come back on every reload; the gate's W1 for Phase 1. Deeper shape errors are caught by
+ * the render boundary in App.svelte, which clears the save and starts over.
+ */
+function looksLikeRunState(value: unknown): value is RunState {
+  if (!isRecord(value)) return false;
   const keys = Object.keys(value).sort();
   const expected = [...RUN_STATE_KEYS].sort();
-  return keys.length === expected.length && keys.every((k, i) => k === expected[i]);
+  if (keys.length !== expected.length || !keys.every((k, i) => k === expected[i])) return false;
+  const v = value;
+  const encounterOk =
+    v.encounter === null ||
+    (isRecord(v.encounter) &&
+      isRecord(v.encounter.enemy) &&
+      Array.isArray(v.encounter.grid) &&
+      v.encounter.grid.length === 16 &&
+      Array.isArray(v.encounter.selection));
+  return (
+    isNum(v.v) &&
+    isRecord(v.rng) &&
+    isNum(v.rng.seed) &&
+    isNum(v.rng.counter) &&
+    PHASES.has(v.phase) &&
+    Number.isInteger(v.encounterIndex) &&
+    isRecord(v.player) &&
+    isNum(v.player.hp) &&
+    isNum(v.player.maxHp) &&
+    Array.isArray(v.player.items) &&
+    encounterOk &&
+    (v.phase !== 'fight' || v.encounter !== null) &&
+    (v.offer === null || Array.isArray(v.offer)) &&
+    (v.outcome === null || typeof v.outcome === 'string') &&
+    (v.lastTurn === null || isRecord(v.lastTurn)) &&
+    (v.rejected === null || typeof v.rejected === 'string') &&
+    isNum(v.pendingPicks) &&
+    isRecord(v.stats)
+  );
 }
 
 export function createPersist(storage: StorageLike, key: string = SAVE_KEY): Persist {
@@ -63,7 +106,7 @@ export function createPersist(storage: StorageLike, key: string = SAVE_KEY): Per
         storage.removeItem(key);
         return null;
       }
-      if (!sameKeys(parsed) || parsed.v !== SAVE_VERSION) {
+      if (!looksLikeRunState(parsed) || parsed.v !== SAVE_VERSION) {
         storage.removeItem(key);
         return null;
       }

@@ -18,6 +18,8 @@ export interface Store {
 
 export function createStore(ctx: EngineContext, persist: Persist, seed: () => number): Store {
   let state = persist.load() ?? newRun(seed(), ctx);
+  // A fresh run is saved at once so the seed survives closing the app before the first action.
+  persist.save(state);
   const listeners = new Set<Listener>();
   const publish = () => {
     persist.save(state);

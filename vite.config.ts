@@ -8,7 +8,6 @@ export default defineConfig({
     VitePWA({
       // A new build takes over on the next load; no "update available" prompt in the skeleton.
       registerType: 'autoUpdate',
-      includeAssets: ['icons/apple-touch-icon-180.png'],
       manifest: {
         name: 'Lexicell',
         short_name: 'Lexicell',
@@ -28,7 +27,8 @@ export default defineConfig({
       workbox: {
         // Precache everything, including the dictionary chunk, so airplane mode works after one visit.
         globPatterns: ['**/*.{js,css,html,png,svg,ico,webmanifest}'],
-        // The dictionary chunk is ~1.7 MB; workbox's default 2 MB cap would silently skip it.
+        // The dictionary chunk is 1.67 MB, under workbox's 2 MiB default; the cap is raised so a
+        // larger word list later does not drop out of the precache silently.
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),
