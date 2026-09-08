@@ -197,9 +197,7 @@
 
 <style>
   .fight {
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     gap: var(--s2);
@@ -273,11 +271,57 @@
   /* The grid is a square no larger than the space left, read through container query units. */
   .grid-box {
     flex: 1;
-    min-height: 0;
+    /* The grid shrinks to absorb a longer report but never collapses; below this the screen
+       scrolls instead (App.svelte). */
+    min-height: 160px;
     container-type: size;
     display: flex;
     justify-content: center;
     align-items: center;
+    /* Fresh tiles rise in from below the grid; clip that outside the box while keeping the
+       tile shadows and glows (8 px) inside it. */
+    clip-path: inset(-8px);
+  }
+  /* Landscape on a phone (playtester, iPhone 17, 2026-09-08: the actions fell off the bottom):
+     arena, report and word line on the left, the grid and its actions on the right, so nothing
+     depends on a tall viewport. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    .fight {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        'arena grid'
+        'report grid'
+        'missed grid'
+        'word grid'
+        'items grid'
+        '. grid'
+        '. actions';
+      column-gap: var(--s4);
+    }
+    .fight > :global(.arena) {
+      grid-area: arena;
+    }
+    .report {
+      grid-area: report;
+    }
+    .missed {
+      grid-area: missed;
+    }
+    .word {
+      grid-area: word;
+    }
+    .grid-box {
+      grid-area: grid;
+      min-height: 0;
+    }
+    .actions {
+      grid-area: actions;
+    }
+    .fight > :global(.panel) {
+      grid-area: items;
+    }
   }
   .grid {
     width: min(100cqw, 100cqh);

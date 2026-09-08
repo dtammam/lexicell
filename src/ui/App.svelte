@@ -177,13 +177,28 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    /* Never a scrollbar (Dean saw one flicker on desktop when the report grew a line): a
-       screen that outgrows the viewport clips, and the fight's grid absorbs the change. */
-    overflow: hidden;
+    /* Never a scrollbar (Dean saw one flicker on desktop when the report grew a line): the
+       fight's grid absorbs a report line, so a screen that fits never scrolls. A viewport the
+       screen cannot fit (a phone in landscape, a zoomed page: playtester on an iPhone 17,
+       2026-09-08, lost the top in portrait and the actions in landscape) must still reach
+       every control, so overflow scrolls with the scrollbar hidden instead of clipping. */
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    overscroll-behavior: contain;
+  }
+  .screen::-webkit-scrollbar {
+    display: none;
   }
   .screen > :global(*) {
-    flex: 1;
-    min-height: 0;
+    flex: 1 0 auto;
+    min-height: 100%;
+  }
+  /* Landscape on a phone: the fight lays out in two columns (Fight.svelte), so the page widens. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    main {
+      max-width: 960px;
+    }
   }
   .error {
     color: var(--harm);
