@@ -37,7 +37,6 @@
   --rare: #ff4fa3; /* K J X Q Z, rare items */
   --mythic: #fff3a0; /* mythic items only: explicitly overpowered */
   --shield: #8ecbff; /* the shield, and nothing else (effects wave) */
-  --mid: #35e0d8; /* 3-4 point consonants share the life hue at low weight */
   --select: #ff9f43; /* a selected tile that is not yet a word */
 
   /* Tiles */
@@ -73,6 +72,9 @@
      face with a real lowercase that stays readable at 16px. Never below 16px. */
   --font-ui: 'Pixelify Sans', system-ui, -apple-system, sans-serif;
   --text: 16px;
+  /* Readable type (Dean, 2026-09-08, a tester found the pixel faces ambiguous): a per-device toggle
+     swaps every face for the system sans; the tokens below are what it swaps to. */
+  --font-readable: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   /* No digit under 16px anywhere (Dean, 2026-09-08): the small HUD size is the HUD face's floor. */
   --hud-s: 16px;
   --hud-m: 16px;
@@ -113,7 +115,23 @@ body {
   background: var(--ground);
   color: var(--ink);
   font-family: var(--font-ui);
+  /* Pixelify Sans joins "fi" into one shape ("find" read as "And" to a tester): no ligatures, a hair of tracking. */
+  font-variant-ligatures: none;
+  letter-spacing: 0.01em;
   -webkit-tap-highlight-color: transparent;
+}
+/* Readable type: every role falls back to the system sans; weights carry the hierarchy the faces did. */
+[data-readable] {
+  --font-tile: var(--font-readable);
+  --font-hud: var(--font-readable);
+  --font-letter: var(--font-readable);
+  --font-head: var(--font-readable);
+  --font-ui: var(--font-readable);
+}
+[data-readable] .btn,
+[data-readable] .hud,
+[data-readable] .hud-s {
+  font-weight: 700;
 }
 
 /* Shared control shapes. Components add role colours; the shape is the same everywhere. */

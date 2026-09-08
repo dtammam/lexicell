@@ -82,12 +82,20 @@ context; they are defined on the arena and stay inside it.
 
 ## Component rules
 
-- Tiles: `--tile` fill, letter in `--font-letter` at half the tile's
-  side rounded to the pixel grid, tier by border colour (vowel fill `--score`, mid edge
-  `--mid`, rare edge `--rare` with a glow), selection overrides tier
+- Tiles carry two letter signals and no more (a tester, 2026-09-08,
+  could not decode three): vowel fill `--score`, rare-letter edge
+  `--rare` with a glow; every other letter is plain. The mid-value
+  teal edge was dropped, and `--mid` with it. Selection overrides
   (`--select` fill, then `--life` fill when the word is valid), locked
   tiles dashed and dimmed, venom edge `--venom` with a glow and a
-  count in `--font-hud`.
+  count in `--font-hud`. The How to play card shows the legend with
+  real letter values; the first fight's report repeats the two signals.
+- Readable type: a per-device toggle (`[data-readable]` on `main`)
+  swaps every face token for the system sans, with bold on HUD and
+  buttons to keep the hierarchy. The default stays the pixel faces;
+  the toggle exists so a player the faces cost letters has a way out.
+- Pixelify Sans runs with ligatures off and 0.01em tracking: its "fi"
+  joined into one glyph and "find" read as "And".
 - Buttons: `.btn` plus a role class (`life`, `harm`, `select`). The
   primary action is `life` when it will succeed and `harm` when it
   costs something.
