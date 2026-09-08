@@ -44,16 +44,38 @@ Point the reverse proxy at port 8090 with HTTPS. Watchtower following
 `edge` picks up every push to main; switch the tag to `latest` once a
 release is cut.
 
-## Local check without Docker
+## Play it locally, no Docker, no NUC
+
+The dev box is a container reached through VS Code Remote. Both dev
+scripts bind to all interfaces so the port can be forwarded or
+published.
+
+**Desktop browser (fastest).** In the VS Code terminal:
 
 ```
-npm run build && npm run preview
+npm run dev
 ```
 
-`vite preview` serves `dist/` on `http://localhost:4173`. `localhost`
-counts as a secure context, so the service worker registers there;
-check DevTools > Application > Service Workers, then go offline and
-reload.
+VS Code auto-forwards port 5173 to your machine (Ports panel; add it
+by hand if it does not appear). Open `http://localhost:5173`. Edits
+hot-reload. `localhost` is a secure context, so even the service
+worker registers here after `npm run build && npm run preview` on
+port 4173, which is the closest thing to the shipped bundle.
+
+**Phone on the LAN (plain HTTP, no install, no offline).** Two ways;
+pick whichever matches how BIGPAIL runs this container:
+
+1. VS Code forward, opened to the LAN. On your desktop set the VS Code
+   setting `remote.localPortHost` to `allInterfaces`, forward 5173,
+   then browse to `http://<desktop LAN IP>:5173` from the phone.
+2. Publish the container port on BIGPAIL: add `5173:5173` to the
+   container's port mappings, restart it, run `npm run dev`, browse to
+   `http://<BIGPAIL LAN IP>:5173`.
+
+Over LAN HTTP the game plays and saves, but "Add to Home Screen" is a
+bookmark and airplane mode fails; that needs the HTTPS deploy above.
+The save lives in that browser's localStorage per origin, so the
+desktop and the phone have separate runs.
 
 ## Phone
 
