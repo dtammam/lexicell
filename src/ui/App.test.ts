@@ -44,8 +44,11 @@ function attackButton(): HTMLButtonElement {
   return b;
 }
 
+/** The screen's markup, minus the missed-word reveal: a resumed save cannot know the previous grid. */
 function mainHtml(): string {
-  return document.querySelector('main')?.innerHTML ?? '';
+  const main = document.querySelector('main')?.cloneNode(true) as HTMLElement | null;
+  main?.querySelectorAll('.missed').forEach((el) => { el.remove(); });
+  return main?.innerHTML ?? '';
 }
 
 /** Spell and submit a solver word from the visible grid: the longest of at most 7 letters, or the shortest. */
@@ -187,6 +190,25 @@ describe('App', () => {
     await click(getButton(`Attack for ${expected}`));
     if (queryByText('Choose an item')) return;
     expect(getByText(new RegExp(`^${word.toUpperCase()} hit for ${expected}$`))).toBeTruthy();
+  });
+
+  it('after a word, the best word that was on that grid is revealed, or the play is praised as the best', async () => {
+    await startRun();
+    const before = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    let best = { word: '', damage: 0 };
+    for (const c of candidateWords(before, ctx)) if (c.damage > best.damage) best = c;
+    const word = await attackOnce('short');
+    if (queryByText('Choose an item')) return;
+    const played = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState).lastTurn?.damage ?? 0;
+    const el = document.querySelector('.missed');
+    if (best.damage > played && best.word !== word) {
+      expect(el?.textContent).toBe(`Best there: ${best.word.toUpperCase()} for ${best.damage}`);
+    } else {
+      expect(el?.textContent).toBe('Best word on that grid.');
+    }
+    // A later tap must not change the reveal: it belongs to the turn, not to the current selection.
+    await click(tiles()[0] ?? null);
+    expect(document.querySelector('.missed')?.textContent).toBe(el?.textContent);
   });
 
   it('rejects a non-word without spending the turn, and Clear empties the selection', async () => {
