@@ -1,0 +1,112 @@
+<script lang="ts">
+  import { CONTENT } from '../content/index';
+  import type { ItemDef, Rarity } from '../engine/types';
+  import ItemIcon from './ItemIcon.svelte';
+
+  // Every organelle in the game, by rarity, with what it does (Dean, 2026-09-08).
+  let { onBack }: { onBack: () => void } = $props();
+
+  const ORDER: readonly Rarity[] = ['common', 'uncommon', 'rare'];
+  const groups: readonly { rarity: Rarity; items: readonly ItemDef[] }[] = ORDER.map((rarity) => ({
+    rarity,
+    items: CONTENT.items.filter((i) => i.rarity === rarity),
+  }));
+</script>
+
+<section class="compendium">
+  <header>
+    <h2>Organelles</h2>
+    <button class="btn" onclick={onBack}>Back</button>
+  </header>
+  <p class="hint">{CONTENT.items.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1.</p>
+  <div class="list">
+    {#each groups as group (group.rarity)}
+      <h3 class={group.rarity}>{group.rarity} ({group.items.length})</h3>
+      {#each group.items as item (item.id)}
+        <div class="entry">
+          <ItemIcon id={item.id} size={32} />
+          <span class="text">
+            <span class="name">{item.name}</span>
+            <span class="desc">{item.description}</span>
+          </span>
+        </div>
+      {/each}
+    {/each}
+  </div>
+</section>
+
+<style>
+  .compendium {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+    min-height: 0;
+  }
+  header {
+    flex: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  h2 {
+    margin: 0;
+    font-family: var(--font-letter);
+    font-weight: 400;
+    font-size: var(--hud-l);
+  }
+  .hint {
+    flex: none;
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  /* The one screen allowed to scroll: it is a list, not the game. */
+  .list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    padding-right: var(--s1);
+  }
+  h3 {
+    margin: var(--s2) 0 0;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h3.uncommon {
+    color: var(--life);
+  }
+  h3.rare {
+    color: var(--rare);
+  }
+  .entry {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s2) var(--s3);
+    background: var(--panel);
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    min-width: 0;
+  }
+  .name {
+    font-family: var(--font-letter);
+    font-size: var(--hud-m);
+  }
+  .desc {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+</style>

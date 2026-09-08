@@ -10,6 +10,7 @@
   import { createStore, type Store } from './store';
   import Summary from './Summary.svelte';
   import Title from './Title.svelte';
+  import Compendium from './Compendium.svelte';
 
   // The seed is the only wall-clock the game reads, and it is read here, never in the engine.
   const seed = () => Date.now() >>> 0;
@@ -21,7 +22,7 @@
   // The state before the latest action; Fight uses it to say what the grid held before a word was played.
   let prev: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
-  let screen: 'title' | 'intro' | 'run' = $state.raw('title');
+  let screen: 'title' | 'intro' | 'run' | 'items' = $state.raw('title');
   // True when a run can be continued: an in-memory store, or a save on disk before one exists.
   let hasSave = $state.raw(false);
   let recoveries = 0;
@@ -77,6 +78,9 @@
   function toTitle() {
     screen = 'title';
   }
+  function toItems() {
+    screen = 'items';
+  }
 
   /**
    * A saved run that passes persist's shape check but still breaks a screen would come
@@ -109,8 +113,10 @@
       <p class="error">Something broke: {error}</p>
     {:else if !ctx}
       <p class="loading">Loading words...</p>
+    {:else if screen === 'items'}
+      <Compendium onBack={toTitle} />
     {:else if screen === 'title' || !run}
-      <Title {hasSave} {onPlay} {onContinue} />
+      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} />
     {:else if screen === 'intro'}
       <Intro {onBegin} />
     {:else if run.phase === 'fight'}
