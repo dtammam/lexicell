@@ -45,6 +45,9 @@ file is the mechanics.
 
 - 2-space indent, semicolons, single quotes, trailing commas. No
   formatter is configured; match the surrounding file.
+- UI styling follows `docs/design-language.md`: every colour, face,
+  radius, shadow and duration comes from a token in `src/ui/theme.css`
+  by role. A hex value in a component is a review finding.
 - `camelCase` for values and functions, `PascalCase` for types,
   `SCREAMING_SNAKE_CASE` for module-level constants.
 - Every engine function that draws randomness takes an `Rng` and returns

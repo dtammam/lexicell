@@ -1,0 +1,160 @@
+/*
+ * Lexicell design language: "Plasma" (Dean's pick, 2026-09-08). Saturated pixels, hard
+ * shadows, Earthbound in the veins. Every colour, face, radius, shadow and duration a
+ * component uses comes from here by ROLE; a component never invents a hex. The rules are in
+ * docs/design-language.md. Fonts are vendored under public/fonts (SIL Open Font License,
+ * licence texts alongside); nothing loads from a third party at runtime.
+ */
+
+@font-face {
+  font-family: 'Silkscreen';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/silkscreen-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Silkscreen';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/silkscreen-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/space-grotesk.woff2') format('woff2');
+}
+
+:root {
+  /* Surfaces and text */
+  --ground: #1b0f3a;
+  --panel: #2a1657;
+  --panel-deep: #22124a;
+  --ink: #fff3ff;
+  --muted: #b79bd6;
+  --line: #4a2d8a;
+  --shade: #120826;
+
+  /* Roles: what a colour MEANS. Never use a role for something else. */
+  --life: #35e0d8; /* your HP, a valid word, the good button */
+  --score: #ffe66d; /* damage numbers, the word you missed, the vowel tile */
+  --harm: #ff5c5c; /* enemy HP, damage taken, the danger button */
+  --venom: #7dff5a; /* venom, and nothing else */
+  --rare: #ff4fa3; /* K J X Q Z, rare items */
+  --mid: #35e0d8; /* 3-4 point consonants share the life hue at low weight */
+  --select: #ff9f43; /* a selected tile that is not yet a word */
+
+  /* Tiles */
+  --tile: #2f1a5e;
+  --tile-ink: #fff3ff;
+  --tile-line: #4a2d8a;
+  --tile-vowel: var(--score);
+  --tile-vowel-ink: var(--ground);
+  --tile-select: var(--select);
+  --tile-select-ink: var(--ground);
+  --tile-valid: var(--life);
+  --tile-valid-ink: var(--ground);
+  --tile-locked-ink: #6a5599;
+
+  /* Type. HUD = pixel face for numbers, labels, tile letters; UI = text. Silkscreen is built on
+     an 8px grid: use 8, 16, 24, 32 px sizes only. */
+  --font-hud: 'Silkscreen', ui-monospace, monospace;
+  --font-ui: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --hud-s: 8px;
+  --hud-m: 16px;
+  --hud-l: 24px;
+  --hud-xl: 32px;
+
+  /* Shape. Hard offset shadows, near-square corners: pixels, not pills. */
+  --radius: 4px;
+  --shadow: 4px 4px 0 var(--shade);
+  --shadow-tile: 3px 3px 0 var(--shade);
+  --shadow-press: 1px 1px 0 var(--shade);
+
+  /* Space */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+
+  /* Motion. State changes step, they do not ease; movement settles fast; idle is slow. */
+  --dur-state: 100ms;
+  --dur-settle: 240ms;
+  --dur-idle: 1.8s;
+  --ease-step: steps(3, end);
+  --ease-settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Shared control shapes. Components add role colours; the shape is the same everywhere. */
+.btn {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 15px;
+  padding: var(--s3) var(--s2);
+  border: 2px solid var(--shade);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  background: var(--panel);
+  color: var(--ink);
+  touch-action: manipulation;
+  transition: transform var(--dur-state) var(--ease-step), box-shadow var(--dur-state) var(--ease-step);
+}
+.btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: var(--shadow-press);
+}
+.btn:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  transform: none;
+}
+.btn.life {
+  background: var(--life);
+  color: var(--ground);
+}
+.btn.harm {
+  background: var(--harm);
+  color: var(--ground);
+}
+.btn.select {
+  background: var(--select);
+  color: var(--ground);
+}
+.panel {
+  background: var(--panel);
+  border: 2px solid var(--shade);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.hud {
+  font-family: var(--font-hud);
+  font-size: var(--hud-m);
+  line-height: 1;
+}
+.hud-s {
+  font-family: var(--font-hud);
+  font-size: var(--hud-s);
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-state: 0ms;
+    --dur-settle: 0ms;
+  }
+}

@@ -28,52 +28,63 @@
   .pick {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--s3);
   }
   h2 {
     margin: 0;
-    font-size: 1.2rem;
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
   }
   .hint {
     margin: 0;
-    color: #9a9ab5;
-    font-size: 0.9rem;
+    color: var(--muted);
+    font-size: 14px;
   }
   .offer {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.3rem;
+    gap: var(--s1);
     text-align: left;
-    padding: 0.9rem;
-    border-radius: 10px;
-    border: 2px solid #3d3d5c;
-    background: #26263f;
-    color: #eaeaea;
+    padding: var(--s3);
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    background: var(--panel);
+    color: var(--ink);
+    font-family: var(--font-ui);
     touch-action: manipulation;
+    transition: transform var(--dur-state) var(--ease-step), box-shadow var(--dur-state) var(--ease-step);
+  }
+  .offer:active {
+    transform: translate(3px, 3px);
+    box-shadow: var(--shadow-press);
   }
   .name {
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
+    display: flex;
+    gap: var(--s2);
+    align-items: baseline;
   }
   .desc {
-    color: #b8b8d0;
-    font-size: 0.95rem;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.35;
   }
   small {
-    font-weight: 400;
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    color: #9a9ab5;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    color: var(--muted);
   }
   small.uncommon {
-    color: #5ac98a;
+    color: var(--life);
   }
   small.rare {
-    color: #ffd166;
+    color: var(--rare);
   }
   .owned {
-    color: #9a9ab5;
-    font-size: 0.85rem;
+    color: var(--muted);
+    font-size: 13px;
   }
 </style>

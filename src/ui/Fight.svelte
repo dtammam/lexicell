@@ -178,9 +178,9 @@
     </div>
 
     <div class="actions">
-      <button class="secondary" disabled={enc.selection.length === 0} onclick={() => { dispatch({ type: 'clearSelection' }); }}>Clear</button>
-      <button class="secondary shuffle" class:armed={shuffleArmed} onclick={onShuffle}>{shuffleArmed ? 'Shuffle? Costs a turn' : 'Shuffle'}</button>
-      <button class="primary" class:ready={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>
+      <button class="btn" disabled={enc.selection.length === 0} onclick={() => { dispatch({ type: 'clearSelection' }); }}>Clear</button>
+      <button class="btn shuffle" class:armed={shuffleArmed} onclick={onShuffle}>{shuffleArmed ? 'Shuffle? Costs a turn' : 'Shuffle'}</button>
+      <button class="btn primary harm" class:ready={valid} class:life={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>
         {preview !== null ? `Attack for ${preview}` : 'Attack'}
       </button>
     </div>
@@ -194,74 +194,72 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: var(--s2);
   }
   .report {
     flex: none;
     min-height: 1.3rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
-    font-size: 0.9rem;
+    gap: var(--s2) var(--s3);
+    font-size: 14px;
     line-height: 1.3;
   }
   .hit {
-    color: #ffd166;
-    font-weight: 600;
-    animation: pop 250ms ease-out;
+    color: var(--score);
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
+    animation: pop var(--dur-settle) var(--ease-settle);
   }
   .taken {
-    color: #e05a5a;
+    color: var(--harm);
   }
   .healed {
-    color: #5ac98a;
+    color: var(--life);
   }
   .note {
-    color: #9a9ab5;
+    color: var(--muted);
   }
   .rejected {
-    color: #ff8fa3;
+    color: var(--harm);
   }
   .missed {
     flex: none;
     margin: 0;
-    font-size: 0.85rem;
-    color: #9a9ab5;
+    font-size: 13px;
+    color: var(--muted);
   }
   .missed strong {
-    color: #ffd166;
-    letter-spacing: 0.05em;
+    color: var(--score);
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
   }
   .missed.best {
-    color: #5ac98a;
+    color: var(--life);
   }
   .word {
     flex: none;
-    font-family: ui-serif, 'New York', Georgia, 'Times New Roman', serif;
-    text-align: center;
-    font-size: 1.7rem;
-    letter-spacing: 0.18em;
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: var(--s3);
+    font-family: var(--font-hud);
+    font-size: var(--hud-l);
+    letter-spacing: 0.1em;
     min-height: 2rem;
     line-height: 2rem;
-    font-weight: 800;
-    color: #eaeaea;
-    transition: color 120ms;
+    color: var(--ink);
   }
   .word.valid {
-    color: #5ac98a;
+    color: var(--life);
   }
   .preview {
-    margin-left: 0.6rem;
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 1.1rem;
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
     letter-spacing: 0;
-    color: #ffd166;
-    vertical-align: middle;
+    color: var(--score);
   }
-  /* The grid is a square no larger than the space left between the word line and the
-     buttons, and no wider than the screen: min(width, height) of its box, read through
-     container query units. No aspect-ratio anywhere (iOS Safari mishandled it on buttons
-     after a rotation), and rows are explicit, so nothing depends on content size. */
+  /* The grid is a square no larger than the space left, read through container query units. */
   .grid-box {
     flex: 1;
     min-height: 0;
@@ -276,7 +274,7 @@
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-rows: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: var(--s2);
   }
   .tile {
     position: relative;
@@ -284,35 +282,35 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    border: 2px solid #3d3d5c;
-    border-radius: 12px;
-    background: #2a2a45;
-    color: #f4f4f8;
+    border: 2px solid var(--tile-line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-tile);
+    background: var(--tile);
+    color: var(--tile-ink);
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Serif capitals (Dean, 2026-09-08: Wordle-like, not cartoony; I and L must be obvious).
-       ui-serif is New York on iOS; Georgia everywhere else. No font file shipped. */
-    font-family: ui-serif, 'New York', Georgia, 'Times New Roman', serif;
-    /* Letter scales with the tile: a quarter of the grid's side, less padding. */
-    font-size: min(2.1rem, calc(min(100cqw, 100cqh) / 4 * 0.5));
-    font-weight: 800;
+    font-family: var(--font-hud);
+    /* Silkscreen wants multiples of 8px: round the tile-scaled size down to one. */
+    font-size: 24px;
+    font-size: round(down, calc(min(100cqw, 100cqh) / 4 * 0.45), 8px);
+    font-weight: 700;
     line-height: 1;
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
     padding: 0;
-    transition: background 100ms, border-color 100ms, transform 100ms;
+    transition: background var(--dur-state) var(--ease-step), border-color var(--dur-state) var(--ease-step), transform var(--dur-state) var(--ease-step), box-shadow var(--dur-state) var(--ease-step);
   }
   .tile:active {
-    transform: scale(0.95);
+    transform: translate(2px, 2px);
+    box-shadow: var(--shadow-press);
   }
-  /* --dy is in rows; a row is the tile's own height plus the grid gap. */
   .tile.moved {
-    animation: settle 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: settle var(--dur-settle) var(--ease-settle) both;
   }
   .tile.fresh {
-    animation: settle 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both, appear 300ms ease-out both;
+    animation: settle var(--dur-settle) var(--ease-settle) both, appear var(--dur-settle) var(--ease-step) both;
   }
   @keyframes settle {
     from {
@@ -331,100 +329,75 @@
     }
   }
   .tile[data-tier='vowel'] {
-    background: #f1e3c0;
-    border-color: #e6d19c;
-    color: #2a2417;
+    background: var(--tile-vowel);
+    border-color: var(--tile-vowel);
+    color: var(--tile-vowel-ink);
   }
   .tile[data-tier='mid'] {
-    border-color: #3fb8b0;
+    border-color: var(--mid);
   }
   .tile[data-tier='rare'] {
-    border-color: #d95fd0;
-    box-shadow: 0 0 10px rgba(217, 95, 208, 0.45), inset 0 0 6px rgba(217, 95, 208, 0.25);
-  }
-  .tile[data-tier='vowel'] .order {
-    color: #2a2417;
+    border-color: var(--rare);
+    box-shadow: 0 0 8px rgba(255, 79, 163, 0.55), var(--shadow-tile);
   }
   .tile .value {
     position: absolute;
-    right: 5px;
+    right: 4px;
     bottom: 3px;
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: #9a9ab5;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    color: var(--muted);
   }
   .tile .order {
     position: absolute;
-    left: 5px;
+    left: 4px;
     top: 3px;
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
     color: inherit;
-    opacity: 0.8;
+    opacity: 0.85;
   }
   .tile.selected {
-    background: #ffd166;
-    border-color: #ffd166;
-    color: #1a1a2e;
+    background: var(--tile-select);
+    border-color: var(--tile-select);
+    color: var(--tile-select-ink);
   }
-  .tile.selected .value {
-    color: #1a1a2e;
+  .tile.selected .value,
+  .tile[data-tier='vowel'] .order {
+    color: var(--ground);
   }
   .tile.selected.valid {
-    background: #5ac98a;
-    border-color: #5ac98a;
+    background: var(--tile-valid);
+    border-color: var(--tile-valid);
+    color: var(--tile-valid-ink);
   }
   .tile.locked {
-    background: #1a1a2e;
-    color: #55556f;
+    background: var(--ground);
+    color: var(--tile-locked-ink);
     border-style: dashed;
+    box-shadow: none;
   }
-  /* Venom: it bites every turn until you spend the tile. Loud on purpose. */
   .tile.venomous {
-    border-color: #7dff5a;
-    box-shadow: 0 0 10px rgba(125, 255, 90, 0.5), inset 0 0 8px rgba(125, 255, 90, 0.3);
+    border-color: var(--venom);
+    box-shadow: 0 0 8px rgba(125, 255, 90, 0.5), var(--shadow-tile);
   }
   .tile .value.venom {
-    color: #7dff5a;
-    font-weight: 700;
+    color: var(--venom);
   }
   .actions {
     flex: none;
     display: flex;
-    gap: 8px;
+    gap: var(--s2);
   }
-  .actions button {
+  .actions .btn {
     flex: 1;
-    padding: 0.8rem 0.5rem;
-    font-size: 1.05rem;
-    border-radius: 12px;
-    border: none;
-    touch-action: manipulation;
-    transition: background 120ms;
   }
-  .primary {
-    background: #e05a5a;
-    color: white;
-    font-weight: 700;
-  }
-  .primary.ready {
-    background: #5ac98a;
-    color: #1a1a2e;
-  }
-  .primary:disabled {
-    background: #4a3a3a;
-    color: #8a7a7a;
-  }
-  .secondary {
-    background: #3d3d5c;
-    color: #eaeaea;
-  }
-  .secondary:disabled {
-    color: #6a6a85;
+  .actions .btn.primary {
+    flex: 1.4;
   }
   .shuffle.armed {
-    background: #e05a5a;
-    color: white;
+    background: var(--harm);
+    color: var(--ground);
   }
   @keyframes pop {
     from {
