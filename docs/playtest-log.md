@@ -55,7 +55,8 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Desktop: pressing Attack makes the item drawer show a scrollbar, glitchy | implemented (PR #25: the screen never scrolls; the grid absorbs the report growing a line) |
 | 2026-09-08 | A menu to see all items and what they do | implemented (PR #26: Organelles on the title screen, every item with icon and text by rarity) |
 | 2026-09-08 | Occasional tiles should shake or shiver, subtly, as if biologically unstable | implemented (PR #28: a few tiles per turn tremble one pixel, never selected or settling ones) |
-| 2026-09-08 | Intro's third beat: fill all sixteen tiles with the phrase, and make the closing line say that the longest words are how you evolve and deal damage | implemented (PR #28: LONG WORDS HIT HARD across the grid; the closing line says it outright) |
+| 2026-09-08 | Intro's third beat: fill all sixteen tiles with the phrase, and make the closing line say that the longest words are how you evolve and deal damage | implemented (PR #28: LONG WORDS HIT HARD across the grid; the closing line says it outright); rephrased in PR #32, see below |
+| 2026-09-08 | The intro grid reads LONG WORD SHIT HARD: the 4-wide rows split WORDS HIT in the wrong place | implemented (PR #32: LONG WORD HITS HARD, four rows of four words; test asserts every row is a word) |
 | 2026-09-08 | Normal text is too normal next to the pixel headings; a pixel-ish, legible body face | implemented (PR #28: Pixelify Sans at 16px for all running text, vendored under OFL) |
 | 2026-09-08 | A single line of flavor text for each item | implemented (PR #27: `flavor` on every item, shown in its own voice under the mechanic on offers, the panel and the compendium) |
 | 2026-09-08 | Occasional tiles should shake or shiver, subtly, as if biologically unstable | to do (PR #28) |
