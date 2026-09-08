@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { settle } from './grid';
 import { loadDictionary } from '../../scripts/lib/load-dictionary';
 import { VOWEL_FLOOR, drawLetter, enforceVowelFloor, freshGrid, isDead, isVowel, plainTile, playableIndices, playableLetters, refill } from './grid';
 import { createRng } from './rng';
@@ -76,5 +77,39 @@ describe('playable + isDead', () => {
     const locked = grid.map((t, i) => (i < 3 ? { ...t, lockedTurns: 1 } : t));
     expect(playableIndices(locked)).toHaveLength(13);
     expect(isDead(locked, solver)).toBe(true);
+  });
+});
+
+describe('settle (gravity)', () => {
+  const t = (letter: string, lockedTurns = 0) => ({ letter, lockedTurns });
+  // Rows top to bottom; index = row * 4 + col.
+  const grid = [
+    t('a'), t('b'), t('c'), t('d'),
+    t('e'), t('f'), t('g'), t('h'),
+    t('i'), t('j'), t('k'), t('l'),
+    t('m'), t('n'), t('o'), t('p'),
+  ];
+
+  it('moves survivors up within their column and drops fresh tiles to the bottom, in order', () => {
+    // Column 0: rows 0 and 2 fresh (a, i). Survivors e, m rise; a, i land below them.
+    const out = settle(grid, [0, 8]);
+    expect(out.filter((_, i) => i % 4 === 0).map((x) => x.letter)).toEqual(['e', 'm', 'a', 'i']);
+    expect(out.filter((_, i) => i % 4 === 1).map((x) => x.letter)).toEqual(['b', 'f', 'j', 'n']);
+  });
+
+  it('is a permutation: same multiset, locked tiles travel with their letter, no-op without fresh tiles', () => {
+    const locked = grid.map((x, i) => (i === 5 ? t(x.letter, 2) : x));
+    const out = settle(locked, [1, 13]);
+    expect([...out].sort((x, y) => x.letter.localeCompare(y.letter))).toEqual([...locked].sort((x, y) => x.letter.localeCompare(y.letter)));
+    expect(out.filter((_, i) => i % 4 === 1)).toEqual([t('f', 2), t('j'), t('b'), t('n')]);
+    expect(settle(grid, [])).toEqual(grid);
+    expect(settle(grid, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])).toEqual(grid);
+  });
+
+  it('does not mutate its input', () => {
+    const copy = grid.map((x) => ({ ...x }));
+    const out = settle(grid, [0, 8]);
+    expect(out).not.toEqual(grid);
+    expect(grid).toEqual(copy);
   });
 });

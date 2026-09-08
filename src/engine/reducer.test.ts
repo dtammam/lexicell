@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
 import { candidateIndices, candidateWords } from './candidates';
-import { isDead, refill } from './grid';
+import { isDead, refill, settle } from './grid';
 import { newRun, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
 import type { Encounter, RunState } from './types';
@@ -281,6 +281,51 @@ describe('starting kit (tuning.startingPicks)', () => {
   });
 });
 
+describe('gravity: refilled columns settle', () => {
+  it('after a word the grid is exactly refill then settle: survivors rise, fresh tiles land below', () => {
+    // An unkillable enemy so the encounter never ends, and no items (ctx has no starting kit), so the
+    // only RNG between submit and the refill is the refill itself: the result must equal
+    // settle(refill(rng, grid, selection)) with no lock to tick. This binds the order (M6) and the
+    // presence (M7) of settle in endTurn exactly.
+    const s0 = newRun(21, ctx);
+    if (s0.phase !== 'fight') throw new Error('expected a fight');
+    const enc0 = s0.encounter as Encounter;
+    const tank: RunState = { ...s0, encounter: { ...enc0, enemy: { ...enc0.enemy, hp: 100000, maxHp: 100000 } } };
+    const best = candidateWords(tank, ctx).sort((a, b) => b.damage - a.damage)[0];
+    if (!best) throw new Error('no word');
+    const idx = candidateIndices(tank, best.word);
+    if (!idx) throw new Error('cannot place');
+    let s = tank;
+    for (const i of idx) s = reduce(s, { type: 'toggleTile', index: i }, ctx);
+    const used = [...(s.encounter as Encounter).selection];
+    const s1 = reduce(s, { type: 'submitWord' }, ctx);
+    expect(s1.phase).toBe('fight');
+    expect(s1.lastTurn?.used).toEqual(used);
+    const [refilled] = refill(s.rng, enc0.grid, used, 1);
+    const expected = settle(refilled, used);
+    expect((s1.encounter as Encounter).grid).toEqual(expected);
+    expect(expected).not.toEqual(refilled); // the word was not a full column, so settling moved something
+    // Survivors kept their letters in column order; fresh tiles are the bottom of each column.
+    const usedSet = new Set(used);
+    for (let c = 0; c < 4; c++) {
+      const survivors = [0, 1, 2, 3].filter((r) => !usedSet.has(r * 4 + c)).map((r) => refilled[r * 4 + c]);
+      expect([0, 1, 2, 3].map((r) => expected[r * 4 + c]).slice(0, survivors.length)).toEqual(survivors);
+    }
+  });
+
+  it('a shuffle settles too: a locked tile rises to the top of its column', () => {
+    const s0 = newRun(22, ctx);
+    if (s0.phase !== 'fight') throw new Error('expected a fight');
+    const enc0 = s0.encounter as Encounter;
+    const grid = enc0.grid.map((t, i) => (i === 14 ? { ...t, lockedTurns: 3 } : t));
+    const s2 = reduce({ ...s0, encounter: { ...enc0, grid } }, { type: 'shuffle' }, ctx);
+    if (s2.phase !== 'fight') return;
+    const g2 = (s2.encounter as Encounter).grid;
+    expect(g2[2]).toEqual({ letter: grid[14]?.letter, lockedTurns: 2 });
+    expect(s2.lastTurn?.used).toHaveLength(15);
+  });
+});
+
 describe('shuffle (costs the turn)', () => {
   function inFight(seed: number): RunState {
     const s = newRun(seed, ctx);
@@ -325,11 +370,15 @@ describe('shuffle (costs the turn)', () => {
     const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
     const s2 = reduce(s1, { type: 'shuffle' }, ctx);
     const g2 = (s2.encounter as Encounter).grid;
+    // Gravity: a locked survivor rises to the top of its column. Index 3 is already row 0;
+    // index 9 (row 2, column 1) settles to index 1.
     expect(g2[3]).toEqual({ letter: grid[3]?.letter, lockedTurns: 1 });
-    expect(g2[9]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1 });
-    // Fourteen fresh draws: identical to the old grid only by a 1-in-astronomical chance.
-    const same = g2.filter((t, i) => i !== 3 && i !== 9 && t.letter === grid[i]?.letter).length;
-    expect(same).toBeLessThan(14);
+    expect(g2[1]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1 });
+    expect(g2.filter((t) => t.lockedTurns > 0)).toHaveLength(2);
+    // Fourteen fresh draws: identical to the old multiset only by a 1-in-astronomical chance.
+    const oldLetters = grid.filter((_, i) => i !== 3 && i !== 9).map((t) => t.letter).sort();
+    const newLetters = g2.filter((t) => t.lockedTurns === 0).map((t) => t.letter).sort();
+    expect(newLetters).not.toEqual(oldLetters);
     expect(isDead(g2, ctx.solver)).toBe(false);
   });
 
@@ -342,6 +391,8 @@ describe('shuffle (costs the turn)', () => {
     if (s2.phase !== 'fight') return; // the enemy's turn can kill at low HP; not this seed's concern
     expect(isDead((s2.encounter as Encounter).grid, ctx.solver)).toBe(false);
     expect(s2.lastTurn?.scrambled).toBe(true);
+    // A dead-grid scramble replaces every tile, so the report says so and the UI animates all 16.
+    expect(s2.lastTurn?.used).toEqual(Array.from({ length: 16 }, (_, i) => i));
   });
 
   it('a shuffle draws with the onTileDraw vowel weight, exactly as refill would', () => {

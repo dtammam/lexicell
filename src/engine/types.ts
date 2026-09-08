@@ -100,6 +100,8 @@ export interface TurnReport {
   readonly healed: number;
   readonly scrambled: boolean;
   readonly enemyDefeated: boolean;
+  /** Tile indices consumed this turn, before the grid settled (gravity). The UI animates from it. */
+  readonly used: readonly number[];
 }
 
 export interface RunStats {

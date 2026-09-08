@@ -1,6 +1,5 @@
 <script lang="ts">
   import { selectedWord, type Action } from '../engine/reducer';
-  import { LETTER_VALUE } from '../engine/scoring';
   import type { RunState } from '../engine/types';
   import Arena from './Arena.svelte';
   import Definition from './Definition.svelte';
@@ -37,6 +36,22 @@
     }
     armedAt = null;
     dispatch({ type: 'shuffle' });
+  }
+
+  // Gravity animation. lastTurn.used names the tiles consumed before the column settled; from
+  // it each tile's start offset in rows is derived: survivors slide down from where they were,
+  // fresh tiles rise in from below the grid. Older saves lack `used`; then nothing animates.
+  const used = $derived(new Set(run.lastTurn?.used ?? []));
+  function entry(index: number): { dy: number; fresh: boolean } | null {
+    if (used.size === 0) return null;
+    const col = index % 4;
+    const row = Math.floor(index / 4);
+    const survivorRows = [0, 1, 2, 3].filter((r) => !used.has(r * 4 + col));
+    if (row < survivorRows.length) {
+      const from = survivorRows[row] ?? row;
+      return from === row ? null : { dy: from - row, fresh: false };
+    }
+    return { dy: 4 - row, fresh: true };
   }
 
   function orderOf(index: number): number {
@@ -76,11 +91,16 @@
     <div class="word" class:valid>{word.toUpperCase() || ' '}</div>
 
     <div class="grid">
+      {#key run.stats.turns}
       {#each enc.grid as tile, i (i)}
         {@const order = orderOf(i)}
+        {@const move = entry(i)}
         <div class="cell">
         <button
           class="tile"
+          class:moved={move !== null}
+          class:fresh={move?.fresh ?? false}
+          style={move ? `--dy: ${move.dy}` : undefined}
           class:selected={order > 0}
           class:valid={order > 0 && valid}
           class:vowel={VOWELS.has(tile.letter)}
@@ -89,11 +109,12 @@
           onclick={() => { dispatch({ type: 'toggleTile', index: i }); }}
         >
           <span class="letter">{tile.letter.toUpperCase()}</span>
-          <span class="value">{tile.lockedTurns > 0 ? `\u{1F512}${tile.lockedTurns}` : (LETTER_VALUE[tile.letter] ?? '')}</span>
+          {#if tile.lockedTurns > 0}<span class="value">{`\u{1F512}${tile.lockedTurns}`}</span>{/if}
           {#if order > 0}<span class="order">{order}</span>{/if}
         </button>
         </div>
       {/each}
+      {/key}
     </div>
 
     <div class="actions">
@@ -186,6 +207,29 @@
   }
   .tile:active {
     transform: scale(0.95);
+  }
+  /* --dy is in rows; a row is the tile's own height plus the grid gap. */
+  .tile.moved {
+    animation: settle 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .tile.fresh {
+    animation: settle 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both, appear 300ms ease-out both;
+  }
+  @keyframes settle {
+    from {
+      transform: translateY(calc(var(--dy) * (100% + 10px)));
+    }
+    to {
+      transform: none;
+    }
+  }
+  @keyframes appear {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
   .tile.vowel {
     background: #33304f;

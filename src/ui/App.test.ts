@@ -325,6 +325,26 @@ describe('App', () => {
     expect(saved.lastTurn.word).toBe('');
   });
 
+  it('plain tiles carry no value badge; after a word the fresh tiles animate in and the count matches the word', async () => {
+    await startRun();
+    expect(document.querySelectorAll('button.tile .value')).toHaveLength(0);
+    expect(document.querySelectorAll('button.tile.fresh')).toHaveLength(0);
+    const word = await attackOnce('short');
+    if (queryByText('Choose an item')) return;
+    expect(document.querySelectorAll('button.tile.fresh')).toHaveLength(word.length);
+    const usedNow = new Set((JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { lastTurn: { used: number[] } }).lastTurn.used);
+    tiles().forEach((b, i) => {
+      const col = i % 4;
+      const row = Math.floor(i / 4);
+      const survivorRows = [0, 1, 2, 3].filter((r) => !usedNow.has(r * 4 + col));
+      const expectedDy = row < survivorRows.length ? (survivorRows[row] ?? row) - row : 4 - row;
+      const dy = b.style.getPropertyValue('--dy').trim();
+      expect(b.classList.contains('fresh'), `tile ${i}`).toBe(row >= survivorRows.length);
+      expect(dy === '' ? 0 : Number(dy), `tile ${i}`).toBe(expectedDy);
+    });
+    expect(document.querySelectorAll('button.tile .value')).toHaveLength(0);
+  });
+
   it('the item strip opens a panel listing every carried item with its description', async () => {
     await startRun();
     const strip = getByText(/^Items \(1\): /);

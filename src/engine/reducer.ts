@@ -11,7 +11,7 @@
  *     -> attack on its cadence: onDamageTaken (reduceDamage first), then hp
  *     -> special on its cadence (bosses)
  *     -> if player dead: lose
- *   refill used tiles (onTileDraw vowelWeight), tick locks, dead-grid scramble
+ *   refill used tiles (onTileDraw vowelWeight), settle columns (gravity), tick locks, dead-grid scramble
  *   next turn: onTurnStart effects; if enemy dead: same as above
  *
  * shuffle: redraw every unlocked tile, count a turn, then the enemy turn and end of
@@ -21,7 +21,7 @@
  */
 import type { Dictionary } from './dictionary';
 import { resolveEffects, type ConditionContext, type Effect } from './effects';
-import { freshGrid, isDead, playableIndices, refill } from './grid';
+import { freshGrid, isDead, playableIndices, refill, settle } from './grid';
 import { collectEffects, itemDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
@@ -54,6 +54,7 @@ const EMPTY_REPORT: TurnReport = {
   enemyDamage: 0,
   healed: 0,
   scrambled: false,
+  used: [],
   enemyDefeated: false,
 };
 
@@ -334,6 +335,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
     damage: enc.enemy.hp - enemyHp + extras.enemyDamage,
     healed: extras.healed,
     scrambled: extras.scrambled,
+    used: enc.selection,
   };
   s = { ...s, lastTurn: report, stats: { ...s.stats, damageDealt: s.stats.damageDealt + extras.enemyDamage } };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
@@ -384,11 +386,14 @@ function endTurn(state: RunState, ctx: EngineContext, report: TurnReport, used: 
   let s = state;
   const enc3 = s.encounter as Encounter;
   const [refilled, rng] = used.length > 0 ? refill(s.rng, enc3.grid, used, vowelWeight(s, ctx)) : [enc3.grid, s.rng];
-  const grid = refilled.map((t) => (t.lockedTurns > 0 ? { ...t, lockedTurns: t.lockedTurns - 1 } : t));
+  // Gravity: survivors rise, fresh tiles land at the bottom of their column.
+  const settled = used.length > 0 ? settle(refilled, used) : refilled;
+  const grid = settled.map((t) => (t.lockedTurns > 0 ? { ...t, lockedTurns: t.lockedTurns - 1 } : t));
   s = { ...s, rng, encounter: { ...enc3, grid, selection: [], turn: enc3.turn + 1 } };
   if (isDead(grid, ctx.solver)) {
     s = scramble(s, ctx);
-    report = { ...report, scrambled: true };
+    // freshGrid replaced every tile, locks included; tell the UI so it animates the whole grid.
+    report = { ...report, scrambled: true, used: Array.from({ length: GRID_SIZE }, (_, i) => i) };
   }
   return turnStart(s, ctx, report);
 }
@@ -403,7 +408,8 @@ function shuffle(state: RunState, ctx: EngineContext): RunState {
   const enc = state.encounter;
   if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
   const unlocked = enc.grid.map((t, i) => (t.lockedTurns > 0 ? -1 : i)).filter((i) => i >= 0);
-  const [grid, rng] = refill(state.rng, enc.grid, unlocked, vowelWeight(state, ctx));
+  const [refilled, rng] = refill(state.rng, enc.grid, unlocked, vowelWeight(state, ctx));
+  const grid = settle(refilled, unlocked);
   const s: RunState = {
     ...state,
     rng,
@@ -411,7 +417,7 @@ function shuffle(state: RunState, ctx: EngineContext): RunState {
     encounter: { ...enc, grid, selection: [] },
     stats: { ...state.stats, turns: state.stats.turns + 1 },
   };
-  const report: TurnReport = { ...EMPTY_REPORT, scrambled: true };
+  const report: TurnReport = { ...EMPTY_REPORT, scrambled: true, used: unlocked };
   const after = enemyTurn(s, ctx, report);
   if (after.state.phase === 'summary') return after.state;
   return endTurn(after.state, ctx, after.report, []);
