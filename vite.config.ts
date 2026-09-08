@@ -29,9 +29,11 @@ function serviceWorker(): Plugin {
 // The build stamp shown on the title screen: BUILD_SHA comes from the publish workflow via a
 // Docker build arg; local builds and the dev server say "dev".
 const buildSha = (process.env.BUILD_SHA ?? 'dev').slice(0, 7);
+// A counter that only goes up (the CI run number), so two builds compare at a glance.
+const buildNumber = process.env.BUILD_NUMBER ?? '0';
 
 export default defineConfig({
-  define: { __BUILD_SHA__: JSON.stringify(buildSha) },
+  define: { __BUILD_SHA__: JSON.stringify(buildSha), __BUILD_NUMBER__: JSON.stringify(buildNumber) },
   plugins: [svelte(), serviceWorker()],
   build: {
     // The dictionary (1.6 MB) ships inside the bundle on purpose (exec plan, Phase 1).

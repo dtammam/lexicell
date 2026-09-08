@@ -11,7 +11,8 @@ COPY public/ ./public/
 COPY src/ ./src/
 # Stamped onto the title screen so a phone can say which build it runs.
 ARG BUILD_SHA=unknown
-ENV BUILD_SHA=$BUILD_SHA
+ARG BUILD_NUMBER=0
+ENV BUILD_SHA=$BUILD_SHA BUILD_NUMBER=$BUILD_NUMBER
 RUN npm run build
 
 # Stage 2: nginx serves dist/. No Node at runtime; the game has no backend.

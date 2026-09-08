@@ -35,3 +35,5 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Design pillars | to do: write the three into the pack once Dean confirms them (long word = event; attrition is the tension; vocabulary is the character) |
 | 2026-09-08 | Boss lock mostly lost (found by the gate, not by Dean) | to do: tracker #5, with the tuning wave |
 | 2026-09-08 | Log everything I say as perception / request with a next step | implemented (this file; CLAUDE.md intake rule) |
+| 2026-09-08 | Build sha is hard to read at a glance; is this normal? | implemented (PR #10: `build 42 · a1b0b52`, run number plus sha; sha-stamped builds are standard, the counter is the readable part) |
+| 2026-09-08 | The amoeba should evolve into other things as the run progresses, not always the same path | implemented in part (PR #11: your sprite changes per act); to do: the act-2 and act-3 form chosen by the items carried, once the item set is bigger |

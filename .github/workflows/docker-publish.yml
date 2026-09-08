@@ -71,6 +71,7 @@ jobs:
           tags: lexicell-candidate:local
           build-args: |
             BUILD_SHA=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
