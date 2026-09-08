@@ -1,8 +1,9 @@
 name: CI
 
+# Pull requests only: main takes PRs exclusively, so a push trigger ran every commit twice, and on
+# 2026-09-08 the push-triggered twin of a green PR run failed with zero jobs ("workflow file
+# issue", a GitHub-side startup failure) and tripped the merge watcher.
 on:
-  push:
-    branches-ignore: ['main']
   pull_request:
 
 jobs:
