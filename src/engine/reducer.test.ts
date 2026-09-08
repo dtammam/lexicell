@@ -4,9 +4,9 @@ import { CONTENT } from '../content/index';
 import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { candidateIndices, candidateWords } from './candidates';
 import { isDead, refill, settle } from './grid';
-import { newRun, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
+import { MAX_COMMONS_PER_OFFER, newRun, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
-import type { Encounter, RunState } from './types';
+import type { Content, Encounter, EnemyDef, ItemDef, RunState } from './types';
 
 /** Shipped content opens on a starting-kit pick; most tests here want the first fight directly. */
 const ctx = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
@@ -73,7 +73,7 @@ describe('newRun', () => {
   it('starts in a fight with full HP, no items, a live grid', () => {
     const s = newRun(1, ctx);
     expect(s.phase).toBe('fight');
-    expect(s.player).toEqual({ hp: 100, maxHp: 100, items: [] });
+    expect(s.player).toEqual({ hp: 100, maxHp: 100, items: [], shield: 0, freeShuffles: 0 });
     expect(s.encounterIndex).toBe(0);
     expect(s.encounter?.turn).toBe(1);
     expect(s.encounter?.enemy.hp).toBeGreaterThan(0);
@@ -287,7 +287,7 @@ describe('venom: a tile that bites until you spend it', () => {
     const s0 = newRun(seed, ctx);
     if (s0.phase !== 'fight') throw new Error('expected a fight');
     const enc = s0.encounter as Encounter;
-    return { ...s0, encounter: { ...enc, turn, enemy: { id: 'polyp', hp: 100000, maxHp: 100000, damage: 1 } } };
+    return { ...s0, encounter: { ...enc, turn, enemy: { id: 'polyp', hp: 100000, maxHp: 100000, damage: 1, poison: 0, stunned: 0 } } };
   }
   function playBest(s: RunState): RunState {
     const best = candidateWords(s, ctx).sort((a, b) => b.damage - a.damage)[0];
@@ -436,7 +436,7 @@ describe('boss lock lands on survivors, never on the tiles just played (tracker 
     const s0 = newRun(seed, ctx);
     if (s0.phase !== 'fight') throw new Error('expected a fight');
     const enc = s0.encounter as Encounter;
-    return { ...s0, encounter: { ...enc, turn: 3, enemy: { id: 'colony', hp: 100000, maxHp: 100000, damage: 1 } } };
+    return { ...s0, encounter: { ...enc, turn: 3, enemy: { id: 'colony', hp: 100000, maxHp: 100000, damage: 1, poison: 0, stunned: 0 } } };
   }
 
   it('after a word, exactly three tiles are locked, all survivors of the refill, on every seed', () => {
@@ -648,7 +648,7 @@ describe('boss mechanic and dead-grid guard', () => {
       encounter: {
         ...base.encounter!,
         turn: 3, // special fires on turn % 3 === 0
-        enemy: { id: bossDef.id, hp: 10_000, maxHp: 10_000, damage: 1 },
+        enemy: { id: bossDef.id, hp: 10_000, maxHp: 10_000, damage: 1, poison: 0, stunned: 0 },
       },
     };
     const best = candidateWords(s0, ctx)[0]!;
@@ -717,6 +717,411 @@ describe('mythic tier (PR #31 gate)', () => {
 
   it('the content mirror of the rarity weights matches the engine constant', () => {
     expect(CONTENT_RARITY_WEIGHT).toEqual(RARITY_WEIGHT);
+  });
+});
+
+describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save v3)', () => {
+  /** A context with one extra test item on top of the shipped pool, starting in a fight. */
+  function withItem(item: ItemDef, extra: Partial<Content> = {}): EngineContext {
+    return nodeContext({ ...CONTENT, ...extra, items: [...CONTENT.items, item], tuning: { ...CONTENT.tuning, startingPicks: 0, ...extra.tuning } });
+  }
+  function fightWith(seed: number, c: EngineContext, ids: string[]): RunState {
+    const s = newRun(seed, c);
+    if (s.phase !== 'fight') throw new Error('expected a fight');
+    return { ...s, player: { ...s.player, items: ids } };
+  }
+  /** The amoeba attacks every turn for 6; a fixed enemy keeps the arithmetic readable. */
+  function withEnemy(s: RunState, hp = 100000, damage = 6): RunState {
+    const enc = s.encounter as Encounter;
+    return { ...s, encounter: { ...enc, enemy: { id: 'amoeba', hp, maxHp: hp, damage, poison: 0, stunned: 0 } } };
+  }
+  function anyWord(s: RunState, c: EngineContext, minLen = 3): string {
+    const w = candidateWords(s, c).find((x) => x.word.length >= minLen);
+    if (!w) throw new Error('no word');
+    return w.word;
+  }
+
+  it('poisonEnemy ticks at turn start for its value, then value-1, ..., capped by tuning.poisonMax', () => {
+    const c = withItem({ id: 't-poison', name: 'P', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'poisonEnemy', value: 3 }] } });
+    const s0 = withEnemy(fightWith(11, c, ['t-poison']));
+    const s1 = play(s0, anyWord(s0, c), c);
+    const e1 = (s1.encounter as Encounter).enemy;
+    // The word poisoned for 3; the new turn's start ticked 3 and left 2.
+    expect(s1.lastTurn?.poison).toBe(3);
+    expect(e1.poison).toBe(2);
+    expect(e1.hp).toBe(100000 - (s1.lastTurn?.damage ?? 0));
+    expect(s1.lastTurn?.damage).toBeGreaterThan(3); // word damage plus the tick
+    // Two words in a row: 3 + 3 = 6, capped at poisonMax.
+    const capped = withItem({ id: 't-poison', name: 'P', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'poisonEnemy', value: 50 }] } });
+    const p0 = withEnemy(fightWith(11, capped, ['t-poison']));
+    const p1 = play(p0, anyWord(p0, capped), capped);
+    expect(p1.lastTurn?.poison).toBe(CONTENT.tuning.poisonMax);
+    expect((p1.encounter as Encounter).enemy.poison).toBe(CONTENT.tuning.poisonMax - 1);
+  });
+
+  it('poison that finishes the enemy ends the fight before venom bites', () => {
+    const c = withItem({ id: 't-poison', name: 'P', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'poisonEnemy', value: 5 }] } });
+    const s0 = withEnemy(fightWith(11, c, ['t-poison']), 1000, 6);
+    const grid = (s0.encounter as Encounter).grid.map((t, i) => (i === 15 ? { ...t, venom: 50 } : t));
+    const armed: RunState = { ...s0, player: { ...s0.player, hp: 30 }, encounter: { ...(s0.encounter as Encounter), grid, enemy: { ...(s0.encounter as Encounter).enemy, hp: 5 + 4 } } };
+    // Play a word whose damage + poison (5) kills 9 HP: any word deals >= 4? Force the enemy to exactly what poison alone finishes.
+    const word = anyWord(armed, c);
+    const dmg = candidateWords(armed, c).find((x) => x.word === word)?.damage ?? 0;
+    const exact: RunState = { ...armed, encounter: { ...(armed.encounter as Encounter), enemy: { ...(armed.encounter as Encounter).enemy, hp: dmg + 5 } } };
+    const s1 = play(exact, word, c);
+    expect(s1.phase).toBe('pick'); // enemy dead, offer made
+    expect(s1.player.hp).toBe(30 - 6); // took the attack, never the 50 venom
+  });
+
+  it('stun skips the next attacks but not the special; each attack turn consumes one', () => {
+    const c = withItem({ id: 't-stun', name: 'S', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'stun', value: 2 }] } });
+    const s0 = withEnemy(fightWith(12, c, ['t-stun']));
+    const s1 = play(s0, anyWord(s0, c), c);
+    expect(s1.lastTurn?.stunned).toBe(true);
+    expect(s1.lastTurn?.enemyDamage).toBe(0);
+    expect(s1.player.hp).toBe(100 - (s1.lastTurn?.venom ?? 0));
+    expect((s1.encounter as Encounter).enemy.stunned).toBe(1); // +2 from the word, 1 consumed by the skipped attack
+    const s2 = reduce(s1, { type: 'shuffle' }, c); // a costed shuffle: attack turn, no word, no new stun
+    expect(s2.lastTurn?.stunned).toBe(true);
+    expect((s2.encounter as Encounter).enemy.stunned).toBe(0);
+    const s3 = reduce(s2, { type: 'shuffle' }, c);
+    expect(s3.lastTurn?.stunned).toBe(false);
+    expect(s3.lastTurn?.enemyDamage).toBe(6);
+  });
+
+  it('stun leaves the boss special firing', () => {
+    const c = withItem({ id: 't-stun', name: 'S', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'stun', value: 9 }] } });
+    const s0 = fightWith(12, c, ['t-stun']);
+    const boss = CONTENT.bosses[0] as EnemyDef;
+    const enc = s0.encounter as Encounter;
+    const every = boss.special?.every ?? 3;
+    const armed: RunState = { ...s0, encounter: { ...enc, turn: every, enemy: { id: boss.id, hp: 100000, maxHp: 100000, damage: 1, poison: 0, stunned: 5 } } };
+    const s1 = play(armed, anyWord(armed, c), c);
+    expect(s1.lastTurn?.stunned).toBe(true);
+    const lockOrVenom = (s1.encounter as Encounter).grid.some((t) => t.lockedTurns > 0 || t.venom > 0);
+    expect(lockOrVenom).toBe(true);
+  });
+
+  it('shield absorbs after reduction, persists across turns, and is capped by tuning.shieldMax', () => {
+    const c = withItem({ id: 't-shield', name: 'Sh', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'shield', value: 10 }], onDamageTaken: [{ type: 'reduceDamage', value: 2 }] } });
+    const s0 = withEnemy(fightWith(13, c, ['t-shield']));
+    const s1 = play(s0, anyWord(s0, c), c);
+    // Word gave 10 shield; attack 6 reduced to 4; the shield took all 4.
+    expect(s1.lastTurn?.shielded).toBe(4);
+    expect(s1.lastTurn?.enemyDamage).toBe(0);
+    expect(s1.player.shield).toBe(6);
+    expect(s1.player.hp).toBe(100 - (s1.lastTurn?.venom ?? 0));
+    // Shield caps: 6 + 10 = 16, then again... push it past the cap with a big value.
+    const big = withItem({ id: 't-shield', name: 'Sh', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'shield', value: 999 }] } });
+    const b0 = withEnemy(fightWith(13, big, ['t-shield']));
+    const b1 = play(b0, anyWord(b0, big), big);
+    expect(b1.player.shield).toBe(CONTENT.tuning.shieldMax - 6);
+    expect(b1.lastTurn?.shielded).toBe(6);
+    expect(b1.stats.damageTaken).toBe(0);
+  });
+
+  it('shield survives an encounter end', () => {
+    const c = withItem({ id: 't-shield', name: 'Sh', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'shield', value: 10 }] } });
+    const s0 = withEnemy(fightWith(13, c, ['t-shield']), 1, 6);
+    const s1 = play(s0, anyWord(s0, c), c);
+    expect(s1.phase).toBe('pick');
+    expect(s1.player.shield).toBe(10);
+  });
+
+  it('the reducer passes tuning.perUnitMultCap into the context (gate M30)', () => {
+    const scaler: ItemDef = { id: 't-cap', name: 'C', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'perUnit', unit: 'item', then: [{ type: 'addMult', value: 2 }] }] } };
+    const tight = withItem(scaler, { tuning: { ...CONTENT.tuning, startingPicks: 0, perUnitMultCap: 0.4 } });
+    const s0 = withEnemy(fightWith(26, tight, ['t-cap']));
+    const word = anyWord(s0, tight, 4);
+    const s1 = play(s0, word, tight);
+    // With the cap at 0.4 the multiplier is 1.4, never the 3 the item asks for.
+    expect(s1.lastTurn?.mult).toBe(1.4);
+    expect(s1.lastTurn?.damage).toBe(Math.floor((s1.lastTurn?.base ?? 0) * 1.4));
+  });
+
+  it('lifesteal heals from the damage actually dealt, not the word score (gate M43)', () => {
+    const c = withItem({ id: 't-leech', name: 'L', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'lifesteal', fraction: 1 }] } });
+    const s0 = withEnemy(fightWith(14, c, ['t-leech']), 3, 6);
+    const hurt: RunState = { ...s0, player: { ...s0.player, hp: 40 } };
+    const s1 = play(hurt, anyWord(hurt, c, 5), c);
+    expect(s1.phase).toBe('pick');
+    expect(s1.lastTurn?.healed).toBe(3);
+    expect(s1.player.hp).toBe(43);
+  });
+
+  it('lifesteal heals a floored fraction of the word damage', () => {
+    const c = withItem({ id: 't-leech', name: 'L', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'lifesteal', fraction: 0.5 }] } });
+    const s0 = withEnemy(fightWith(14, c, ['t-leech']));
+    const hurt: RunState = { ...s0, player: { ...s0.player, hp: 40 } };
+    const word = anyWord(hurt, c, 5);
+    const dmg = candidateWords(hurt, c).find((x) => x.word === word)?.damage ?? 0;
+    const s1 = play(hurt, word, c);
+    expect(s1.lastTurn?.healed).toBe(Math.floor(dmg * 0.5));
+    expect(s1.player.hp).toBe(40 + Math.floor(dmg * 0.5) - 6 - (s1.lastTurn?.venom ?? 0));
+  });
+
+  it('maxHp raises the ceiling and heals the same amount; a negative value never drops max below 1', () => {
+    const c = withItem({ id: 't-grow', name: 'G', rarity: 'common', description: '', flavor: '', hooks: { onEncounterEnd: [{ type: 'maxHp', value: 15 }] } });
+    const s0 = withEnemy(fightWith(15, c, ['t-grow']), 1, 6);
+    const hurt: RunState = { ...s0, player: { ...s0.player, hp: 50 } };
+    const s1 = play(hurt, anyWord(hurt, c), c);
+    expect(s1.player.maxHp).toBe(115);
+    expect(s1.player.hp).toBe(65);
+    const shrink = withItem({ id: 't-grow', name: 'G', rarity: 'common', description: '', flavor: '', hooks: { onEncounterEnd: [{ type: 'maxHp', value: -500 }] } });
+    const k0 = withEnemy(fightWith(15, shrink, ['t-grow']), 1, 6);
+    const k1 = play(k0, anyWord(k0, shrink), shrink);
+    expect(k1.player.maxHp).toBe(1);
+    expect(k1.player.hp).toBe(1);
+  });
+
+  it('a free shuffle redraws without an enemy turn, a turn advance, a venom bite or a turn count', () => {
+    const c = withItem({ id: 't-free', name: 'F', rarity: 'common', description: '', flavor: '', hooks: { onPick: [{ type: 'freeShuffle', value: 2 }] } });
+    const s0 = withEnemy(fightWith(16, c, []));
+    const charged: RunState = { ...s0, player: { ...s0.player, freeShuffles: 1 } };
+    const enc0 = charged.encounter as Encounter;
+    const s1 = reduce(charged, { type: 'shuffle' }, c);
+    const enc1 = s1.encounter as Encounter;
+    expect(s1.player.freeShuffles).toBe(0);
+    expect(enc1.turn).toBe(enc0.turn);
+    expect(s1.stats.turns).toBe(charged.stats.turns);
+    expect(s1.player.hp).toBe(charged.player.hp);
+    expect(enc1.enemy.hp).toBe(enc0.enemy.hp);
+    expect(enc1.grid).not.toEqual(enc0.grid);
+    expect(s1.lastTurn).toMatchObject({ scrambled: true, damage: 0, enemyDamage: 0 });
+    expect(s1.rng.counter).toBeGreaterThan(charged.rng.counter);
+    // With no charge left the next shuffle costs the turn as before.
+    const s2 = reduce(s1, { type: 'shuffle' }, c);
+    expect((s2.encounter as Encounter).turn).toBe(enc0.turn + 1);
+    expect(s2.player.hp).toBe(charged.player.hp - 6 - (s2.lastTurn?.venom ?? 0));
+  });
+
+  it('onPick fires once for the picked item: freeShuffle, maxHp and shield land, enemy verbs are no-ops', () => {
+    const kit: ItemDef = {
+      id: 't-kit',
+      name: 'K',
+      rarity: 'common',
+      description: '',
+      flavor: '',
+      hooks: { onPick: [{ type: 'freeShuffle', value: 2 }, { type: 'maxHp', value: 10 }, { type: 'shield', value: 5 }, { type: 'poisonEnemy', value: 9 }, { type: 'stun', value: 9 }] },
+    };
+    const c = nodeContext({ ...CONTENT, items: [kit], tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const s0 = newRun(17, c);
+    expect(s0.phase).toBe('pick');
+    expect(s0.offer).toEqual(['t-kit']);
+    const s1 = reduce(s0, { type: 'pickItem', index: 0 }, c);
+    expect(s1.phase).toBe('fight');
+    expect(s1.player.freeShuffles).toBe(2);
+    expect(s1.player.maxHp).toBe(110);
+    expect(s1.player.hp).toBe(110);
+    expect(s1.player.shield).toBe(5);
+    expect((s1.encounter as Encounter).enemy.poison).toBe(0);
+    expect((s1.encounter as Encounter).enemy.stunned).toBe(0);
+  });
+
+  it('redrawTiles redraws that many unlocked, unselected tiles in place, reports them, and spends RNG for the draw', () => {
+    const c = withItem({ id: 't-redraw', name: 'R', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'redrawTiles', count: 3 }] } });
+    const s0 = withEnemy(fightWith(18, c, ['t-redraw']));
+    const word = anyWord(s0, c);
+    const s1 = play(s0, word, c);
+    expect(s1.lastTurn?.redrawn).toHaveLength(3);
+    const played = new Set(s1.lastTurn?.used);
+    for (const i of s1.lastTurn?.redrawn ?? []) expect(played.has(i)).toBe(false);
+    expect(new Set(s1.lastTurn?.redrawn).size).toBe(3);
+    // Gate W2: the same word without the item spends RNG only on the end-of-turn refill; the redraw
+    // adds three index picks AND three letter draws, all of which must reach the returned rng.
+    const plain = play({ ...s0, player: { ...s0.player, items: [] } }, word, c);
+    expect(s1.rng.counter - s0.rng.counter).toBeGreaterThanOrEqual(plain.rng.counter - s0.rng.counter + 6);
+  });
+
+  it('a free shuffle onto a dead grid scrambles and spends the scramble RNG (gate W2)', () => {
+    const c = withItem({ id: 't-free', name: 'F', rarity: 'common', description: '', flavor: '', hooks: { onPick: [{ type: 'freeShuffle', value: 2 }] } });
+    const s0 = withEnemy(fightWith(16, c, []));
+    const charged: RunState = { ...s0, player: { ...s0.player, freeShuffles: 1 } };
+    const plain = reduce(charged, { type: 'shuffle' }, c);
+    let calls = 0;
+    const dead: EngineContext = { ...c, solver: { ...c.solver, solve: (letters) => (calls++ === 0 ? [] : c.solver.solve(letters)) } };
+    const s1 = reduce(charged, { type: 'shuffle' }, dead);
+    expect(s1.phase).toBe('fight');
+    expect(s1.lastTurn?.used).toEqual(Array.from({ length: 16 }, (_, i) => i));
+    expect(s1.rng.counter).toBeGreaterThan(plain.rng.counter);
+    expect(s1.player.freeShuffles).toBe(0);
+    expect((s1.encounter as Encounter).turn).toBe((charged.encounter as Encounter).turn);
+  });
+
+  it('a stun survives a non-attack turn and is spent on the attack turn (gate W3, attackEvery 2)', () => {
+    const c = withItem({ id: 't-stun', name: 'S', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'stun', value: 1 }] } });
+    const s0 = fightWith(12, c, []);
+    const enc = s0.encounter as Encounter;
+    const flag = CONTENT.enemies.find((e) => e.id === 'flagellate') as EnemyDef;
+    expect(flag.attackEvery).toBe(2);
+    const armed: RunState = { ...s0, encounter: { ...enc, turn: 1, enemy: { id: 'flagellate', hp: 100000, maxHp: 100000, damage: 9, poison: 0, stunned: 1 } } };
+    const s1 = reduce(armed, { type: 'shuffle' }, c); // turn 1: no attack, the stun must survive
+    expect(s1.lastTurn?.stunned).toBe(false);
+    expect((s1.encounter as Encounter).enemy.stunned).toBe(1);
+    const s2 = reduce(s1, { type: 'shuffle' }, c); // turn 2: the attack is skipped
+    expect(s2.lastTurn?.stunned).toBe(true);
+    expect(s2.lastTurn?.enemyDamage).toBe(0);
+    expect((s2.encounter as Encounter).enemy.stunned).toBe(0);
+    const s3 = reduce(s2, { type: 'shuffle' }, c); // turn 3: no attack
+    const s4 = reduce(s3, { type: 'shuffle' }, c); // turn 4: the hit lands
+    expect(s4.lastTurn?.enemyDamage).toBe(9);
+  });
+
+  it('under a stun the onDamageTaken hook does not fire (gate S3)', () => {
+    const c = withItem({ id: 't-onhit', name: 'H', rarity: 'common', description: '', flavor: '', hooks: { onDamageTaken: [{ type: 'heal', value: 5 }, { type: 'shield', value: 5 }] } });
+    const s0 = withEnemy(fightWith(12, c, ['t-onhit']));
+    const enc = s0.encounter as Encounter;
+    const stunned: RunState = { ...s0, player: { ...s0.player, hp: 50 }, encounter: { ...enc, enemy: { ...enc.enemy, stunned: 1 } } };
+    const s1 = reduce(stunned, { type: 'shuffle' }, c);
+    expect(s1.lastTurn?.stunned).toBe(true);
+    expect(s1.lastTurn?.healed).toBe(0);
+    expect(s1.player.shield).toBe(0);
+    const s2 = reduce(s1, { type: 'shuffle' }, c);
+    expect(s2.lastTurn?.healed).toBe(5);
+    expect(s2.player.shield).toBe(5);
+  });
+
+  it('the preview agrees with the hit for an item whose only effect is a perUnit (gate W4)', () => {
+    const c = withItem({ id: 't-pure', name: 'Pu', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'perUnit', unit: 'letter', then: [{ type: 'addFlat', value: 3 }] }] } });
+    for (const seed of [21, 22, 23]) {
+      const s0 = withEnemy(fightWith(seed, c, ['t-pure']));
+      const word = anyWord(s0, c, 5);
+      const preview = candidateWords(s0, c).find((x) => x.word === word)?.damage ?? -1;
+      const bare = candidateWords({ ...s0, player: { ...s0.player, items: [] } }, c).find((x) => x.word === word)?.damage ?? -1;
+      expect(preview).toBe(bare + 3 * word.length);
+      const s1 = play(s0, word, c);
+      expect(s1.lastTurn?.damage).toBe(preview);
+    }
+  });
+
+  it('conditionCtx wires items, venomed tiles and locked tiles into perUnit (gate W5)', () => {
+    const blank = (id: string): ItemDef => ({ id, name: id, rarity: 'common', description: '', flavor: '', hooks: {} });
+    const perItem: ItemDef = { id: 't-per-item', name: 'I', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'perUnit', unit: 'item', then: [{ type: 'addFlat', value: 1 }] }] } };
+    const perLock: ItemDef = { id: 't-per-lock', name: 'L', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'perUnit', unit: 'lockedTile', then: [{ type: 'addFlat', value: 5 }] }] } };
+    const perVenom: ItemDef = { id: 't-per-venom', name: 'V', rarity: 'common', description: '', flavor: '', hooks: { onTurnStart: [{ type: 'perUnit', unit: 'venomedTile', then: [{ type: 'heal', value: 2 }] }] } };
+    const c = nodeContext({ ...CONTENT, items: [...CONTENT.items, blank('b1'), blank('b2'), perItem, perLock, perVenom], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    // items: one scaler alone, then with two blanks: +2 more damage on the same word.
+    const s0 = withEnemy(fightWith(24, c, ['t-per-item']));
+    const word = anyWord(s0, c);
+    const one = play(s0, word, c).lastTurn?.damage ?? 0;
+    const three = play({ ...s0, player: { ...s0.player, items: ['t-per-item', 'b1', 'b2'] } }, word, c).lastTurn?.damage ?? 0;
+    expect(three).toBe(one + 2);
+    // locked tiles: lock two tiles the word does not use.
+    const l0 = withEnemy(fightWith(24, c, ['t-per-lock']));
+    const lw = anyWord(l0, c);
+    const usedIdx = new Set(tilesForWord(lw, (l0.encounter as Encounter).grid.map((t) => t.letter), (l0.encounter as Encounter).grid.map((_, i) => i)) ?? []);
+    const free = (l0.encounter as Encounter).grid.map((_, i) => i).filter((i) => !usedIdx.has(i)).slice(0, 2);
+    const lockedGrid = (l0.encounter as Encounter).grid.map((t, i) => (free.includes(i) ? { ...t, lockedTurns: 3 } : t));
+    const noLock = play(l0, lw, c).lastTurn?.damage ?? 0;
+    const twoLocks = play({ ...l0, encounter: { ...(l0.encounter as Encounter), grid: lockedGrid } }, lw, c).lastTurn?.damage ?? 0;
+    expect(twoLocks).toBe(noLock + 10);
+    // venomed tiles: two venomed tiles the word does not use survive to the next turn start and heal 4.
+    const v0 = withEnemy(fightWith(24, c, ['t-per-venom']));
+    const vw = anyWord(v0, c);
+    const vUsed = new Set(tilesForWord(vw, (v0.encounter as Encounter).grid.map((t) => t.letter), (v0.encounter as Encounter).grid.map((_, i) => i)) ?? []);
+    const vFree = (v0.encounter as Encounter).grid.map((_, i) => i).filter((i) => !vUsed.has(i)).slice(0, 2);
+    const venomGrid = (v0.encounter as Encounter).grid.map((t, i) => (vFree.includes(i) ? { ...t, venom: 1 } : t));
+    const hurt: RunState = { ...v0, player: { ...v0.player, hp: 50 }, encounter: { ...(v0.encounter as Encounter), grid: venomGrid } };
+    const v1 = play(hurt, vw, c);
+    // Gravity may move the venomed tiles but never removes them; the count at turn start is still 2.
+    expect((v1.encounter as Encounter).grid.filter((t) => t.venom > 0)).toHaveLength(2);
+    expect(v1.lastTurn?.healed).toBe(4);
+  });
+
+  it('onPick fires for the item just picked, not the first item owned (gate W6)', () => {
+    const quiet: ItemDef = { id: 't-quiet', name: 'Q', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'addFlat', value: 1 }] } };
+    const grow: ItemDef = { id: 't-grow2', name: 'G', rarity: 'common', description: '', flavor: '', hooks: { onPick: [{ type: 'maxHp', value: 10 }] } };
+    const c = nodeContext({ ...CONTENT, items: [quiet, grow], tuning: { ...CONTENT.tuning, startingPicks: 2 } });
+    const s0 = newRun(25, c);
+    expect(s0.phase).toBe('pick');
+    const quietFirst = s0.offer?.indexOf('t-quiet') ?? -1;
+    const s1 = reduce(s0, { type: 'pickItem', index: quietFirst }, c);
+    expect(s1.player.items).toEqual(['t-quiet']);
+    expect(s1.player.maxHp).toBe(100);
+    expect(s1.phase).toBe('pick');
+    expect(s1.offer).toEqual(['t-grow2']);
+    const s2 = reduce(s1, { type: 'pickItem', index: 0 }, c);
+    expect(s2.player.items).toEqual(['t-quiet', 't-grow2']);
+    expect(s2.player.maxHp).toBe(110);
+  });
+
+  it('letterWeight biases the draw for its letters exactly as refill would; vowelWeight still stacks', () => {
+    const c = withItem({ id: 't-bias', name: 'B', rarity: 'common', description: '', flavor: '', hooks: { onTileDraw: [{ type: 'letterWeight', letters: 'qz', value: 40 }, { type: 'vowelWeight', value: 2 }] } });
+    const s0 = fightWith(19, c, ['t-bias']);
+    const enc = s0.encounter as Encounter;
+    const all = enc.grid.map((_, i) => i);
+    const bias = { q: 40, z: 40, a: 2, e: 2, i: 2, o: 2, u: 2 };
+    const [expected] = refill(s0.rng, enc.grid, all, bias);
+    const [plain] = refill(s0.rng, enc.grid, all, 1);
+    const s1 = reduce(s0, { type: 'shuffle' }, c);
+    if (s1.phase !== 'fight') return;
+    expect((s1.encounter as Encounter).grid).toEqual(expected);
+    expect(expected).not.toEqual(plain);
+    expect(expected.filter((t) => 'qz'.includes(t.letter)).length).toBeGreaterThan(3);
+  });
+
+  it('an offer never holds three commons while a non-common is left in the pool', () => {
+    let three = 0;
+    let offers = 0;
+    for (let seed = 0; seed < 10; seed++) {
+      const { states } = greedyRun(seed);
+      for (const st of states) {
+        if (st.phase !== 'pick' || !st.offer) continue;
+        offers++;
+        const commons = st.offer.filter((id) => CONTENT.items.find((i) => i.id === id)?.rarity === 'common').length;
+        expect(commons).toBeLessThanOrEqual(MAX_COMMONS_PER_OFFER);
+        if (commons === 3) three++;
+      }
+    }
+    expect(offers).toBeGreaterThan(30);
+    expect(three).toBe(0);
+    // An all-common pool still fills the offer: the rule yields when nothing else is left.
+    const commonsOnly = nodeContext({ ...CONTENT, items: CONTENT.items.filter((i) => i.rarity === 'common'), tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    expect(newRun(1, commonsOnly).offer).toHaveLength(3);
+  }, 20000);
+
+  it('the preview (candidateWords) agrees with the hit for perUnit and fight-state conditions', () => {
+    const c = withItem({
+      id: 't-scaler',
+      name: 'Sc',
+      rarity: 'common',
+      description: '',
+      flavor: '',
+      hooks: { onWordScored: [{ type: 'perUnit', unit: 'letter', then: [{ type: 'addFlat', value: 2 }] }, { type: 'condition', when: { kind: 'enemyHpBelow', fraction: 0.5 }, then: [{ type: 'addMult', value: 1 }] }] },
+    });
+    for (const hp of [100000, 10]) {
+      const s0 = withEnemy(fightWith(20, c, ['t-scaler']), hp);
+      const low: RunState = { ...s0, encounter: { ...(s0.encounter as Encounter), enemy: { ...(s0.encounter as Encounter).enemy, maxHp: 100000 } } };
+      const word = anyWord(low, c, 5);
+      const preview = candidateWords(low, c).find((x) => x.word === word)?.damage ?? -1;
+      const s1 = play(low, word, c);
+      expect(Math.min(preview, hp)).toBe(s1.lastTurn?.damage);
+      if (hp === 10) expect(s1.phase).toBe('pick');
+    }
+  });
+
+  it('new state is JSON-plain and replays byte-identical with every new verb in play', () => {
+    const everything: ItemDef = {
+      id: 't-all',
+      name: 'All',
+      rarity: 'mythic',
+      description: '',
+      flavor: '',
+      hooks: {
+        onPick: [{ type: 'freeShuffle', value: 1 }, { type: 'maxHp', value: 5 }],
+        onWordScored: [{ type: 'poisonEnemy', value: 2 }, { type: 'stun', value: 1 }, { type: 'shield', value: 3 }, { type: 'lifesteal', fraction: 0.25 }, { type: 'redrawTiles', count: 1 }],
+        onTileDraw: [{ type: 'letterWeight', letters: 'st', value: 2 }],
+        onTurnStart: [{ type: 'perUnit', unit: 'venomedTile', then: [{ type: 'damageEnemy', value: 2 }] }],
+      },
+    };
+    const c = nodeContext({ ...CONTENT, items: [everything, ...CONTENT.items], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    for (const seed of [1, 2, 3]) {
+      const a = greedyRun(seed, c, 0);
+      const b = greedyRun(seed, c, 0);
+      expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
+      expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
+      expect(a.final.v).toBe(3);
+    }
   });
 });
 

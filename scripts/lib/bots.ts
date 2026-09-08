@@ -6,7 +6,8 @@
 import { candidateIndices, candidateWords, type Candidate } from '../../src/engine/candidates';
 import type { Action, EngineContext } from '../../src/engine/reducer';
 import { createRng, nextInt, type Rng } from '../../src/engine/rng';
-import type { ItemDef, RunState } from '../../src/engine/types';
+import type { Condition, Effect } from '../../src/engine/effects';
+import type { ItemDef, Rarity, RunState } from '../../src/engine/types';
 
 export type BotName = 'greedy' | 'mediocre' | 'solver';
 export const BOT_NAMES: readonly BotName[] = ['greedy', 'mediocre', 'solver'];
@@ -87,20 +88,49 @@ export function solverBot(seed: number): Bot {
  * count double, conditions it can meet count once, conditions it never meets (6+ letters)
  * count nothing.
  */
+const RARITY_TIEBREAK: Readonly<Record<Rarity, number>> = { common: 0, uncommon: 0.1, rare: 0.2, mythic: 0.3 };
+
+/** True when the mediocre bot, playing 4-5 letter words, can expect to meet the condition. */
+function usableCondition(w: Condition): boolean {
+  switch (w.kind) {
+    case 'minLength':
+      return w.value <= 5;
+    case 'containsLetter':
+    case 'startsWith':
+    case 'endsWith':
+      if (w.letters.length >= 3) return true;
+      for (const l of w.letters) if ('aeioulnrst'.includes(l)) return true;
+      return false;
+    case 'minVowels':
+      return w.value <= 2;
+    case 'maxLength':
+    case 'hpBelow':
+    case 'turnEvery':
+    case 'uniqueLetters':
+    case 'repeatLetter':
+    case 'enemyHpBelow':
+    case 'firstTurn':
+      return true;
+  }
+}
+
 export function offerScore(item: ItemDef): number {
   let score = 0;
-  for (const effects of Object.values(item.hooks)) {
-    for (const e of effects ?? []) {
-      if (e.type !== 'condition') {
+  const walk = (effects: readonly Effect[]) => {
+    for (const e of effects) {
+      if (e.type === 'condition') {
+        if (usableCondition(e.when)) score += 1;
+      } else if (e.type === 'perUnit') {
+        // Scales with something the bot always has some of; counts like an unconditional effect.
+        score += 2;
+      } else {
         score += e.type === 'damagePlayer' ? -2 : 2;
-        continue;
       }
-      const w = e.when;
-      const usable = w.kind === 'minLength' ? w.value <= 5 : w.kind === 'containsLetter' ? w.letters.length >= 3 || 'aeioulnrst'.includes(w.letters) : true;
-      if (usable) score += 1;
     }
-  }
-  return score;
+  };
+  for (const effects of Object.values(item.hooks)) walk(effects ?? []);
+  // Rarity breaks ties (tracker #6): a rare that scores like a common is still the rarer pull.
+  return score + RARITY_TIEBREAK[item.rarity];
 }
 
 export function mediocreBot(seed: number): Bot {
@@ -139,11 +169,17 @@ export function makeBot(name: BotName, seed: number): Bot {
 }
 
 /** Next action for the bot given the current state, or null when the run is over. */
+/** A word this short is not worth a turn when a free shuffle is in hand (greedy and solver only). */
+export const FREE_SHUFFLE_BELOW = 5;
+
 export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Action[] | null {
   if (state.phase === 'summary') return null;
   if (state.phase === 'pick') return [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];
-  const choice = bot.chooseWord(state, candidateWords(state, ctx));
+  const candidates = candidateWords(state, ctx);
+  const choice = bot.chooseWord(state, candidates);
   if (!choice) throw new Error('bot has no playable word: dead grid reached the player');
+  // Effects wave: the strong bots spend a free shuffle rather than play a short word.
+  if (bot.name !== 'mediocre' && state.player.freeShuffles > 0 && choice.word.length < FREE_SHUFFLE_BELOW) return [{ type: 'shuffle' }];
   const indices = candidateIndices(state, choice.word);
   if (!indices) throw new Error(`candidate ${choice.word} cannot be mapped to tiles`);
   return [...indices.map((index): Action => ({ type: 'toggleTile', index })), { type: 'submitWord' }];

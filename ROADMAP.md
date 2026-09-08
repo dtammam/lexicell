@@ -46,6 +46,68 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Effects wave, engine PR (PR #39, 2026-09-08)
+
+Dean agreed all six plan questions. Nine verbs (poisonEnemy, stun,
+shield, lifesteal, freeShuffle, redrawTiles, letterWeight, maxHp,
+perUnit), seven conditions (startsWith, endsWith, uniqueLetters,
+repeatLetter, enemyHpBelow, minVowels, firstTurn), the onPick hook,
+save v3 (v2 dropped), an offer that holds at most two commons. Bots:
+offerScore reads the new verbs and breaks ties by rarity (closes
+tracker #6); greedy and solver spend a free shuffle rather than play a
+word under five letters. No content changed: the 72 items are as
+before. 192 tests.
+
+`npx tsx scripts/sim.ts` at 1b99bf1 (offer rule on, rarity tiebreak on):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    78.0% |           9 |       18.5 |         8 |   100 |    99 |    97 |    91 |    91 |    89 |    68 |    69 |    69 |
+| mediocre |  500 |    48.4% |           9 |       34.3 |        12 |   100 |    94 |    80 |    60 |    59 |    60 |    37 |    44 |    49 |
+|   solver |  500 |    94.4% |           9 |       13.6 |         4 |   100 |   100 |    99 |    97 |    96 |    96 |    86 |    86 |    85 |
+
+Exit criteria:
+  FAIL  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+The mediocre criterion FAILS. Measured one variable at a time
+(`--bot mediocre`, same seeds, edits reverted after each run):
+
+```
+== A: rarity tiebreak off (offer rule on)
+| mediocre |  500 |    39.8% |         7.5 |       33.4 |         7 |   100 |    94 |    79 |    57 |    55 |    56 |    32 |    38 |    41 |
+== B: offer rule off (tiebreak on)
+| mediocre |  500 |    44.2% |           9 |       33.9 |        12 |   100 |    94 |    80 |    59 |    58 |    59 |    33 |    39 |    44 |
+== C: both off
+| mediocre |  500 |    36.4% |           7 |       33.4 |         7 |   100 |    93 |    79 |    57 |    56 |    56 |    31 |    34 |    37 |
+```
+
+Gate (adversarial, two rounds): round one found the perUnit cap
+skipping count one and per-child instead of total (fixed: every child
+under a perUnit scales, the scalers' addMult is capped as a total), and
+six binding gaps (RNG advance in redraw and free-shuffle scramble, stun
+cadence on a two-turn attacker, pure-perUnit preview, conditionCtx
+wiring, onPick target), all bound by tests; persist now rejects an
+enemy without poison/stunned; turnEvery never fires at turn 0. Round
+two APPROVEd with three one-assertion follow-ups, landed in the merge.
+Disclosed (S7): the bots' free-shuffle rule is nearly inert (0 shuffles
+in full greedy runs holding 500 charges) and the sim's "scrambles"
+column counts every shuffle, so once free-shuffle items ship it
+conflates shuffles with dead-grid scrambles; both are harness work for
+batch 2.
+
+So the offer rule (Dean's design, question 2) is worth about 3.5
+points and the bot reading rarity about 8. The second is a change to
+the instrument, not the game: a casual player who takes the glowing
+item was always winning more than the old bot said. Both ship. The
+plan's acceptance line ("criteria pass after the engine PR with the
+existing 72 items") is NOT met and is moved to content batch 1, which
+reworks the 72 anyway and lands with the UI PR (tracker #7).
+
 ### Small PRs under iteration mode (one line each, newest first)
 
 - PR #38 (2026-09-08): Dean's type-lab readout shipped: Press Start 2P

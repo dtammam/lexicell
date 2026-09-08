@@ -10,7 +10,7 @@
 import { playableIndices, playableLetters } from './grid';
 import { gatherEffects } from './hooks';
 import { resolveEffects } from './effects';
-import type { EngineContext } from './reducer';
+import { conditionCtx, type EngineContext } from './reducer';
 import { scoreWord } from './scoring';
 import { tilesForWord } from './solver';
 import type { RunState } from './types';
@@ -23,9 +23,10 @@ export interface Candidate {
 export function candidateWords(state: RunState, ctx: EngineContext): Candidate[] {
   const enc = state.encounter;
   if (!enc) return [];
-  const base = { hp: state.player.hp, maxHp: state.player.maxHp, turn: enc.turn };
+  const base = conditionCtx(state, ctx);
   const raw = gatherEffects('onWordScored', state.player.items, ctx.content);
-  const conditional = raw.some((e) => e.type === 'condition');
+  // Anything that reads the word (a condition or a perUnit) must be resolved per word.
+  const conditional = raw.some((e) => e.type === 'condition' || e.type === 'perUnit');
   const fixed = conditional ? null : resolveEffects(raw, base);
   const out: Candidate[] = [];
   for (const word of ctx.solver.solve(playableLetters(enc.grid))) {
