@@ -40,9 +40,9 @@ export const ITEMS: readonly ItemDef[] = [
     id: 'vowel-magnet',
     name: 'Vacuole',
     rarity: 'common',
-    description: 'Vowels are drawn 80% more often.',
+    description: 'Vowels are drawn 40% more often.',
     flavor: 'It stores what you keep running out of.',
-    hooks: { onTileDraw: [{ type: 'vowelWeight', value: 1.8 }] },
+    hooks: { onTileDraw: [{ type: 'vowelWeight', value: 1.4 }] },
   },
   {
     id: 'bandage',
@@ -505,9 +505,9 @@ export const ITEMS: readonly ItemDef[] = [
     id: 'endospore',
     name: 'Endospore',
     rarity: 'uncommon',
-    description: 'While below 40% HP, take 7 less damage and heal 2 whenever you take damage.',
+    description: 'While below 40% HP, take 5 less damage and heal 2 whenever you take damage.',
     flavor: 'It waits out the bad years.',
-    hooks: { onDamageTaken: [{ type: 'condition', when: { kind: 'hpBelow', fraction: 0.4 }, then: [{ type: 'reduceDamage', value: 7 }, { type: 'heal', value: 2 }] }] },
+    hooks: { onDamageTaken: [{ type: 'condition', when: { kind: 'hpBelow', fraction: 0.4 }, then: [{ type: 'reduceDamage', value: 5 }, { type: 'heal', value: 2 }] }] },
   },
   {
     id: 'lateral-line',
@@ -609,12 +609,13 @@ export const ITEMS: readonly ItemDef[] = [
   /* ---------- Effects wave, content batch 1 (2026-09-08): forty items on the new verbs ---------- */
   // Commons: one new verb each, plainly.
   { id: 'venom-gland', name: 'Venom Gland', rarity: 'common', description: 'Every word poisons the enemy for 3.', flavor: 'It leaves something behind.', hooks: { onWordScored: [{ type: 'poisonEnemy', value: 3 }] } },
-  { id: 'numbing-barb', name: 'Numbing Barb', rarity: 'common', description: 'Words of 6+ letters make the enemy skip its next attack.', flavor: 'Long enough to reach the nerve.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'minLength', value: 6 }, then: [{ type: 'stun', value: 1 }] }] } },
+  // Numbing Barb stunned on every 6+ word: 98% wins for the greedy bot (a lock, like Paralytic's first draft). Now poison.
+  { id: 'numbing-barb', name: 'Numbing Barb', rarity: 'common', description: 'Words of 6+ letters poison the enemy for 5.', flavor: 'Long enough to reach the nerve.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'minLength', value: 6 }, then: [{ type: 'poisonEnemy', value: 5 }] }] } },
   { id: 'capsule', name: 'Capsule', rarity: 'common', description: 'Gain 4 shield on every word.', flavor: 'A coat that thickens as you talk.', hooks: { onWordScored: [{ type: 'shield', value: 4 }] } },
   { id: 'siphon', name: 'Siphon', rarity: 'common', description: 'Heal a quarter of the damage each word deals.', flavor: 'Nothing is wasted.', hooks: { onWordScored: [{ type: 'lifesteal', fraction: 0.25 }] } },
   { id: 'flick', name: 'Flick', rarity: 'common', description: 'After each fight, gain a free shuffle.', flavor: 'A twitch of the tail and the board is new.', hooks: { onEncounterEnd: [{ type: 'freeShuffle', value: 1 }] } },
   { id: 'molt', name: 'Molt', rarity: 'common', description: 'After each word, 2 of your tiles are redrawn.', flavor: 'Shed what you were not using.', hooks: { onWordScored: [{ type: 'redrawTiles', count: 2 }] } },
-  { id: 'chemotaxis', name: 'Chemotaxis', rarity: 'common', description: 'S and T are drawn twice as often.', flavor: 'It swims toward the letters it likes.', hooks: { onTileDraw: [{ type: 'letterWeight', letters: 'st', value: 2 }] } },
+  { id: 'chemotaxis', name: 'Chemotaxis', rarity: 'common', description: 'S and T are drawn 50% more often.', flavor: 'It swims toward the letters it likes.', hooks: { onTileDraw: [{ type: 'letterWeight', letters: 'st', value: 1.5 }] } },
   { id: 'growth-factor', name: 'Growth Factor', rarity: 'common', description: 'When taken: +15 max HP.', flavor: 'More of you, permanently.', hooks: { onPick: [{ type: 'maxHp', value: 15 }] } },
   { id: 'vesicle', name: 'Vesicle', rarity: 'common', description: '+1 damage per organelle you carry.', flavor: 'It counts what you have become.', hooks: { onWordScored: [{ type: 'perUnit', unit: 'item', then: [{ type: 'addFlat', value: 1 }] }] } },
   { id: 'polymerase', name: 'Polymerase', rarity: 'common', description: '+2 damage per letter in the word.', flavor: 'Chain, chain, chain.', hooks: { onWordScored: [{ type: 'perUnit', unit: 'letter', then: [{ type: 'addFlat', value: 2 }] }] } },
@@ -630,7 +631,8 @@ export const ITEMS: readonly ItemDef[] = [
   { id: 'pulse', name: 'Pulse', rarity: 'common', description: 'Every second turn, poison the enemy for 2.', flavor: 'Tick. Tick.', hooks: { onTurnStart: [{ type: 'condition', when: { kind: 'turnEvery', value: 2 }, then: [{ type: 'poisonEnemy', value: 2 }] }] } },
   // Uncommons: a verb with a condition, a scaler, or a pair.
   { id: 'keratin', name: 'Keratin', rarity: 'uncommon', description: 'Take 1 less damage from every hit per organelle you carry.', flavor: 'Layers, then more layers.', hooks: { onDamageTaken: [{ type: 'perUnit', unit: 'item', then: [{ type: 'reduceDamage', value: 1 }] }] } },
-  { id: 'neurotoxin', name: 'Neurotoxin', rarity: 'uncommon', description: 'Words of 5+ letters make the enemy skip its next attack and poison it for 2.', flavor: 'First the twitch, then the quiet.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'minLength', value: 5 }, then: [{ type: 'stun', value: 1 }, { type: 'poisonEnemy', value: 2 }] }] } },
+  // Neurotoxin's stun on every 5+ word was the same lock (98%); the stun is now every second turn.
+  { id: 'neurotoxin', name: 'Neurotoxin', rarity: 'uncommon', description: 'Words of 5+ letters poison the enemy for 3; every second turn they also make it skip its next attack.', flavor: 'First the twitch, then the quiet.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'minLength', value: 5 }, then: [{ type: 'poisonEnemy', value: 3 }, { type: 'condition', when: { kind: 'turnEvery', value: 2 }, then: [{ type: 'stun', value: 1 }] }] }] } },
   { id: 'carapace', name: 'Carapace', rarity: 'uncommon', description: 'Gain 12 shield after each fight.', flavor: 'It hardens between meals.', hooks: { onEncounterEnd: [{ type: 'shield', value: 12 }] } },
   { id: 'hemolymph', name: 'Hemolymph', rarity: 'uncommon', description: 'While below half HP, heal 40% of the damage each word deals.', flavor: 'It runs faster when it runs low.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'hpBelow', fraction: 0.5 }, then: [{ type: 'lifesteal', fraction: 0.4 }] }] } },
   { id: 'telomere', name: 'Telomere', rarity: 'uncommon', description: '+5 max HP after each fight.', flavor: 'The ends stop fraying.', hooks: { onEncounterEnd: [{ type: 'maxHp', value: 5 }] } },
@@ -647,7 +649,7 @@ export const ITEMS: readonly ItemDef[] = [
   // Paralytic's first draft stunned on every word: a permanent lock against every-turn attackers,
   // 98% wins for the mediocre bot at 1500 runs. Now every second turn, and it still costs damage.
   { id: 'paralytic', name: 'Paralytic', rarity: 'rare', description: 'Every second turn, your word makes the enemy skip its next attack; -30% damage.', flavor: 'Slow, and slower.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'turnEvery', value: 2 }, then: [{ type: 'stun', value: 1 }] }, { type: 'addMult', value: -0.3 }] } },
-  { id: 'zooxanthellae', name: 'Zooxanthellae', rarity: 'rare', description: 'Heal half of the damage each word deals.', flavor: 'A tenant that pays in sunlight.', hooks: { onWordScored: [{ type: 'lifesteal', fraction: 0.5 }] } },
+  { id: 'zooxanthellae', name: 'Zooxanthellae', rarity: 'rare', description: 'Heal 35% of the damage each word deals.', flavor: 'A tenant that pays in sunlight.', hooks: { onWordScored: [{ type: 'lifesteal', fraction: 0.35 }] } },
   { id: 'reflex-arc', name: 'Reflex Arc', rarity: 'rare', description: 'Whenever you take damage, deal 6 back and the enemy skips its next attack.', flavor: 'It answers before you feel it.', hooks: { onDamageTaken: [{ type: 'damageEnemy', value: 6 }, { type: 'stun', value: 1 }] } },
   { id: 'blastula', name: 'Blastula', rarity: 'rare', description: 'When taken: +30 max HP. Heal 10 after each fight.', flavor: 'A hollow ball, about to become everything.', hooks: { onPick: [{ type: 'maxHp', value: 30 }], onEncounterEnd: [{ type: 'heal', value: 10 }] } },
   { id: 'chrysalis', name: 'Chrysalis', rarity: 'rare', description: 'At the start of every turn, gain 4 shield.', flavor: 'Wrapped, and working.', hooks: { onTurnStart: [{ type: 'shield', value: 4 }] } },
@@ -677,13 +679,13 @@ export const ITEMS: readonly ItemDef[] = [
   { id: 'twin', name: 'Twin', rarity: 'common', description: 'Words with a repeated letter poison the enemy for 3.', flavor: 'It says everything twice.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'repeatLetter' }, then: [{ type: 'poisonEnemy', value: 3 }] }] } },
   { id: 'singleton', name: 'Singleton', rarity: 'common', description: 'Words with no repeated letters deal +2 per letter.', flavor: 'Every piece unique, every piece counted.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'uniqueLetters' }, then: [{ type: 'perUnit', unit: 'letter', then: [{ type: 'addFlat', value: 2 }] }] }] } },
   { id: 'leftover', name: 'Leftover', rarity: 'common', description: 'After each fight, heal 2 per organelle you carry.', flavor: 'The meal after the meal.', hooks: { onEncounterEnd: [{ type: 'perUnit', unit: 'item', then: [{ type: 'heal', value: 2 }] }] } },
-  { id: 'bait', name: 'Bait', rarity: 'common', description: 'E and S are drawn 50% more often.', flavor: 'The common letters come when called.', hooks: { onTileDraw: [{ type: 'letterWeight', letters: 'es', value: 1.5 }] } },
+  { id: 'bait', name: 'Bait', rarity: 'common', description: 'E and S are drawn 30% more often, and words deal +3.', flavor: 'The common letters come when called.', hooks: { onTileDraw: [{ type: 'letterWeight', letters: 'es', value: 1.3 }], onWordScored: [{ type: 'addFlat', value: 3 }] } },
   { id: 'rasp', name: 'Rasp', rarity: 'common', description: 'R, S and T are worth +2 each, and words ending in S deal +4.', flavor: 'Rough on the way out.', hooks: { onWordScored: [{ type: 'letterBonus', letters: 'rst', value: 2 }, { type: 'condition', when: { kind: 'endsWith', letters: 's' }, then: [{ type: 'addFlat', value: 4 }] }] } },
   { id: 'jolt', name: 'Jolt', rarity: 'common', description: 'Whenever you take damage, poison the enemy for 3.', flavor: 'Touch it and regret it.', hooks: { onDamageTaken: [{ type: 'poisonEnemy', value: 3 }] } },
   // Uncommons.
   { id: 'pheromone', name: 'Pheromone', rarity: 'uncommon', description: 'Words of 5+ letters deal +3 per organelle you carry.', flavor: 'The colony answers a long call.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'minLength', value: 5 }, then: [{ type: 'perUnit', unit: 'item', then: [{ type: 'addFlat', value: 3 }] }] }] } },
   { id: 'hardshell', name: 'Hardshell', rarity: 'uncommon', description: 'Take 3 less damage from every hit, and gain 2 shield whenever you take damage.', flavor: 'It learns from every knock.', hooks: { onDamageTaken: [{ type: 'reduceDamage', value: 3 }, { type: 'shield', value: 2 }] } },
-  { id: 'venom-loop', name: 'Venom Loop', rarity: 'uncommon', description: 'At the start of every turn one clean tile turns venomous (2), and you heal 3 per venomed tile.', flavor: 'It drinks its own bite.', hooks: { onTurnStart: [{ type: 'venomTiles', count: 1, value: 2 }, { type: 'perUnit', unit: 'venomedTile', then: [{ type: 'heal', value: 3 }] }] } },
+  { id: 'venom-loop', name: 'Venom Loop', rarity: 'uncommon', description: 'At the start of every turn one clean tile turns venomous, and you heal 4 per venomed tile.', flavor: 'It drinks its own bite.', hooks: { onTurnStart: [{ type: 'venomTiles', count: 1, value: 1 }, { type: 'perUnit', unit: 'venomedTile', then: [{ type: 'heal', value: 4 }] }] } },
   { id: 'metronome', name: 'Metronome', rarity: 'uncommon', description: 'Every second turn, +50% damage.', flavor: 'Tick, TOCK.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'turnEvery', value: 2 }, then: [{ type: 'addMult', value: 0.5 }] }] } },
   { id: 'reaper', name: 'Reaper', rarity: 'uncommon', description: 'While the enemy is below 30% HP, double damage.', flavor: 'It only shows up for the ending.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'enemyHpBelow', fraction: 0.3 }, then: [{ type: 'addMult', value: 1 }] }] } },
   { id: 'overclock', name: 'Overclock', rarity: 'uncommon', description: '+4% damage per turn of the fight.', flavor: 'Warmer every turn.', hooks: { onWordScored: [{ type: 'perUnit', unit: 'turn', then: [{ type: 'addMult', value: 0.04 }] }] } },
