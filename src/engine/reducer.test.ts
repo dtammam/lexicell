@@ -281,6 +281,103 @@ describe('starting kit (tuning.startingPicks)', () => {
   });
 });
 
+describe('venom: a tile that bites until you spend it', () => {
+  function polypTurn(seed: number, turn = 3): RunState {
+    const s0 = newRun(seed, ctx);
+    if (s0.phase !== 'fight') throw new Error('expected a fight');
+    const enc = s0.encounter as Encounter;
+    return { ...s0, encounter: { ...enc, turn, enemy: { id: 'polyp', hp: 100000, maxHp: 100000, damage: 1 } } };
+  }
+  function playBest(s: RunState): RunState {
+    const best = candidateWords(s, ctx).sort((a, b) => b.damage - a.damage)[0];
+    if (!best) throw new Error('no word');
+    return play(s, best.word);
+  }
+
+  it('the Polyp special venoms one clean, unlocked survivor (never a played tile), and it bites next turn', () => {
+    const s = polypTurn(40);
+    const idx = candidateIndices(s, candidateWords(s, ctx).sort((a, b) => b.damage - a.damage)[0]?.word ?? '');
+    if (!idx) throw new Error('no word');
+    const before = (s.encounter as Encounter).grid;
+    const s1 = playBest(s);
+    expect(s1.phase).toBe('fight');
+    const grid = (s1.encounter as Encounter).grid;
+    const venomous = grid.filter((t) => t.venom > 0);
+    expect(venomous).toHaveLength(1);
+    // Applied at 2 by the special, then bitten once at the next turn start and grown to 3.
+    expect(venomous[0]?.venom).toBe(3);
+    expect(s1.lastTurn?.venom).toBe(2);
+    expect(s.player.hp - s1.player.hp).toBe(2 + (s1.lastTurn?.enemyDamage ?? 0));
+    // It was a survivor: its letter is among the tiles not played.
+    const survivors = before.filter((_, i) => !idx.includes(i)).map((t) => t.letter);
+    expect(survivors).toContain(venomous[0]?.letter);
+    assertInvariants(s1, ctx);
+  });
+
+  it('bites every turn and grows; spending the tile cures it; it can kill', () => {
+    const s0 = polypTurn(41, 1);
+    const enc0 = s0.encounter as Encounter;
+    const grid = enc0.grid.map((t, i) => (i === 5 ? { ...t, venom: 4 } : t));
+    const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
+    // Play a word that avoids tile 5: the venom bites for 4 and grows to 5.
+    const cands = candidateWords(s1, ctx).sort((a, b) => a.damage - b.damage);
+    const avoiding = cands.find((c) => !(candidateIndices(s1, c.word) ?? []).includes(5));
+    if (!avoiding) throw new Error('no word avoiding tile 5');
+    const s2 = play(s1, avoiding.word);
+    expect(s2.phase).toBe('fight');
+    expect(s2.lastTurn?.venom).toBe(4);
+    const g2 = (s2.encounter as Encounter).grid;
+    expect(g2.filter((t) => t.venom > 0).map((t) => t.venom)).toEqual([5]);
+    // Now spend it: settle may have moved it; find it and play a word through it.
+    const at = g2.findIndex((t) => t.venom > 0);
+    const through = candidateWords(s2, ctx).find((c) => (candidateIndices(s2, c.word) ?? []).includes(at));
+    if (!through) throw new Error('no word through the venomous tile');
+    const s3 = play(s2, through.word);
+    if (s3.phase === 'fight') {
+      expect((s3.encounter as Encounter).grid.every((t) => t.venom === 0)).toBe(true);
+      // Spent before the bite: the refill removes it ahead of the next turn start, so no venom this turn.
+      expect(s3.lastTurn?.venom).toBe(0);
+    }
+    // Lethal: 3 HP against a 4 bite.
+    const dying: RunState = { ...s1, player: { ...s1.player, hp: 3 } };
+    const dead = play(dying, avoiding.word);
+    expect(dead.phase).toBe('summary');
+    expect(dead.outcome).toBe('lost');
+  });
+
+  it('a shuffle cures venom (and costs the turn), and the whole state stays JSON-clean and deterministic', () => {
+    const s0 = polypTurn(42, 1);
+    const enc0 = s0.encounter as Encounter;
+    const grid = enc0.grid.map((t, i) => (i === 7 ? { ...t, venom: 2 } : t));
+    const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
+    const a = reduce(s1, { type: 'shuffle' }, ctx);
+    const b = reduce(s1, { type: 'shuffle' }, ctx);
+    expect(a).toEqual(b);
+    expect(JSON.parse(JSON.stringify(a))).toEqual(a);
+    if (a.phase === 'fight') expect((a.encounter as Encounter).grid.every((t) => t.venom === 0)).toBe(true);
+  });
+
+  it('venomTiles never picks a locked or already venomous tile', () => {
+    const s0 = polypTurn(43, 3);
+    const enc0 = s0.encounter as Encounter;
+    // Lock or venom everything but tiles 0 and 1; the special must land on one of those two.
+    const grid = enc0.grid.map((t, i) => (i < 2 ? t : i % 2 === 0 ? { ...t, lockedTurns: 3 } : { ...t, venom: 1 }));
+    const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
+    const cands = candidateWords(s1, ctx);
+    const word = cands.find((c) => !(candidateIndices(s1, c.word) ?? []).some((i) => i < 2));
+    if (!word) return; // the two clean tiles may be needed for any word; nothing to assert on this seed
+    const s2 = play(s1, word.word);
+    if (s2.phase !== 'fight') return;
+    const g2 = (s2.encounter as Encounter).grid;
+    // Pre-venomed tiles not spent by the word grew from 1 to 2; the one new venom was set at 2 and bitten to 3.
+    const spentVenomed = (candidateIndices(s1, word.word) ?? []).filter((i) => (grid[i]?.venom ?? 0) > 0).length;
+    expect(g2.filter((t) => t.venom === 3)).toHaveLength(1);
+    expect(g2.filter((t) => t.venom === 2)).toHaveLength(7 - spentVenomed);
+    expect(g2.filter((t) => t.lockedTurns > 0).every((t) => t.venom === 0)).toBe(true);
+    expect([grid[0]?.letter, grid[1]?.letter]).toContain(g2.find((t) => t.venom === 3)?.letter);
+  });
+});
+
 describe('boss lock lands on survivors, never on the tiles just played (tracker #5)', () => {
   /** A Colony fight on the turn its special fires, against an enemy that cannot die this turn. */
   function bossTurn(seed: number): RunState {
@@ -356,7 +453,7 @@ describe('gravity: refilled columns settle', () => {
     const s2 = reduce({ ...s0, encounter: { ...enc0, grid } }, { type: 'shuffle' }, ctx);
     if (s2.phase !== 'fight') return;
     const g2 = (s2.encounter as Encounter).grid;
-    expect(g2[2]).toEqual({ letter: grid[14]?.letter, lockedTurns: 2 });
+    expect(g2[2]).toEqual({ letter: grid[14]?.letter, lockedTurns: 2, venom: 0 });
     expect(s2.lastTurn?.used).toHaveLength(15);
   });
 });
@@ -407,8 +504,8 @@ describe('shuffle (costs the turn)', () => {
     const g2 = (s2.encounter as Encounter).grid;
     // Gravity: a locked survivor rises to the top of its column. Index 3 is already row 0;
     // index 9 (row 2, column 1) settles to index 1.
-    expect(g2[3]).toEqual({ letter: grid[3]?.letter, lockedTurns: 1 });
-    expect(g2[1]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1 });
+    expect(g2[3]).toEqual({ letter: grid[3]?.letter, lockedTurns: 1, venom: 0 });
+    expect(g2[1]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1, venom: 0 });
     expect(g2.filter((t) => t.lockedTurns > 0)).toHaveLength(2);
     // Fourteen fresh draws: identical to the old multiset only by a 1-in-astronomical chance.
     const oldLetters = grid.filter((_, i) => i !== 3 && i !== 9).map((t) => t.letter).sort();
@@ -518,10 +615,10 @@ describe('boss mechanic and dead-grid guard', () => {
     let scrambles = 0;
     for (let seed = 20; seed < 40; seed++) {
       const base = newRun(seed, ctx);
-      const grid = base.encounter!.grid.map(() => ({ letter: 'e', lockedTurns: 5 }));
-      grid[13] = { letter: 'c', lockedTurns: 0 };
-      grid[14] = { letter: 'a', lockedTurns: 0 };
-      grid[15] = { letter: 't', lockedTurns: 0 };
+      const grid = base.encounter!.grid.map(() => ({ letter: 'e', lockedTurns: 5, venom: 0 }));
+      grid[13] = { letter: 'c', lockedTurns: 0, venom: 0 };
+      grid[14] = { letter: 'a', lockedTurns: 0, venom: 0 };
+      grid[15] = { letter: 't', lockedTurns: 0, venom: 0 };
       const s0: RunState = { ...base, encounter: { ...base.encounter!, grid, enemy: { ...base.encounter!.enemy, hp: 10_000 } } };
       const s1 = play(s0, 'cat');
       expect(s1.phase).toBe('fight');

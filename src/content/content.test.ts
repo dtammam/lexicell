@@ -38,6 +38,7 @@ describe('content bundle', () => {
 
   it('the boss has a distinct mechanic', () => {
     expect(CONTENT.bosses[0]?.special?.effects.some((e) => e.type === 'lockTiles')).toBe(true);
-    for (const e of CONTENT.enemies) expect(e.special).toBeUndefined();
+    expect(CONTENT.enemies.find((e) => e.id === 'polyp')?.special?.effects.some((e) => e.type === 'venomTiles')).toBe(true);
+    for (const e of CONTENT.enemies) if (e.id !== 'polyp') expect(e.special).toBeUndefined();
   });
 });

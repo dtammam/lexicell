@@ -42,7 +42,8 @@ export type Action =
   | { readonly type: 'pickItem'; readonly index: number }
   | { readonly type: 'shuffle' };
 
-export const SAVE_VERSION = 1;
+/** 2 since the tuning wave (Tile.venom, TurnReport.venom); v1 saves are dropped on load, no migration (Dean, 2026-09-08). */
+export const SAVE_VERSION = 2;
 export const OFFER_SIZE = 3;
 export const RARITY_WEIGHT = { common: 3, uncommon: 2, rare: 1 } as const;
 
@@ -55,6 +56,7 @@ const EMPTY_REPORT: TurnReport = {
   healed: 0,
   scrambled: false,
   used: [],
+  venom: 0,
   enemyDefeated: false,
 };
 
@@ -63,7 +65,7 @@ const EMPTY_REPORT: TurnReport = {
 export function newRun(seed: number, ctx: EngineContext): RunState {
   const maxHp = ctx.content.playerMaxHp;
   const state: RunState = {
-    v: 1,
+    v: 2,
     rng: createRng(seed),
     phase: 'fight',
     encounterIndex: 0,
@@ -181,6 +183,22 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         s = { ...s, rng, encounter: { ...s.encounter, grid, selection: [] } };
         break;
       }
+      case 'venomTiles': {
+        if (!s.encounter) break;
+        const grid = s.encounter.grid.slice();
+        let rng = s.rng;
+        const played = new Set(s.encounter.selection);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).venom === 0);
+        for (let n = 0; n < e.count && candidates.length > 0; n++) {
+          let k: number;
+          [k, rng] = nextInt(rng, candidates.length);
+          const idx = candidates[k] as number;
+          grid[idx] = { ...(grid[idx] as Tile), venom: e.value };
+          candidates = candidates.filter((c) => c !== idx);
+        }
+        s = { ...s, rng, encounter: { ...s.encounter, grid } };
+        break;
+      }
       case 'scramble': {
         s = scramble(s, ctx);
         scrambled = true;
@@ -233,17 +251,37 @@ function startEncounter(state: RunState, ctx: EngineContext): RunState {
   return turnStart(s2, ctx, EMPTY_REPORT);
 }
 
-/** onTurnStart effects, then check whether they killed the enemy. */
+/** onTurnStart effects, then the venom bite, then check whether the enemy died or the player did. */
 function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): RunState {
   const effects = collectEffects('onTurnStart', state.player.items, ctx.content, conditionCtx(state));
   const a = applyEffects(state, effects, ctx);
-  const s: RunState = {
+  let s: RunState = {
     ...a.state,
     lastTurn: { ...report, healed: report.healed + a.healed, damage: report.damage + a.enemyDamage },
     stats: { ...a.state.stats, damageDealt: a.state.stats.damageDealt + a.enemyDamage },
   };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
+  s = venomBite(s);
+  if (s.player.hp <= 0) return { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null };
   return s;
+}
+
+/** Every venomous tile bites for its venom, then grows by one. A tile is cured only by leaving the grid. */
+function venomBite(state: RunState): RunState {
+  const enc = state.encounter;
+  if (!enc) return state;
+  const bite = enc.grid.reduce((sum, t) => sum + t.venom, 0);
+  if (bite === 0) return state;
+  const hp = clampHp(state.player.hp - bite, state.player.maxHp);
+  const taken = state.player.hp - hp;
+  const grid = enc.grid.map((t) => (t.venom > 0 ? { ...t, venom: t.venom + 1 } : t));
+  return {
+    ...state,
+    player: { ...state.player, hp },
+    encounter: { ...enc, grid },
+    lastTurn: { ...(state.lastTurn ?? EMPTY_REPORT), venom: taken },
+    stats: { ...state.stats, damageTaken: state.stats.damageTaken + taken },
+  };
 }
 
 function endEncounter(state: RunState, ctx: EngineContext): RunState {

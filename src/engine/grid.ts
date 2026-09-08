@@ -38,7 +38,7 @@ export function drawLetter(rng: Rng, vowelWeight = 1): [string, Rng] {
 }
 
 export function plainTile(letter: string): Tile {
-  return { letter, lockedTurns: 0 };
+  return { letter, lockedTurns: 0, venom: 0 };
 }
 
 /** Letters of tiles that can currently be played. */

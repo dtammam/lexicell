@@ -10,6 +10,8 @@ export interface Tile {
   readonly letter: string;
   /** Turns remaining locked. 0 = usable. Locked tiles cannot be selected and are invisible to the solver. */
   readonly lockedTurns: number;
+  /** Venom: bites the player for this much at the start of every turn and then grows by one. 0 = clean. Cured by playing the tile, a shuffle, or a scramble. */
+  readonly venom: number;
 }
 
 export const GRID_SIZE = 16;
@@ -100,6 +102,8 @@ export interface TurnReport {
   readonly healed: number;
   readonly scrambled: boolean;
   readonly enemyDefeated: boolean;
+  /** Damage the venomous tiles bit for at the start of this turn. */
+  readonly venom: number;
   /** Tile indices consumed this turn, before the grid settled (gravity). The UI animates from it. */
   readonly used: readonly number[];
 }
@@ -115,7 +119,7 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 1;
+  readonly v: 2;
   readonly rng: Rng;
   readonly phase: Phase;
   readonly encounterIndex: number;

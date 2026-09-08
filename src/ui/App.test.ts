@@ -440,6 +440,35 @@ describe('App', () => {
     }
   });
 
+  it('a venomous tile shows its count, and the report says how much it bit for', async () => {
+    await startRun();
+    cleanup();
+    const save = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState & { encounter: { grid: { letter: string; lockedTurns: number; venom: number }[] } };
+    const t0 = save.encounter.grid[0];
+    if (!t0) throw new Error('no tile');
+    save.encounter.grid[0] = { ...t0, venom: 3 };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await findByText('Encounter 1 / 9');
+    const badge = document.querySelector('button.tile.venomous .value.venom');
+    expect(badge?.textContent).toBe('\u26233');
+    // Play a word that does not use tile 0 so the venom survives and bites at the next turn start.
+    const all = gridLetters();
+    const available = tiles()
+      .map((b, i) => (b.disabled || i === 0 ? -1 : i))
+      .filter((i) => i >= 0);
+    const word = ctx.solver.solve(available.map((i) => all[i] ?? '')).sort((a, b) => a.length - b.length)[0];
+    if (!word) throw new Error('no word without tile 0');
+    const idx = tilesForWord(word, all, available);
+    if (!idx) throw new Error('cannot place');
+    for (const i of idx) await click(tiles()[i] ?? null);
+    await click(attackButton());
+    if (queryByText('Choose an item')) return;
+    expect(getByText('venom bit for 3')).toBeTruthy();
+    expect(document.querySelector('button.tile.venomous .value.venom')?.textContent).toBe('\u26234');
+  });
+
   it('the item strip opens a panel listing every carried item with its description', async () => {
     await startRun();
     const strip = getByText(/^Items \(1\): /);
