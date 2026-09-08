@@ -21,13 +21,6 @@ game readable and gives the fight a face, before any more tuning.
 6. Retention is daily seed plus run history, no achievements (later).
 7. Process: one adversarial round per wave until the Phase 2 exit,
    disclosed in ROADMAP. Full two-reviewer rules return after that.
-9. (new, same day) Fewer dependencies, especially third-party runtime
-   ones. Dean may ship this as an app and will not be forced into an
-   open-source obligation by something he does not control. Audit on
-   2026-09-08: every direct dependency is MIT or Apache-2.0, ENABLE is
-   public domain, WordNet's license is permissive with attribution; no
-   copyleft anywhere. What ships in the bundle is Svelte's runtime and
-   Workbox (via vite-plugin-pwa). Everything else is build-time only.
 8. (new) Definitions: every played word shows a short definition; the
    title screen shows a word of the day with its definition so the
    player's vocabulary grows with the protagonist. Assumption made on
@@ -35,6 +28,13 @@ game readable and gives the fight a face, before any more tuning.
    seeded by the date, not from the grid, so it never hands the player
    a spellable word. A grid-spellable variant is one line if wanted.
 
+9. (new, same day) Fewer dependencies, especially third-party runtime
+   ones. Dean may ship this as an app and will not be forced into an
+   open-source obligation by something he does not control. Audit on
+   2026-09-08: every direct dependency is MIT or Apache-2.0, ENABLE is
+   public domain, WordNet's license is permissive with attribution; no
+   copyleft anywhere. What ships in the bundle is Svelte's runtime and
+   Workbox (via vite-plugin-pwa). Everything else is build-time only.
 ## Design
 
 ### Task commits

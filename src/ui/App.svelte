@@ -15,12 +15,14 @@
   const persist = createPersist(browserStorage());
 
   let store: Store | null = $state.raw(null);
+  let isWord: (word: string) => boolean = $state.raw(() => false);
   let run: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
   let recoveries = 0;
 
   loadContext()
     .then((ctx) => {
+      isWord = (word) => ctx.dictionary.has(word);
       const s = createStore(ctx, persist, seed);
       s.subscribe((state) => {
         run = state;
@@ -64,7 +66,7 @@
     {:else if !run}
       <p class="loading">Loading words...</p>
     {:else if run.phase === 'fight'}
-      <Fight {run} {dispatch} />
+      <Fight {run} {dispatch} {isWord} />
     {:else if run.phase === 'pick'}
       <Pick {run} {dispatch} />
     {:else}

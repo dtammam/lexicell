@@ -4,12 +4,24 @@
   import type { RunState } from '../engine/types';
   import { enemyName } from './lookup';
 
-  let { run, dispatch }: { run: RunState; dispatch: (action: Action) => void } = $props();
+  let {
+    run,
+    dispatch,
+    isWord,
+  }: { run: RunState; dispatch: (action: Action) => void; isWord: (word: string) => boolean } = $props();
+
+  const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
 
   const enc = $derived(run.encounter);
   const word = $derived(selectedWord(run));
   const encounterNo = $derived(run.encounterIndex + 1);
+  // The same dictionary the reducer validates against, so green always means Attack will land.
+  const valid = $derived(word.length >= 3 && isWord(word));
   const canAttack = $derived(word.length >= 3);
+
+  function orderOf(index: number): number {
+    return (enc?.selection.indexOf(index) ?? -1) + 1;
+  }
 </script>
 
 {#if enc}
@@ -46,26 +58,30 @@
       {#if run.rejected}<span class="rejected">{run.rejected}</span>{/if}
     </div>
 
-    <div class="word">{word.toUpperCase() || ' '}</div>
+    <div class="word" class:valid>{word.toUpperCase() || ' '}</div>
 
     <div class="grid">
       {#each enc.grid as tile, i (i)}
+        {@const order = orderOf(i)}
         <button
           class="tile"
-          class:selected={enc.selection.includes(i)}
+          class:selected={order > 0}
+          class:valid={order > 0 && valid}
+          class:vowel={VOWELS.has(tile.letter)}
           class:locked={tile.lockedTurns > 0}
           disabled={tile.lockedTurns > 0}
           onclick={() => { dispatch({ type: 'toggleTile', index: i }); }}
         >
           <span class="letter">{tile.letter.toUpperCase()}</span>
           <span class="value">{tile.lockedTurns > 0 ? `\u{1F512}${tile.lockedTurns}` : (LETTER_VALUE[tile.letter] ?? '')}</span>
+          {#if order > 0}<span class="order">{order}</span>{/if}
         </button>
       {/each}
     </div>
 
     <div class="actions">
       <button class="secondary" disabled={enc.selection.length === 0} onclick={() => { dispatch({ type: 'clearSelection' }); }}>Clear</button>
-      <button class="primary" disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>Attack</button>
+      <button class="primary" class:ready={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>Attack</button>
     </div>
 
     {#if run.player.items.length > 0}
@@ -129,37 +145,63 @@
   }
   .word {
     text-align: center;
-    font-size: 1.8rem;
-    letter-spacing: 0.15em;
-    min-height: 2.2rem;
-    font-weight: 700;
+    font-size: 1.9rem;
+    letter-spacing: 0.18em;
+    min-height: 2.3rem;
+    font-weight: 800;
+    color: #eaeaea;
+    transition: color 120ms;
+  }
+  .word.valid {
+    color: #5ac98a;
   }
   .grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
+    gap: 10px;
   }
   .tile {
+    position: relative;
     aspect-ratio: 1;
     border: 2px solid #3d3d5c;
-    border-radius: 10px;
-    background: #26263f;
-    color: #eaeaea;
+    border-radius: 12px;
+    background: #2a2a45;
+    color: #f4f4f8;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 1.7rem;
-    font-weight: 700;
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1;
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
     padding: 0;
+    transition: background 100ms, border-color 100ms, transform 100ms;
+  }
+  .tile:active {
+    transform: scale(0.95);
+  }
+  .tile.vowel {
+    background: #33304f;
+    border-color: #55507a;
   }
   .tile .value {
+    position: absolute;
+    right: 5px;
+    bottom: 3px;
     font-size: 0.7rem;
-    font-weight: 400;
+    font-weight: 500;
     color: #9a9ab5;
+  }
+  .tile .order {
+    position: absolute;
+    left: 5px;
+    top: 3px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: inherit;
+    opacity: 0.8;
   }
   .tile.selected {
     background: #ffd166;
@@ -169,9 +211,14 @@
   .tile.selected .value {
     color: #1a1a2e;
   }
+  .tile.selected.valid {
+    background: #5ac98a;
+    border-color: #5ac98a;
+  }
   .tile.locked {
     background: #1a1a2e;
     color: #55556f;
+    border-style: dashed;
   }
   .actions {
     display: flex;
@@ -179,16 +226,21 @@
   }
   .actions button {
     flex: 1;
-    padding: 0.9rem;
-    font-size: 1.1rem;
-    border-radius: 10px;
+    padding: 1rem;
+    font-size: 1.15rem;
+    border-radius: 12px;
     border: none;
     touch-action: manipulation;
+    transition: background 120ms;
   }
   .primary {
     background: #e05a5a;
     color: white;
     font-weight: 700;
+  }
+  .primary.ready {
+    background: #5ac98a;
+    color: #1a1a2e;
   }
   .primary:disabled {
     background: #4a3a3a;

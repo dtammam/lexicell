@@ -86,6 +86,31 @@ describe('App', () => {
     expect(saved?.stats?.turns).toBe(1);
   });
 
+  it('selected tiles and the word turn green only when the selection is a dictionary word', async () => {
+    await startRun();
+    const all = gridLetters();
+    const available = tiles()
+      .map((b, i) => (b.disabled ? -1 : i))
+      .filter((i) => i >= 0);
+    const word = ctx.solver.solve(available.map((i) => all[i] ?? '')).sort((a, b) => a.length - b.length)[0];
+    if (!word) throw new Error('no word on grid');
+    const idx = tilesForWord(word, all, available);
+    if (!idx) throw new Error(`cannot place ${word}`);
+    // Every prefix short of the full word: yellow, never green, and Attack not ready.
+    for (let n = 0; n < idx.length; n++) {
+      const i = idx[n] ?? -1;
+      await click(tiles()[i] ?? null);
+      const prefix = word.slice(0, n + 1);
+      const green = prefix.length >= 3 && ctx.dictionary.has(prefix);
+      expect(document.querySelectorAll('button.tile.selected')).toHaveLength(n + 1);
+      expect(document.querySelectorAll('button.tile.selected.valid').length, prefix).toBe(green ? n + 1 : 0);
+      expect(getButton('Attack').classList.contains('ready'), prefix).toBe(green);
+    }
+    expect(document.querySelector('.word')?.classList.contains('valid')).toBe(true);
+    expect(document.querySelectorAll('button.tile .order')).toHaveLength(idx.length);
+    expect(Array.from(document.querySelectorAll('button.tile .order')).map((o) => o.textContent)).toEqual(idx.map((_, n) => String(n + 1)));
+  });
+
   it('rejects a non-word without spending the turn, and Clear empties the selection', async () => {
     await startRun();
     const all = gridLetters();
