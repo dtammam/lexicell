@@ -53,7 +53,7 @@
     {/if}
   </div>
 
-  <p class="build">build {__BUILD_SHA__}</p>
+  <p class="build">build {__BUILD_NUMBER__} · {__BUILD_SHA__}</p>
 
   {#if wotd}
     <div class="wotd">
