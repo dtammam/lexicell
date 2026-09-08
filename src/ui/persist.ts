@@ -64,6 +64,8 @@ function looksLikeRunState(value: unknown): value is RunState {
     v.encounter === null ||
     (isRecord(v.encounter) &&
       isRecord(v.encounter.enemy) &&
+      isNum(v.encounter.enemy.poison) &&
+      isNum(v.encounter.enemy.stunned) &&
       Array.isArray(v.encounter.grid) &&
       v.encounter.grid.length === 16 &&
       Array.isArray(v.encounter.selection));

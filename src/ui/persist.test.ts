@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { newRun, reduce, SAVE_VERSION } from '../engine/reducer';
+import type { RunState } from '../engine/types';
 import { createPersist, RUN_STATE_KEYS, SAVE_KEY, type StorageLike } from './persist';
 
 const ctx = nodeContext();
@@ -47,10 +48,23 @@ describe('persist', () => {
       expect(createPersist(stale).load()).toBeNull();
       expect(stale.data.has(SAVE_KEY)).toBe(false);
     }
-    // A v2-shaped player (no shield, no freeShuffles) under a forged v: 3 is dropped by the shape check.
-    const v2player = { hp: s.player.hp, maxHp: s.player.maxHp, items: s.player.items };
-    const forged = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, player: v2player }) });
-    expect(createPersist(forged).load()).toBeNull();
+    // A v2-shaped player under a forged v: 3 is dropped by the shape check, one missing field at a time.
+    const omit = (o: object, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key));
+    const noShield = omit(s.player, 'shield');
+    const noFree = omit(s.player, 'freeShuffles');
+    for (const player of [noShield, noFree]) {
+      const forged = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, player }) });
+      expect(createPersist(forged).load()).toBeNull();
+    }
+    // Likewise a v2-shaped enemy (no poison, no stunned): the reducer would compute NaN HP from it.
+    const fight = s.phase === 'fight' ? s : reduce(s, { type: 'pickItem', index: 0 }, ctx);
+    const enc = fight.encounter as NonNullable<RunState['encounter']>;
+    const noPoison = omit(enc.enemy, 'poison');
+    const noStun = omit(enc.enemy, 'stunned');
+    for (const enemy of [noPoison, noStun]) {
+      const forged = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...fight, encounter: { ...enc, enemy } }) });
+      expect(createPersist(forged).load()).toBeNull();
+    }
   });
 
   it('drops a blob whose shape is not the current one (a missing field, an extra field)', () => {

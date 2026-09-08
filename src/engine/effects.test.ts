@@ -147,6 +147,34 @@ describe('effects wave: new conditions and perUnit', () => {
     expect(resolveEffects([per], { ...ctx, items: 1 })[1]).toEqual({ type: 'addMult', value: 0.6 });
   });
 
+  it('perUnit scales at count one too: the cap binds and unscalable children drop (gate W1)', () => {
+    const one = { ...ctx, items: 1, perUnitMultCap: 1.5 };
+    expect(resolveEffects([{ type: 'perUnit', unit: 'item', then: [{ type: 'addMult', value: 2 }] }], one)).toEqual([{ type: 'addMult', value: 1.5 }]);
+    expect(resolveEffects([{ type: 'perUnit', unit: 'item', then: [{ type: 'scramble' }, { type: 'letterWeight', letters: 'e', value: 2 }] }], one)).toEqual([]);
+    // Two scalers share one cap: 1.5 + 1.5 shrinks to 0.75 + 0.75.
+    const two: Effect[] = [
+      { type: 'perUnit', unit: 'item', then: [{ type: 'addMult', value: 0.5 }] },
+      { type: 'perUnit', unit: 'item', then: [{ type: 'addMult', value: 0.5 }] },
+    ];
+    const out = resolveEffects(two, { ...ctx, items: 3, perUnitMultCap: 1.5 });
+    expect(out.map((e) => (e as { value: number }).value)).toEqual([0.75, 0.75]);
+    // A plain addMult outside any perUnit is never capped.
+    expect(resolveEffects([{ type: 'addMult', value: 9 }], one)).toEqual([{ type: 'addMult', value: 9 }]);
+    // The cap comes from the context (gate S8), not the default.
+    expect(resolveEffects([{ type: 'perUnit', unit: 'item', then: [{ type: 'addMult', value: 2 }] }], { ...one, perUnitMultCap: 0.4 })).toEqual([{ type: 'addMult', value: 0.4 }]);
+  });
+
+  it('perUnit scales lifesteal fractions and redraw counts (gate S2)', () => {
+    const out = resolveEffects([{ type: 'perUnit', unit: 'vowel', then: [{ type: 'lifesteal', fraction: 0.1 }, { type: 'redrawTiles', count: 1 }] }], { ...ctx, word: 'audio' });
+    expect(out).toEqual([{ type: 'lifesteal', fraction: 0.4 }, { type: 'redrawTiles', count: 4 }]);
+  });
+
+  it('turnEvery never fires at turn 0, which is what onPick sees (gate S6)', () => {
+    expect(evaluateCondition({ kind: 'turnEvery', value: 1 }, { ...ctx, turn: 0 })).toBe(false);
+    expect(evaluateCondition({ kind: 'turnEvery', value: 2 }, { ...ctx, turn: 0 })).toBe(false);
+    expect(evaluateCondition({ kind: 'turnEvery', value: 2 }, { ...ctx, turn: 2 })).toBe(true);
+  });
+
   it('perUnit nests with conditions and with itself', () => {
     const nested: Effect = {
       type: 'condition',
