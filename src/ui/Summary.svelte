@@ -3,7 +3,7 @@
   import Definition from './Definition.svelte';
   import { itemDef } from './lookup';
 
-  let { run, onNewRun }: { run: RunState; onNewRun: () => void } = $props();
+  let { run, onNewRun, onHistory }: { run: RunState; onNewRun: () => void; onHistory: () => void } = $props();
 
   const won = $derived(run.outcome === 'won');
   const reached = $derived(run.stats.hpAtEncounterStart.length);
@@ -29,6 +29,7 @@
     <Definition word={run.stats.bestWord} />
   {/if}
   <button class="btn life" onclick={onNewRun}>New run</button>
+  <button class="btn" onclick={onHistory}>History</button>
 </section>
 
 <style>
