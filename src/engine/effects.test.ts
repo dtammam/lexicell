@@ -160,6 +160,8 @@ describe('effects wave: new conditions and perUnit', () => {
     expect(out.map((e) => (e as { value: number }).value)).toEqual([0.75, 0.75]);
     // A plain addMult outside any perUnit is never capped.
     expect(resolveEffects([{ type: 'addMult', value: 9 }], one)).toEqual([{ type: 'addMult', value: 9 }]);
+    // A condition nested inside a perUnit stays inside it (gate N07): its children still scale.
+    expect(resolveEffects([{ type: 'perUnit', unit: 'item', then: [{ type: 'condition', when: { kind: 'minLength', value: 3 }, then: [{ type: 'addFlat', value: 1 }] }] }], { ...ctx, items: 3, word: 'abc' })).toEqual([{ type: 'addFlat', value: 3 }]);
     // The cap comes from the context (gate S8), not the default.
     expect(resolveEffects([{ type: 'perUnit', unit: 'item', then: [{ type: 'addMult', value: 2 }] }], { ...one, perUnitMultCap: 0.4 })).toEqual([{ type: 'addMult', value: 0.4 }]);
   });
