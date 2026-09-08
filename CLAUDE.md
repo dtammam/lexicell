@@ -18,7 +18,7 @@ Read "What This Is Not" in the pack. Do not add: era-specific dictionaries, era-
 
 ## Stack
 
-Vite + Svelte 5 + TypeScript, a hand-written service worker (`scripts/lib/service-worker.ts`), vitest, ESLint. Static build -> nginx container on the homelab via GitHub Actions, published to Docker Hub on every merge to main. localStorage for the single saved run. Dependencies are a cost (Dean, 2026-09-08): nothing third-party ships on the device except Svelte's runtime; a new runtime dependency needs Dean's go.
+Vite + Svelte 5 + TypeScript, a hand-written service worker (`scripts/lib/service-worker.ts`), vitest, ESLint. Static build -> nginx container on the homelab via GitHub Actions, published to Docker Hub on every merge to main, and the same bundle deployed to GitHub Pages (https://dtammam.github.io/lexicell/) by `.github/workflows/pages.yml` on the same trigger: a merge to main is a public release, automatically, with nothing to remember. localStorage for the single saved run. Dependencies are a cost (Dean, 2026-09-08): nothing third-party ships on the device except Svelte's runtime; a new runtime dependency needs Dean's go.
 
 ## Phase gate
 
