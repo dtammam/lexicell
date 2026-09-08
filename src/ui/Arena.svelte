@@ -38,7 +38,8 @@
     <div class="stage">
       {#key run.stats.turns}
         <figure class="fighter you" class:shake={taken > 0}>
-          <img src="{base}sprites/player.png" alt="You" onerror={fallback} />
+          <!-- You evolve per act: one cell, then more body, then limbs. -->
+          <img src="{base}sprites/player-{act}.png" alt="You" onerror={fallback} />
           {#if taken > 0}<span class="float taken">-{taken}</span>{/if}
           <figcaption>You</figcaption>
         </figure>
