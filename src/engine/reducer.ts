@@ -29,7 +29,7 @@
 import type { Dictionary } from './dictionary';
 import { resolveEffects, type ConditionContext, type Effect } from './effects';
 import { freshGrid, isDead, playableIndices, refill, settle, type LetterBias } from './grid';
-import { collectEffects, itemDef } from './hooks';
+import { cellDef, collectEffects, itemDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
@@ -42,7 +42,7 @@ export interface EngineContext {
 }
 
 export type Action =
-  | { readonly type: 'newRun'; readonly seed: number }
+  | { readonly type: 'newRun'; readonly seed: number; readonly cell?: string }
   | { readonly type: 'toggleTile'; readonly index: number }
   | { readonly type: 'clearSelection' }
   | { readonly type: 'submitWord' }
@@ -50,11 +50,13 @@ export type Action =
   | { readonly type: 'shuffle' };
 
 /**
- * 3 since the effects wave (player.shield, player.freeShuffles, enemy.poison, enemy.stunned, four
- * TurnReport fields); v2 saves are dropped on load, no migration (Dean, 2026-09-08, question 4).
- * 2 was the tuning wave (Tile.venom); v1 was likewise dropped.
+ * 4 since starting cells (RunState.cell); a v3 save is MIGRATED by persist.ts, not dropped: it
+ * loads as the balanced cell (Dean, 2026-09-08, question 3). 3 was the effects wave (v2 dropped),
+ * 2 the tuning wave (v1 dropped).
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
+/** The cell a run gets when none is named: the game as it was before cells. */
+export const DEFAULT_CELL_ID = 'balanced';
 export const OFFER_SIZE = 3;
 export const RARITY_WEIGHT = { common: 3, uncommon: 2, rare: 1, mythic: 0.35 } as const;
 
@@ -77,20 +79,23 @@ const EMPTY_REPORT: TurnReport = {
 
 // ---------- entry points ----------
 
-export function newRun(seed: number, ctx: EngineContext): RunState {
-  const maxHp = ctx.content.playerMaxHp;
+export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAULT_CELL_ID): RunState {
+  const cell = cellDef(ctx.content, cellId); // throws on an unknown id
+  for (const id of cell.startingItems) itemDef(ctx.content, id);
+  const maxHp = cell.maxHp;
   const state: RunState = {
-    v: 3,
+    v: 4,
+    cell: cell.id,
     rng: createRng(seed),
     phase: 'fight',
     encounterIndex: 0,
-    player: { hp: maxHp, maxHp, items: [], shield: 0, freeShuffles: 0 },
+    player: { hp: maxHp, maxHp, items: [...cell.startingItems], shield: 0, freeShuffles: 0 },
     encounter: null,
     offer: null,
     outcome: null,
     lastTurn: null,
     rejected: null,
-    pendingPicks: Math.max(0, Math.floor(ctx.content.tuning.startingPicks)),
+    pendingPicks: Math.max(0, Math.floor(ctx.content.tuning.startingPicks) + Math.max(0, Math.floor(cell.extraPicks))),
     stats: { turns: 0, damageDealt: 0, damageTaken: 0, bestWord: '', bestWordDamage: 0, hpAtEncounterStart: [] },
   };
   // A starting kit (Dean, 2026-09-06, variant B): the run opens on a pick, not a fight.
@@ -100,7 +105,7 @@ export function newRun(seed: number, ctx: EngineContext): RunState {
 export function reduce(state: RunState, action: Action, ctx: EngineContext): RunState {
   switch (action.type) {
     case 'newRun':
-      return newRun(action.seed, ctx);
+      return newRun(action.seed, ctx, action.cell ?? DEFAULT_CELL_ID);
     case 'toggleTile':
       return toggleTile(state, action.index);
     case 'clearSelection':
@@ -142,7 +147,7 @@ function letterBias(state: RunState, ctx: EngineContext): LetterBias {
   const bump = (letter: string, value: number) => {
     bias[letter] = (bias[letter] ?? 1) * value;
   };
-  for (const e of collectEffects('onTileDraw', state.player.items, ctx.content, conditionCtx(state, ctx))) {
+  for (const e of collectEffects('onTileDraw', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell)) {
     if (e.type === 'vowelWeight') for (const v of 'aeiou') bump(v, e.value);
     if (e.type === 'letterWeight') for (const l of new Set(e.letters)) if (l >= 'a' && l <= 'z') bump(l, e.value);
   }
@@ -349,7 +354,7 @@ function startEncounter(state: RunState, ctx: EngineContext): RunState {
  * first so a poison that finishes the enemy ends the fight before the venom bites.
  */
 function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): RunState {
-  const effects = collectEffects('onTurnStart', state.player.items, ctx.content, conditionCtx(state, ctx));
+  const effects = collectEffects('onTurnStart', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell);
   const a = applyEffects(state, effects, ctx);
   let s: RunState = {
     ...a.state,
@@ -402,7 +407,7 @@ function venomBite(state: RunState, venomMax: number): RunState {
 }
 
 function endEncounter(state: RunState, ctx: EngineContext): RunState {
-  const effects = collectEffects('onEncounterEnd', state.player.items, ctx.content, conditionCtx(state, ctx));
+  const effects = collectEffects('onEncounterEnd', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell);
   const a = applyEffects(state, effects, ctx);
   const s: RunState = {
     ...a.state,
@@ -474,7 +479,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   if (!ctx.dictionary.has(word)) return reject(state, word.length < 3 ? 'too short' : 'not a word');
 
   // Player attack.
-  const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word));
+  const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell);
   const score = scoreWord(word, effects, ctx.content.tuning);
   const enemyHp = Math.max(0, enc.enemy.hp - score.damage);
   let s: RunState = {
@@ -526,7 +531,7 @@ function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { s
       s = { ...s, encounter: { ...enc2, enemy: { ...enc2.enemy, stunned: enc2.enemy.stunned - 1 } } };
       report = { ...report, stunned: true };
     } else {
-      const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx));
+      const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx), s.cell);
       let dmg = enc2.enemy.damage;
       for (const e of taken) if (e.type === 'reduceDamage') dmg = Math.max(0, dmg - e.value);
       // The shield absorbs what reduction left, then HP takes the rest.

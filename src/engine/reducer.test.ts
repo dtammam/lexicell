@@ -1122,7 +1122,126 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(3);
+      expect(a.final.v).toBe(4);
+    }
+  });
+});
+
+describe('starting cells (save v4)', () => {
+  const cells = CONTENT.cells;
+  function byId(id: string) {
+    const c = cells.find((x) => x.id === id);
+    if (!c) throw new Error(id);
+    return c;
+  }
+  function inFightAs(seed: number, cell: string, c: EngineContext = ctx): RunState {
+    let s = newRun(seed, c, cell);
+    while (s.phase === 'pick') s = reduce(s, { type: 'pickItem', index: 0 }, c);
+    if (s.phase !== 'fight') throw new Error('expected a fight');
+    return s;
+  }
+
+  it('the default cell is balanced and a run without a cell is exactly the run before cells existed', () => {
+    const a = newRun(9, ctx);
+    const b = newRun(9, ctx, 'balanced');
+    expect(a).toEqual(b);
+    expect(a.cell).toBe('balanced');
+    expect(a.player.maxHp).toBe(100);
+    expect(byId('balanced').traits).toEqual({});
+    expect(reduce(a, { type: 'newRun', seed: 9 }, ctx)).toEqual(a);
+    expect(reduce(a, { type: 'newRun', seed: 9, cell: 'balanced' }, ctx)).toEqual(a);
+  });
+
+  it('an unknown cell, or a cell naming an unknown starting item, throws', () => {
+    expect(() => newRun(1, ctx, 'nope')).toThrow(/unknown cell/);
+    const bad = nodeContext({ ...CONTENT, cells: [{ ...byId('balanced'), id: 'bad', startingItems: ['no-such-item'] }] });
+    expect(() => newRun(1, bad, 'bad')).toThrow(/unknown item/);
+  });
+
+  it('max HP and starting HP come from the cell', () => {
+    for (const c of cells) {
+      const s = newRun(2, ctx, c.id);
+      expect(s.player.maxHp).toBe(c.maxHp);
+      expect(s.player.hp).toBe(c.maxHp);
+      expect(s.cell).toBe(c.id);
+    }
+  });
+
+  it('the tinkerer gets its extra starting pick; starting items are granted before the kit', () => {
+    const t = newRun(4, ctx, 'tinkerer');
+    expect(t.pendingPicks).toBe(ctx.content.tuning.startingPicks + 1);
+    expect(newRun(4, nodeContext(CONTENT), 'tinkerer').pendingPicks).toBe(CONTENT.tuning.startingPicks + 1);
+    const gifted = nodeContext({ ...CONTENT, cells: [{ ...byId('balanced'), id: 'gifted', startingItems: ['sharp-pen', 'lens'] }] });
+    const g = newRun(4, gifted, 'gifted');
+    expect(g.player.items).toEqual(['sharp-pen', 'lens']);
+    for (const id of g.offer ?? []) expect(['sharp-pen', 'lens']).not.toContain(id);
+  });
+
+  it('traits apply as an item held before every other: Predator +25% and 2 more per hit, Diatom 3 less and -15%', () => {
+    const base = inFightAs(5, 'balanced');
+    const word = candidateWords(base, ctx).find((c) => c.word.length >= 4)?.word ?? '';
+    const grid = (base.encounter as Encounter).grid;
+    const enemy = { id: 'amoeba', hp: 100000, maxHp: 100000, damage: 10, poison: 0, stunned: 0 };
+    const as = (cell: string): RunState => {
+      const s = inFightAs(5, cell);
+      // Same grid, same items, same enemy, so the only difference is the cell.
+      return { ...s, player: { ...s.player, items: base.player.items, hp: s.player.maxHp }, encounter: { ...(s.encounter as Encounter), grid, selection: [], enemy } };
+    };
+    const b = play({ ...base, encounter: { ...(base.encounter as Encounter), enemy } }, word, ctx);
+    const p = play(as('aggro'), word, ctx);
+    const d = play(as('defensive'), word, ctx);
+    expect(p.lastTurn?.mult).toBeCloseTo((b.lastTurn?.mult ?? 0) + 0.25, 5);
+    expect(d.lastTurn?.mult).toBeCloseTo((b.lastTurn?.mult ?? 0) - 0.15, 5);
+    expect(b.lastTurn?.enemyDamage).toBe(10);
+    expect(p.lastTurn?.enemyDamage).toBe(12);
+    expect(d.lastTurn?.enemyDamage).toBe(7);
+  });
+
+  it('the gambler doubles 6+ letter words and halves 4-or-fewer; the preview agrees with the hit', () => {
+    const s = inFightAs(6, 'gambler');
+    const cands = candidateWords(s, ctx);
+    const long = cands.find((c) => c.word.length >= 6);
+    const short = cands.find((c) => c.word.length <= 4);
+    const bare = candidateWords({ ...s, cell: 'balanced' }, ctx);
+    if (long) expect(long.damage).toBe(Math.floor((bare.find((c) => c.word === long.word)?.damage ?? 0) * 2));
+    if (short) expect(short.damage).toBe(Math.floor((bare.find((c) => c.word === short.word)?.damage ?? 0) * 0.5));
+    const pick = long ?? short;
+    if (!pick) return;
+    const played = play(s, pick.word, ctx);
+    expect(played.lastTurn?.damage).toBe(Math.min(pick.damage, (s.encounter as Encounter).enemy.hp));
+  });
+
+  it('the tinkerer gains 5 shield after each fight', () => {
+    const s = inFightAs(7, 'tinkerer');
+    const weak: RunState = { ...s, encounter: { ...(s.encounter as Encounter), enemy: { ...(s.encounter as Encounter).enemy, hp: 1 } } };
+    const after = play(weak, candidateWords(weak, ctx)[0]?.word ?? '', ctx);
+    expect(after.phase).toBe('pick');
+    expect(after.player.shield).toBe(5);
+  });
+
+  it('every cell replays byte-identical and stays JSON-plain through a greedy run', () => {
+    for (const c of cells) {
+      const cc = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+      const run = (seed: number) => {
+        let s = newRun(seed, cc, c.id);
+        for (let guard = 0; guard < 2000 && s.phase !== 'summary'; guard++) {
+          if (s.phase === 'pick') {
+            s = reduce(s, { type: 'pickItem', index: 0 }, cc);
+            continue;
+          }
+          const best = candidateWords(s, cc).sort((a, b) => b.damage - a.damage)[0];
+          if (!best) throw new Error('dead grid');
+          for (const i of candidateIndices(s, best.word) ?? []) s = reduce(s, { type: 'toggleTile', index: i }, cc);
+          s = reduce(s, { type: 'submitWord' }, cc);
+        }
+        return s;
+      };
+      const a = run(11);
+      const b = run(11);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+      expect(JSON.parse(JSON.stringify(a))).toEqual(a);
+      expect(a.cell).toBe(c.id);
+      expect(a.phase).toBe('summary');
     }
   });
 });

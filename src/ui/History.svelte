@@ -75,7 +75,7 @@
         </button>
         {#if open === i}
           <p class="detail">
-            Seed <code>{r.seed}</code>, build {r.build}. Dealt {r.damageDealt}, took {r.damageTaken}.
+            Seed <code>{r.seed}</code>, build {r.build}{r.cell ? `, cell ${r.cell}` : ''}. Dealt {r.damageDealt}, took {r.damageTaken}.
             {r.items.length > 0 ? r.items.map((id) => itemDef(id).name).join(', ') : 'No organelles.'}
           </p>
         {/if}

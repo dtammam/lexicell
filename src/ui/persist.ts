@@ -1,4 +1,4 @@
-import { SAVE_VERSION } from '../engine/reducer';
+import { DEFAULT_CELL_ID, SAVE_VERSION } from '../engine/reducer';
 import type { RunState } from '../engine/types';
 
 /** The slice of the Storage interface persist needs, so tests inject a Map-backed fake. */
@@ -18,6 +18,7 @@ export const SAVE_KEY = 'lexicell.run';
  */
 export const RUN_STATE_KEYS: readonly string[] = [
   'v',
+  'cell',
   'rng',
   'phase',
   'encounterIndex',
@@ -71,6 +72,7 @@ function looksLikeRunState(value: unknown): value is RunState {
       Array.isArray(v.encounter.selection));
   return (
     isNum(v.v) &&
+    typeof v.cell === 'string' &&
     isRecord(v.rng) &&
     isNum(v.rng.seed) &&
     isNum(v.rng.counter) &&
@@ -93,6 +95,12 @@ function looksLikeRunState(value: unknown): value is RunState {
   );
 }
 
+/** The one migration on record: a v3 blob gains `cell: 'balanced'` and becomes v4. Anything else passes through. */
+export function migrate(value: unknown): unknown {
+  if (!isRecord(value) || value.v !== 3 || 'cell' in value) return value;
+  return { ...value, v: 4, cell: DEFAULT_CELL_ID };
+}
+
 export function createPersist(storage: StorageLike, key: string = SAVE_KEY): Persist {
   return {
     load() {
@@ -110,11 +118,13 @@ export function createPersist(storage: StorageLike, key: string = SAVE_KEY): Per
         storage.removeItem(key);
         return null;
       }
-      if (!looksLikeRunState(parsed) || parsed.v !== SAVE_VERSION) {
+      // v3 -> v4 (starting cells, Dean, 2026-09-08, question 3): a v3 save is the balanced cell.
+      const migrated = migrate(parsed);
+      if (!looksLikeRunState(migrated) || migrated.v !== SAVE_VERSION) {
         storage.removeItem(key);
         return null;
       }
-      return parsed;
+      return migrated;
     },
     save(state) {
       try {

@@ -9,6 +9,7 @@
  *   npm run sim -- --seed 1000          # seed base
  *   npm run sim -- --json               # machine-readable output
  *   npm run sim -- --variant pre-act1   # a named content variant (scripts/lib/variants.ts)
+ *   npm run sim -- --cell aggro         # a starting cell (src/content/cells.ts)
  */
 import { fileURLToPath } from 'node:url';
 import { CONTENT } from '../src/content/index';
@@ -25,10 +26,12 @@ interface Options {
   seedBase: number;
   json: boolean;
   variant: VariantName;
+  /** Starting cell id; the default is the balanced cell the criteria are judged on. */
+  cell: string;
 }
 
 export function parseArgs(argv: readonly string[]): Options {
-  const opts: Options = { runs: 500, bots: [...BOT_NAMES], items: 'all', seedBase: 0, json: false, variant: 'base' };
+  const opts: Options = { runs: 500, bots: [...BOT_NAMES], items: 'all', seedBase: 0, json: false, variant: 'base', cell: 'balanced' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = argv[i + 1];
@@ -54,6 +57,11 @@ export function parseArgs(argv: readonly string[]): Options {
         break;
       case '--json':
         opts.json = true;
+        break;
+      case '--cell':
+        if (!v || !CONTENT.cells.some((c) => c.id === v)) throw new Error(`--cell needs one of ${CONTENT.cells.map((c) => c.id).join(', ')}`);
+        opts.cell = v;
+        i++;
         break;
       case '--variant':
         if (!VARIANT_NAMES.includes(v as VariantName)) throw new Error(`unknown variant ${v ?? ''}`);
@@ -126,7 +134,7 @@ function main() {
   const opts = parseArgs(process.argv.slice(2));
   const ctx = nodeContext(contentFor(opts.items, opts.variant));
   const t0 = performance.now();
-  const summaries = opts.bots.map((bot) => simulate(bot, ctx, opts.runs, opts.seedBase));
+  const summaries = opts.bots.map((bot) => simulate(bot, ctx, opts.runs, opts.seedBase, opts.cell));
   const elapsed = (performance.now() - t0) / 1000;
   const criteria = exitCriteria(summaries);
   if (opts.json) {
@@ -134,7 +142,7 @@ function main() {
     return;
   }
   const itemsLabel = opts.items === 'all' ? `all ${CONTENT.items.length} items` : opts.items === 'none' ? 'no items' : opts.items.join(',');
-  console.log(`Lexicell sim: ${opts.runs} runs per bot, seeds ${opts.seedBase}..${opts.seedBase + opts.runs - 1}, ${itemsLabel}, variant ${opts.variant}. ${elapsed.toFixed(1)}s\n`);
+  console.log(`Lexicell sim: ${opts.runs} runs per bot, seeds ${opts.seedBase}..${opts.seedBase + opts.runs - 1}, ${itemsLabel}, variant ${opts.variant}, cell ${opts.cell}. ${elapsed.toFixed(1)}s\n`);
   console.log(renderTable(summaries));
   console.log('\nExit criteria:');
   const mark = (v: boolean | null) => (v === null ? 'n/a ' : v ? 'PASS' : 'FAIL');

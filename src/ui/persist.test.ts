@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { newRun, reduce, SAVE_VERSION } from '../engine/reducer';
 import type { RunState } from '../engine/types';
-import { createPersist, RUN_STATE_KEYS, SAVE_KEY, type StorageLike } from './persist';
+import { createPersist, migrate, RUN_STATE_KEYS, SAVE_KEY, type StorageLike } from './persist';
 
 const ctx = nodeContext();
 
@@ -37,17 +37,30 @@ describe('persist', () => {
     expect(createPersist(fakeStorage()).load()).toBeNull();
   });
 
-  it('drops a blob with the wrong version, including v1 and v2 saves from before the effects wave', () => {
+  it('drops a blob with the wrong version (v1, v2, the future) and MIGRATES a v3 save to v4 as the balanced cell', () => {
     const s = newRun(3, ctx);
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: SAVE_VERSION + 1 }) });
     expect(createPersist(storage).load()).toBeNull();
     expect(storage.data.has(SAVE_KEY)).toBe(false);
-    expect(SAVE_VERSION).toBe(3);
+    expect(SAVE_VERSION).toBe(4);
     for (const old of [1, 2]) {
       const stale = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: old }) });
       expect(createPersist(stale).load()).toBeNull();
       expect(stale.data.has(SAVE_KEY)).toBe(false);
     }
+    // A v3 save (no cell field) loads as v4 with the balanced cell (Dean, 2026-09-08, question 3).
+    const v3body = Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'cell')) as Omit<RunState, 'cell'>;
+    const v3 = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v3body, v: 3 }) });
+    const loaded = createPersist(v3).load();
+    expect(loaded).not.toBeNull();
+    expect(loaded?.v).toBe(4);
+    expect(loaded?.cell).toBe('balanced');
+    expect(loaded?.rng).toEqual(s.rng);
+    // A v3 blob that already carries a cell, or a v4 blob without one, is not migrated: dropped.
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 3 }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull();
+    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 4, cell: 'balanced' });
+    expect(migrate('x')).toBe('x');
     // A v2-shaped player under a forged v: 3 is dropped by the shape check, one missing field at a time.
     const omit = (o: object, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key));
     const noShield = omit(s.player, 'shield');

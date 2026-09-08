@@ -50,6 +50,25 @@ export interface EnemyDef {
   readonly special?: { readonly every: number; readonly effects: readonly Effect[] };
 }
 
+/**
+ * A starting cell (Dean, 2026-09-08): stats plus an always-on set of hooks, applied as if the cell
+ * were an item held before every other. No new effect types; a cell that needs a verb waits for
+ * one. All cells are available from the first run; there are no unlocks (pack).
+ */
+export interface CellDef {
+  readonly id: string;
+  readonly name: string;
+  /** What it changes, in one sentence a player can act on. */
+  readonly description: string;
+  readonly flavor: string;
+  readonly maxHp: number;
+  /** Item ids granted before the starting-kit pick. */
+  readonly startingItems: readonly string[];
+  /** Starting-kit picks on top of tuning.startingPicks. */
+  readonly extraPicks: number;
+  readonly traits: Partial<Record<Hook, readonly Effect[]>>;
+}
+
 /** One slot in the 9-encounter run. Content supplies nine of these. */
 export interface EncounterDef {
   readonly act: 1 | 2 | 3;
@@ -76,6 +95,8 @@ export interface Tuning {
 
 export interface Content {
   readonly items: readonly ItemDef[];
+  /** Starting cells; the first is the default and the one the exit criteria are judged on. */
+  readonly cells: readonly CellDef[];
   readonly enemies: readonly EnemyDef[];
   readonly bosses: readonly EnemyDef[];
   readonly encounters: readonly EncounterDef[];
@@ -151,8 +172,10 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 3;
+  readonly v: 4;
   readonly rng: Rng;
+  /** The starting cell's id (content.cells). v4; v3 saves load as 'balanced'. */
+  readonly cell: string;
   readonly phase: Phase;
   readonly encounterIndex: number;
   readonly player: PlayerState;
