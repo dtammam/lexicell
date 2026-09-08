@@ -13,6 +13,16 @@ Screen" gives a bookmark, not an app, and airplane mode fails. Put the
 container behind the existing reverse proxy with a real certificate
 before testing the install; do not spend an evening on the manifest.
 
+## Public link: GitHub Pages
+
+Every merge to main also deploys the same bundle, built with the
+`/lexicell/` base path, to https://dtammam.github.io/lexicell/ via
+`.github/workflows/pages.yml`. Public HTTPS, so the home-screen install
+and offline play work there; nothing to host. The workflow enables
+Pages on the repo by itself on the first run (source: GitHub Actions).
+It is the "publish" step of ADR-006 and not the long-term home; the
+container below stays the primary.
+
 ## Image
 
 `deantammam/lexicell`, tags per `.github/workflows/docker-publish.yml`:

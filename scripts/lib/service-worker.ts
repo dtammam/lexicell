@@ -42,13 +42,17 @@ export function buildHash(files: readonly BuiltFile[]): string {
   return h.digest('hex').slice(0, 12);
 }
 
-export function serviceWorkerSource(files: readonly BuiltFile[]): string {
+/** `base` is the URL path the app is served under, with a trailing slash: "/" or "/lexicell/" (GitHub Pages). */
+export function serviceWorkerSource(files: readonly BuiltFile[], base = '/'): string {
+  if (!base.startsWith('/') || !base.endsWith('/')) throw new Error(`service worker: base must start and end with '/', got ${base}`);
   const hash = buildHash(files);
-  const urls = files.map((f) => `/${f.path}`);
-  if (!urls.includes('/index.html')) throw new Error('service worker: dist has no index.html');
+  const urls = files.map((f) => `${base}${f.path}`);
+  const index = `${base}index.html`;
+  if (!urls.includes(index)) throw new Error('service worker: dist has no index.html');
   return `// Generated at build time by scripts/lib/service-worker.ts. Do not edit; rebuild.
 const CACHE = 'lexicell-${hash}';
 const ASSETS = ${JSON.stringify(urls)};
+const INDEX = ${JSON.stringify(index)};
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -80,11 +84,11 @@ self.addEventListener('fetch', (event) => {
           // Only a good page may replace the offline fallback; a 502 during a redeploy must not.
           if (response.ok) {
             const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put('/index.html', copy));
+            caches.open(CACHE).then((cache) => cache.put(INDEX, copy));
           }
           return response;
         })
-        .catch(() => caches.match('/index.html')),
+        .catch(() => caches.match(INDEX)),
     );
     return;
   }
@@ -93,6 +97,28 @@ self.addEventListener('fetch', (event) => {
 `;
 }
 
-export function serviceWorkerFor(distDir: string): string {
-  return serviceWorkerSource(listBuiltFiles(distDir));
+export function serviceWorkerFor(distDir: string, base = '/'): string {
+  return serviceWorkerSource(listBuiltFiles(distDir), base);
+}
+
+/** The web manifest for a base path; icons and start_url must be absolute for the install prompt. */
+export function manifestFor(base = '/'): string {
+  const m = {
+    name: 'Lexicell',
+    short_name: 'Lexicell',
+    description: 'A word-battle roguelike. Spell words, hit things.',
+    start_url: base,
+    scope: base,
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#1a1a2e',
+    theme_color: '#1a1a2e',
+    lang: 'en',
+    icons: [
+      { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
+      { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
+      { src: `${base}icons/icon-512-maskable.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  };
+  return `${JSON.stringify(m, null, 2)}\n`;
 }
