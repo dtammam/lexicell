@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches-ignore: ['main']
+  pull_request:
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      # --ignore-scripts: `prepare` points git's hooksPath at .githooks, which the runner does not need.
+      - run: npm ci --ignore-scripts
+      - name: Lint (eslint, tsc, svelte-check)
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Sim smoke (10 runs per bot)
+        run: npm run sim -- --runs 10

@@ -1,10 +1,38 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
-// The PWA plugin (manifest, service worker, icons) lands with the deploy commit
-// so the manifest never points at icons that do not exist yet.
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [
+    svelte(),
+    VitePWA({
+      // A new build takes over on the next load; no "update available" prompt in the skeleton.
+      registerType: 'autoUpdate',
+      includeAssets: ['icons/apple-touch-icon-180.png'],
+      manifest: {
+        name: 'Lexicell',
+        short_name: 'Lexicell',
+        description: 'A word-battle roguelike. Spell words, hit things.',
+        theme_color: '#1a1a2e',
+        background_color: '#1a1a2e',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        scope: '/',
+        icons: [
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        // Precache everything, including the dictionary chunk, so airplane mode works after one visit.
+        globPatterns: ['**/*.{js,css,html,png,svg,ico,webmanifest}'],
+        // The dictionary chunk is ~1.7 MB; workbox's default 2 MB cap would silently skip it.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      },
+    }),
+  ],
   build: {
     // The dictionary (1.6 MB) ships inside the bundle on purpose (exec plan, Phase 1).
     chunkSizeWarningLimit: 2500,
