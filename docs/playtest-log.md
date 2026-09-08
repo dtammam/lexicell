@@ -60,4 +60,4 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | A single line of flavor text for each item | implemented (PR #27: `flavor` on every item, shown in its own voice under the mechanic on offers, the panel and the compendium) |
 | 2026-09-08 | Occasional tiles should shake or shiver, subtly, as if biologically unstable | to do (PR #28) |
 | 2026-09-08 | Intro's third beat: fill all sixteen tiles with the phrase, and make the closing line say that the longest words are how you evolve and deal damage | to do (PR #28) |
-| 2026-09-08 | Graft picked items onto the organism so it visibly evolves with the build | to do (PR #29: item glyphs attached to the player sprite in the arena) |
+| 2026-09-08 | Graft picked items onto the organism so it visibly evolves with the build | implemented (PR #29: every carried organelle sits on a ring around your body in the arena, bobbing) |

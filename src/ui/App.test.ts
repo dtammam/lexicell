@@ -402,6 +402,14 @@ describe('App', () => {
     expect(document.querySelector('.arena')?.classList.contains('act-1')).toBe(true);
   });
 
+  it('every carried organelle is grafted onto your body in the arena', async () => {
+    await startRun();
+    const items = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { player: { items: string[] } }).player.items;
+    const grafts = document.querySelectorAll('.fighter.you .graft img.icon');
+    expect(grafts).toHaveLength(items.length);
+    expect(grafts[0]?.getAttribute('src')).toBe(`/sprites/items/${items[0]}.png`);
+  });
+
   it('a sprite that fails to load falls back to the unknown sprite', async () => {
     await startRun();
     const img = document.querySelector<HTMLImageElement>('.fighter.enemy img');

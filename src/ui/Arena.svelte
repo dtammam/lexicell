@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { RunState } from '../engine/types';
+  import ItemIcon from './ItemIcon.svelte';
   import { enemyName } from './lookup';
 
   // You versus the thing: two sprites over a background band per act, HP bars, hit
@@ -39,8 +40,14 @@
     <div class="stage">
       {#key run.stats.turns}
         <figure class="fighter you" class:shake={taken > 0}>
-          <!-- You evolve per act: one cell, then more body, then limbs. -->
-          <img src="{base}sprites/player-{act}.png" alt="You" onerror={fallback} />
+          <!-- You evolve per act: one cell, then more body, then limbs; and every organelle you pick is
+               grafted onto the body (Dean, 2026-09-08), so the build is visible on the creature. -->
+          <div class="body">
+            <img src="{base}sprites/player-{act}.png" alt="You" onerror={fallback} />
+            {#each run.player.items as id, i (`${id}-${i}`)}
+              <span class="graft" style="--slot: {i}"><ItemIcon {id} size={16} /></span>
+            {/each}
+          </div>
           {#if taken > 0}<span class="float taken">-{taken}</span>{/if}
           <figcaption>You</figcaption>
         </figure>
@@ -239,6 +246,34 @@
     flex-direction: column;
     align-items: center;
     gap: var(--s1);
+  }
+  .body {
+    position: relative;
+    width: 48px;
+    height: 48px;
+  }
+  /* Grafts sit on a ring around the body, nine per ring, the next ring a little wider. */
+  .graft {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    --angle: calc(var(--slot) * 40deg - 90deg);
+    --ring: round(down, calc(var(--slot) / 9), 1);
+    transform: rotate(var(--angle)) translate(calc(26px + var(--ring) * 12px)) rotate(calc(-1 * var(--angle)));
+    animation: graft-bob 2.4s ease-in-out infinite;
+    animation-delay: calc(var(--slot) * -260ms);
+  }
+  @keyframes graft-bob {
+    0%,
+    100% {
+      margin-top: -8px;
+    }
+    50% {
+      margin-top: -10px;
+    }
   }
   .fighter img {
     width: 48px;
