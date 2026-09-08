@@ -281,6 +281,41 @@ describe('starting kit (tuning.startingPicks)', () => {
   });
 });
 
+describe('boss lock lands on survivors, never on the tiles just played (tracker #5)', () => {
+  /** A Colony fight on the turn its special fires, against an enemy that cannot die this turn. */
+  function bossTurn(seed: number): RunState {
+    const s0 = newRun(seed, ctx);
+    if (s0.phase !== 'fight') throw new Error('expected a fight');
+    const enc = s0.encounter as Encounter;
+    return { ...s0, encounter: { ...enc, turn: 3, enemy: { id: 'colony', hp: 100000, maxHp: 100000, damage: 1 } } };
+  }
+
+  it('after a word, exactly three tiles are locked, all survivors of the refill, on every seed', () => {
+    for (let seed = 30; seed < 60; seed++) {
+      const s = bossTurn(seed);
+      const best = candidateWords(s, ctx).sort((a, b) => b.damage - a.damage)[0];
+      if (!best) throw new Error('no word');
+      const idx = candidateIndices(s, best.word);
+      if (!idx) throw new Error('cannot place');
+      let sel = s;
+      for (const i of idx) sel = reduce(sel, { type: 'toggleTile', index: i }, ctx);
+      const after = reduce(sel, { type: 'submitWord' }, ctx);
+      expect(after.phase, `seed ${seed}`).toBe('fight');
+      const grid = (after.encounter as Encounter).grid;
+      const locked = grid.filter((t) => t.lockedTurns > 0);
+      expect(locked, `seed ${seed}: ${locked.length} locked`).toHaveLength(3);
+      // A locked tile keeps its letter from before the turn: it was a survivor, not a fresh draw.
+      const before = (s.encounter as Encounter).grid;
+      const survivorsLetters = before.filter((_, i) => !idx.includes(i)).map((t) => t.letter);
+      for (const t of locked) {
+        const at = survivorsLetters.indexOf(t.letter);
+        expect(at, `seed ${seed}: locked ${t.letter} was not a survivor`).toBeGreaterThanOrEqual(0);
+        survivorsLetters.splice(at, 1);
+      }
+    }
+  });
+});
+
 describe('gravity: refilled columns settle', () => {
   it('after a word the grid is exactly refill then settle: survivors rise, fresh tiles land below', () => {
     // An unkillable enemy so the encounter never ends, and no items (ctx has no starting kit), so the

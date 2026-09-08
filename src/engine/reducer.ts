@@ -167,7 +167,10 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         if (!s.encounter) break;
         const grid = s.encounter.grid.slice();
         let rng = s.rng;
-        let candidates = playableIndices(grid);
+        // The special fires before the refill, so the tiles of the word just played are still
+        // on the grid; a lock on one of them would be overwritten by the refill (tracker #5).
+        const played = new Set(s.encounter.selection);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i));
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
