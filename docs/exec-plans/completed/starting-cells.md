@@ -1,8 +1,9 @@
 # Exec plan: starting cells
 
-Status: BUILT 2026-09-08 (PR #53), one adversarial round pending. Dean
-answered the five questions "agree with all" the same day. Built after
-run history, per his order.
+Status: CLOSED 2026-09-08 (PR #53 merged; two adversarial rounds: no
+runtime defect, four binding gaps closed, starting items now fire their
+onPick). Dean answered the five questions "agree with all" the same day.
+Built after run history, per his order.
 Engine and save schema: numbered questions first, then a plan and an
 adversarial round.
 
