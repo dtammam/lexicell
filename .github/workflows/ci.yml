@@ -24,3 +24,7 @@ jobs:
         run: npm run build
       - name: Sim smoke (10 runs per bot)
         run: npm run sim -- --runs 10
+      # The publish workflow builds this image after merge; building it here catches a broken
+      # Docker context (a file the build needs but .dockerignore drops) before the merge.
+      - name: Docker image builds
+        run: docker build -t lexicell-ci .

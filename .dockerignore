@@ -7,5 +7,6 @@ coverage
 .githooks
 .claude
 docs
-scripts
+scripts/*
+!scripts/lib
 *.log

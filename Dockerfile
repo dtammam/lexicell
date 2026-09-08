@@ -5,6 +5,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY tsconfig.json vite.config.ts index.html ./
+# vite.config.ts generates the service worker from scripts/lib at build time.
+COPY scripts/lib/service-worker.ts ./scripts/lib/
 COPY public/ ./public/
 COPY src/ ./src/
 RUN npm run build
