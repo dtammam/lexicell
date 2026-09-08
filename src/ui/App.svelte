@@ -12,6 +12,8 @@
   import Title from './Title.svelte';
   import Compendium from './Compendium.svelte';
   import Help from './Help.svelte';
+  import History from './History.svelte';
+  import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
 
   // The seed is the only wall-clock the game reads, and it is read here, never in the engine.
@@ -31,16 +33,26 @@
   // The state before the latest action; Fight uses it to say what the grid held before a word was played.
   let prev: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
-  let screen: 'title' | 'intro' | 'run' | 'items' | 'help' = $state.raw('title');
-  // True when a run can be continued: an in-memory store, or a save on disk before one exists.
-  let hasSave = $state.raw(false);
+  let screen: 'title' | 'intro' | 'run' | 'items' | 'help' | 'history' = $state.raw('title');
+  // Run history (Dean, 2026-09-08): finished and abandoned runs, per device, under their own key.
+  let history: readonly HistoryEntry[] = $state.raw(loadHistory(storage));
+  const BUILD = `${__BUILD_NUMBER__} · ${__BUILD_SHA__}`;
+  const nowIso = () => new Date(Date.now()).toISOString();
+  function record(state: RunState, outcome: 'won' | 'lost' | 'abandoned') {
+    history = appendRun(storage, entryFrom(state, outcome, nowIso(), runStartedAt(storage, state.rng.seed), BUILD));
+  }
+  // True when a run can be continued: a live in-memory run, or an unfinished save on disk before a
+  // store exists. A run that reached its summary is not continuable, in memory or on disk (a title
+  // visit after a win used to offer Continue and ask before New run; run-history wave).
+  let savedOnDisk = $state.raw(false);
+  const hasSave = $derived.by(() => (store && run ? run.phase !== 'summary' : savedOnDisk));
   let recoveries = 0;
 
   loadContext()
     .then((c) => {
       ctx = c;
       const saved = persist.load();
-      hasSave = saved !== null && saved.phase !== 'summary';
+      savedOnDisk = saved !== null && saved.phase !== 'summary';
     })
     .catch((e: unknown) => {
       error = e instanceof Error ? e.message : String(e);
@@ -51,11 +63,14 @@
   function openStore(c: EngineContext) {
     const s = createStore(c, persist, seed);
     s.subscribe((state) => {
+      // A run that just reached its end is recorded once, at the transition into summary.
+      if (state.phase === 'summary' && run && run.phase !== 'summary' && run.rng.seed === state.rng.seed && state.outcome) record(state, state.outcome);
+      // A fresh run (seed changed, or the first state) gets its start time.
+      if (!run || run.rng.seed !== state.rng.seed) markRunStarted(storage, state.rng.seed, nowIso());
       prev = run;
       run = state;
     });
     store = s;
-    hasSave = true;
     screen = 'run';
   }
 
@@ -69,6 +84,9 @@
   /** Title: New run. Replaces whatever run existed (Title asks first when one does), then the intro. */
   function onPlay() {
     if (!ctx) return;
+    // Abandoning a live run records it as such (Dean, question 1); a run that already ended was recorded then.
+    const live = store?.state ?? persist.load();
+    if (live && live.phase !== 'summary') record(live, 'abandoned');
     persist.clear();
     if (store) store.dispatch({ type: 'newRun', seed: seed() });
     else openStore(ctx);
@@ -92,6 +110,13 @@
   }
   function toHelp() {
     screen = 'help';
+  }
+  function toHistory() {
+    screen = 'history';
+  }
+  function onClearHistory() {
+    clearHistory(storage);
+    history = [];
   }
 
   /**
@@ -129,8 +154,10 @@
       <Compendium onBack={toTitle} />
     {:else if screen === 'help'}
       <Help onBack={toTitle} readable={settings.readable} onToggleReadable={toggleReadable} />
+    {:else if screen === 'history'}
+      <History runs={history} onBack={toTitle} onClear={onClearHistory} />
     {:else if screen === 'title' || !run}
-      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} />
+      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} onHistory={toHistory} />
     {:else if screen === 'intro'}
       <Intro {onBegin} />
     {:else if run.phase === 'fight'}
@@ -138,7 +165,7 @@
     {:else if run.phase === 'pick'}
       <Pick {run} {dispatch} />
     {:else}
-      <Summary {run} onNewRun={newRun} />
+      <Summary {run} onNewRun={newRun} onHistory={toHistory} />
     {/if}
     {#snippet failed()}
       <p class="error">The saved run could not be drawn. Starting a new one.</p>

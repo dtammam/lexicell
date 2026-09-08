@@ -33,9 +33,15 @@ cells).
   10,000-run per-item table to make the two-point reskin rule
   measurable; the 3000-run tables catch degenerate and never-picked
   items only.
-- **Run history with export** (Dean, deferred behind features, now
-  next): plan `docs/exec-plans/active/run-history.md` (PR #48), four
-  questions for Dean. Touches persistence: reviewer round.
+- **Run history with export**: built (PR #51), reviewer round pending.
+- **Clarity feedback batch** (a tester via Dean, 2026-09-08): names
+  shown twice on the fight screen; a busy backdrop; no clear cue that
+  a turn ended; no view of the enemy's next action (Slay the Spire
+  intent); cells should look more cellular; a visual indicator for
+  organelles that fire; a stats HUD later (best and worst word).
+  Proposed as one UI PR after run history, before starting cells.
+- **Logo, round two** (Dean, 2026-09-08): none of the first three
+  landed; B (the amoeba) was closest. Second page of directions.
 - **Starting cells** (Dean, 2026-09-08): plan
   `docs/exec-plans/active/starting-cells.md` (PR #48), five questions
   for Dean. Engine and save schema: reviewer round. Builds after run
@@ -69,6 +75,21 @@ wave (curve C in PR #19, curve D in PR #41); the save schema is v3 and
 persist refuses every other version (tracker #3 closed).
 
 ## Shipped
+
+### Run history with export (PR #51, 2026-09-08)
+
+Dean's four answers: agree with all. A per-device list under
+`lexicell.history` (v1, cap 200, oldest fall off), written once when a
+run reaches its summary and once when a live run is abandoned from the
+menu; `lexicell.run.started` carries the start time per seed. Export
+JSON (lossless) and CSV (RFC 4180, items joined by `;`) as downloads;
+History screen from the title and from the summary, newest first, tap a
+row for seed, build and the full organelle list; Clear behind a
+two-step. The reducer and RunState are untouched. Found on the way: the
+title kept offering Continue after a finished run in the same session
+(hasSave was set once and never re-derived); it is now derived from
+the live run's phase. 218 tests. Gate: adversarial round on history.ts
+and the store hook (below).
 
 ### Effects wave, content batch 3: the pool reaches 200 (PR #47, 2026-09-08)
 

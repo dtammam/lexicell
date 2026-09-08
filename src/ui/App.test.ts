@@ -464,6 +464,53 @@ describe('App', () => {
     expect(document.querySelector('.tile[data-tier="mid"]')).toBeNull();
   });
 
+  it('run history: a finished run is recorded once with its outcome, an abandoned run as abandoned, and History lists them newest first', async () => {
+    await startRun();
+    cleanup();
+    // Put the save at the last encounter with a one-HP enemy: the next word wins the run.
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = blob.encounter as NonNullable<RunState['encounter']>;
+    const nearEnd: RunState = { ...blob, encounterIndex: 8, encounter: { ...enc, enemy: { ...enc.enemy, hp: 1 } } };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(nearEnd));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await attackOnce('short');
+    expect(await findByText('You won')).toBeTruthy();
+    const stored = JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { v: number; runs: { seed: number; outcome: string; encounterReached: number }[] };
+    expect(stored.v).toBe(1);
+    expect(stored.runs).toHaveLength(1);
+    expect(stored.runs[0]).toMatchObject({ seed: nearEnd.rng.seed, outcome: 'won', encounterReached: 9 });
+    // Summary links to History; the row shows the win.
+    await click(getButton('History'));
+    expect(getByText('1 run on this device, newest first. Tap one for its build.')).toBeTruthy();
+    expect(getByText('WON')).toBeTruthy();
+    await click(getButton('Back'));
+    // New run from the title after a finished run records nothing extra (it was recorded at the win).
+    await click(await findByText('New run', 15000));
+    await click(await findByText('Divide and conquer'));
+    await findByText('Choose a starting item', 15000);
+    expect((JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { runs: unknown[] }).runs).toHaveLength(1);
+    // Abandoning the live run from the menu records it as abandoned, newest first in the list.
+    await click(document.querySelector('button.offer'));
+    await findByText('Encounter 1 / 9');
+    await click(getButton('Menu'));
+    await click(getButton('New run'));
+    await click(getButton('Yes, start over'));
+    await click(await findByText('Divide and conquer'));
+    const after = JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { runs: { outcome: string }[] };
+    expect(after.runs.map((r) => r.outcome)).toEqual(['won', 'abandoned']);
+    await click(getButton('Menu'));
+    await click(getButton('History'));
+    expect(getByText('2 runs on this device, newest first. Tap one for its build.')).toBeTruthy();
+    const outcomes = Array.from(document.querySelectorAll('.list .outcome')).map((e) => e.textContent);
+    expect(outcomes).toEqual(['LEFT', 'WON']);
+    // Clear is two-step and empties the key.
+    await click(getButton('Clear'));
+    await click(getButton('Delete all history?'));
+    expect(localStorage.getItem('lexicell.history')).toBeNull();
+    expect(getByText('No finished runs on this device yet.')).toBeTruthy();
+  }, 30000);
+
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
     for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {
