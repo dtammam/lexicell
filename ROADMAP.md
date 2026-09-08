@@ -46,6 +46,32 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Gravity and cleaner tiles (PR #3, 2026-09-08)
+
+Used tiles leave, survivors rise in their column, fresh letters land at
+the bottom and animate in; a shuffle settles the same way. Plain tiles
+lost the corner value (it read as a count); only the lock countdown
+remains. Engine change (`settle` after refill, `used` on the turn
+report), one adversarial round. Shipped content, `npx tsx scripts/sim.ts`:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    91.2% |           9 |       21.1 |         4 |   100 |    99 |    97 |    91 |    88 |    85 |    58 |    63 |    66 |
+| mediocre |  500 |    24.2% |           4 |       33.2 |         7 |   100 |    92 |    71 |    34 |    25 |    19 |    18 |    20 |    20 |
+|   solver |  500 |    99.2% |           9 |       15.3 |         4 |   100 |   100 |    99 |    96 |    96 |    96 |    81 |    86 |    89 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  FAIL  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+Shifts from the feel-wave tables are one run in five hundred here and
+there (boss locks and vowel-floor swaps land on different letters);
+criteria unchanged.
+
 ### Feel wave (PR #1, merged 2026-09-08)
 
 Dean played the skeleton and asked for clarity and feel. Shipped:

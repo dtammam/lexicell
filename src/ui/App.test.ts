@@ -325,6 +325,17 @@ describe('App', () => {
     expect(saved.lastTurn.word).toBe('');
   });
 
+  it('plain tiles carry no value badge; after a word the fresh tiles animate in and the count matches the word', async () => {
+    await startRun();
+    expect(document.querySelectorAll('button.tile .value')).toHaveLength(0);
+    expect(document.querySelectorAll('button.tile.fresh')).toHaveLength(0);
+    const word = await attackOnce('short');
+    if (queryByText('Choose an item')) return;
+    expect(document.querySelectorAll('button.tile.fresh')).toHaveLength(word.length);
+    for (const b of document.querySelectorAll<HTMLButtonElement>('button.tile.moved')) expect(b.style.getPropertyValue('--dy').trim()).toMatch(/^\d+$/);
+    expect(document.querySelectorAll('button.tile .value')).toHaveLength(0);
+  });
+
   it('the item strip opens a panel listing every carried item with its description', async () => {
     await startRun();
     const strip = getByText(/^Items \(1\): /);

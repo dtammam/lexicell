@@ -74,6 +74,14 @@ describe('persist', () => {
     }
   });
 
+  it('still loads a save whose lastTurn predates the used field (nested additive change, UI guards it)', () => {
+    let s = newRun(3, ctx);
+    s = reduce(s, { type: 'pickItem', index: 0 }, ctx);
+    const blob = JSON.parse(JSON.stringify(s)) as { lastTurn: Record<string, unknown> | null };
+    if (blob.lastTurn) delete blob.lastTurn.used;
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(blob) })).load()).not.toBeNull();
+  });
+
   it('drops corrupt JSON and non-object blobs', () => {
     for (const raw of ['{not json', '42', 'null', '[]', '"str"']) {
       const storage = fakeStorage({ [SAVE_KEY]: raw });

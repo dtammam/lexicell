@@ -281,6 +281,45 @@ describe('starting kit (tuning.startingPicks)', () => {
   });
 });
 
+describe('gravity: refilled columns settle', () => {
+  it('after a word the report names the used tiles, survivors rise in their column, fresh tiles land below', () => {
+    const s0 = newRun(21, ctx);
+    if (s0.phase !== 'fight') throw new Error('expected a fight');
+    const before = (s0.encounter as Encounter).grid;
+    const best = candidateWords(s0, ctx).sort((a, b) => b.damage - a.damage)[0];
+    if (!best) throw new Error('no word');
+    const idx = candidateIndices(s0, best.word);
+    if (!idx) throw new Error('cannot place');
+    let s = s0;
+    for (const i of idx) s = reduce(s, { type: 'toggleTile', index: i }, ctx);
+    const used = [...(s.encounter as Encounter).selection];
+    const s1 = reduce(s, { type: 'submitWord' }, ctx);
+    expect(s1.lastTurn?.used).toEqual(used);
+    if (s1.phase !== 'fight') return; // a kill ends the encounter; the grid is gone
+    const after = (s1.encounter as Encounter).grid;
+    const usedSet = new Set(used);
+    for (let c = 0; c < 4; c++) {
+      const survivors = [0, 1, 2, 3].filter((r) => !usedSet.has(r * 4 + c)).map((r) => before[r * 4 + c]?.letter);
+      const top = survivors.map((_, r) => after[r * 4 + c]?.letter);
+      // The vowel floor may swap one consonant for a vowel anywhere; allow at most one mismatch per column.
+      const mismatches = survivors.filter((l, r) => l !== top[r]).length;
+      expect(mismatches, `column ${c}`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('a shuffle settles too: a locked tile rises to the top of its column', () => {
+    const s0 = newRun(22, ctx);
+    if (s0.phase !== 'fight') throw new Error('expected a fight');
+    const enc0 = s0.encounter as Encounter;
+    const grid = enc0.grid.map((t, i) => (i === 14 ? { ...t, lockedTurns: 3 } : t));
+    const s2 = reduce({ ...s0, encounter: { ...enc0, grid } }, { type: 'shuffle' }, ctx);
+    if (s2.phase !== 'fight') return;
+    const g2 = (s2.encounter as Encounter).grid;
+    expect(g2[2]).toEqual({ letter: grid[14]?.letter, lockedTurns: 2 });
+    expect(s2.lastTurn?.used).toHaveLength(15);
+  });
+});
+
 describe('shuffle (costs the turn)', () => {
   function inFight(seed: number): RunState {
     const s = newRun(seed, ctx);
@@ -325,11 +364,15 @@ describe('shuffle (costs the turn)', () => {
     const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
     const s2 = reduce(s1, { type: 'shuffle' }, ctx);
     const g2 = (s2.encounter as Encounter).grid;
+    // Gravity: a locked survivor rises to the top of its column. Index 3 is already row 0;
+    // index 9 (row 2, column 1) settles to index 1.
     expect(g2[3]).toEqual({ letter: grid[3]?.letter, lockedTurns: 1 });
-    expect(g2[9]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1 });
-    // Fourteen fresh draws: identical to the old grid only by a 1-in-astronomical chance.
-    const same = g2.filter((t, i) => i !== 3 && i !== 9 && t.letter === grid[i]?.letter).length;
-    expect(same).toBeLessThan(14);
+    expect(g2[1]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1 });
+    expect(g2.filter((t) => t.lockedTurns > 0)).toHaveLength(2);
+    // Fourteen fresh draws: identical to the old multiset only by a 1-in-astronomical chance.
+    const oldLetters = grid.filter((_, i) => i !== 3 && i !== 9).map((t) => t.letter).sort();
+    const newLetters = g2.filter((t) => t.lockedTurns === 0).map((t) => t.letter).sort();
+    expect(newLetters).not.toEqual(oldLetters);
     expect(isDead(g2, ctx.solver)).toBe(false);
   });
 

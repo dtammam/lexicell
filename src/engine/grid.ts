@@ -113,6 +113,31 @@ export function freshGrid(rng: Rng, solver: Solver, vowelWeight = 1): [Tile[], R
   return [grid, r];
 }
 
+/** Columns of the 4x4 grid; index = row * GRID_COLS + col. */
+export const GRID_COLS = 4;
+
+/**
+ * Gravity (Dean, 2026-09-08): after a refill, each column settles so the surviving tiles
+ * keep their order at the top and the fresh tiles sit at the bottom. Pure permutation, no
+ * RNG: the multiset of letters is exactly what refill drew, only positions change.
+ */
+export function settle(grid: readonly Tile[], fresh: readonly number[]): Tile[] {
+  const isFresh = new Set(fresh);
+  const rows = grid.length / GRID_COLS;
+  const out = grid.slice();
+  for (let c = 0; c < GRID_COLS; c++) {
+    const survivors: Tile[] = [];
+    const incoming: Tile[] = [];
+    for (let r = 0; r < rows; r++) {
+      const i = r * GRID_COLS + c;
+      (isFresh.has(i) ? incoming : survivors).push(grid[i] as Tile);
+    }
+    const column = [...survivors, ...incoming];
+    for (let r = 0; r < rows; r++) out[r * GRID_COLS + c] = column[r] as Tile;
+  }
+  return out;
+}
+
 /** True when no word can be made from the playable tiles. */
 export function isDead(grid: readonly Tile[], solver: Solver): boolean {
   return solver.solve(playableLetters(grid)).length === 0;
