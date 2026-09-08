@@ -90,12 +90,12 @@
 
     <div class="word" class:valid>{word.toUpperCase() || ' '}</div>
 
+    <div class="grid-box">
     <div class="grid">
       {#key run.stats.turns}
       {#each enc.grid as tile, i (i)}
         {@const order = orderOf(i)}
         {@const move = entry(i)}
-        <div class="cell">
         <button
           class="tile"
           class:moved={move !== null}
@@ -112,9 +112,9 @@
           {#if tile.lockedTurns > 0}<span class="value">{`\u{1F512}${tile.lockedTurns}`}</span>{/if}
           {#if order > 0}<span class="order">{order}</span>{/if}
         </button>
-        </div>
       {/each}
       {/key}
+    </div>
     </div>
 
     <div class="actions">
@@ -129,16 +129,19 @@
 
 <style>
   .fight {
+    height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.4rem;
   }
   .report {
-    min-height: 1.4rem;
+    flex: none;
+    min-height: 1.3rem;
     display: flex;
     flex-wrap: wrap;
     gap: 0.6rem;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
   }
   .hit {
     color: #ffd166;
@@ -158,10 +161,12 @@
     color: #ff8fa3;
   }
   .word {
+    flex: none;
     text-align: center;
-    font-size: 1.9rem;
+    font-size: 1.7rem;
     letter-spacing: 0.18em;
-    min-height: 2.3rem;
+    min-height: 2rem;
+    line-height: 2rem;
     font-weight: 800;
     color: #eaeaea;
     transition: color 120ms;
@@ -169,26 +174,32 @@
   .word.valid {
     color: #5ac98a;
   }
-  .grid {
-    display: grid;
-    /* minmax(0, 1fr): a column may shrink below the letter's min-content width, so the
-       four columns always fit the row after an orientation change. */
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+  /* The grid is a square no larger than the space left between the word line and the
+     buttons, and no wider than the screen: min(width, height) of its box, read through
+     container query units. No aspect-ratio anywhere (iOS Safari mishandled it on buttons
+     after a rotation), and rows are explicit, so nothing depends on content size. */
+  .grid-box {
+    flex: 1;
+    min-height: 0;
+    container-type: size;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
-  /* Square cells by percentage padding, which resolves against the cell's width on every
-     layout pass. iOS Safari mishandles aspect-ratio on buttons after a rotation (Dean saw
-     tiles spill past the fourth column until a repaint); this never does. */
-  .cell {
-    position: relative;
-    width: 100%;
-    padding-top: 100%;
+  .grid {
+    width: min(100cqw, 100cqh);
+    height: min(100cqw, 100cqh);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    gap: 8px;
   }
   .tile {
-    position: absolute;
-    inset: 0;
+    position: relative;
     width: 100%;
     height: 100%;
+    min-width: 0;
+    min-height: 0;
     border: 2px solid #3d3d5c;
     border-radius: 12px;
     background: #2a2a45;
@@ -196,7 +207,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.1rem;
+    /* Letter scales with the tile: a quarter of the grid's side, less padding. */
+    font-size: min(2.1rem, calc(min(100cqw, 100cqh) / 4 * 0.5));
     font-weight: 800;
     line-height: 1;
     touch-action: manipulation;
@@ -217,7 +229,7 @@
   }
   @keyframes settle {
     from {
-      transform: translateY(calc(var(--dy) * (100% + 10px)));
+      transform: translateY(calc(var(--dy) * (100% + 8px)));
     }
     to {
       transform: none;
@@ -270,13 +282,14 @@
     border-style: dashed;
   }
   .actions {
+    flex: none;
     display: flex;
     gap: 8px;
   }
   .actions button {
     flex: 1;
-    padding: 1rem;
-    font-size: 1.15rem;
+    padding: 0.8rem 0.5rem;
+    font-size: 1.05rem;
     border-radius: 12px;
     border: none;
     touch-action: manipulation;
