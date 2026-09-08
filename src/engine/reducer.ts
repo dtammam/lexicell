@@ -45,7 +45,7 @@ export type Action =
 /** 2 since the tuning wave (Tile.venom, TurnReport.venom); v1 saves are dropped on load, no migration (Dean, 2026-09-08). */
 export const SAVE_VERSION = 2;
 export const OFFER_SIZE = 3;
-export const RARITY_WEIGHT = { common: 3, uncommon: 2, rare: 1 } as const;
+export const RARITY_WEIGHT = { common: 3, uncommon: 2, rare: 1, mythic: 0.35 } as const;
 
 const EMPTY_REPORT: TurnReport = {
   word: '',

@@ -19,7 +19,8 @@ export const GRID_SIZE = 16;
 /** The moments at which items contribute effects. Fixed set; see hooks.ts for order. */
 export type Hook = 'onTurnStart' | 'onTileDraw' | 'onWordScored' | 'onDamageTaken' | 'onEncounterEnd';
 
-export type Rarity = 'common' | 'uncommon' | 'rare';
+/** mythic (2026-09-08): explicitly overpowered, weighted so about half of runs ever see one. */
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'mythic';
 
 export interface ItemDef {
   readonly id: string;

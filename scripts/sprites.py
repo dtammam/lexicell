@@ -87,6 +87,7 @@ ITEM_TONES = {
     "common": ((90, 201, 138), (200, 255, 220), (18, 8, 38)),
     "uncommon": ((53, 224, 216), (200, 255, 250), (18, 8, 38)),
     "rare": ((255, 79, 163), (255, 200, 230), (18, 8, 38)),
+    "mythic": ((255, 230, 109), (255, 255, 240), (60, 40, 0)),
 }
 ITEMS = {
     "sharp-pen": ("common", [  # Flagellum: a whip trailing from a bud
@@ -512,6 +513,11 @@ TEMPLATED = {
     "lure": ("uncommon", "wave"), "membrane-pump": ("uncommon", "ring"), "spore-cloud": ("uncommon", "cluster"), "ganglion": ("uncommon", "star"),
     "metamorphosis": ("rare", "shield"), "hydra": ("rare", "spike"), "bioluminescence": ("rare", "star"),
     "apoptosis": ("rare", "blob"), "quorum": ("rare", "cluster"), "stem-cell": ("rare", "ring"),
+    "cilium-array": ("common", "wave"), "thylakoid": ("common", "rod"), "pseudopod": ("common", "drop"), "sheath": ("common", "shield"), "carotenoid": ("common", "cluster"),
+    "mycelium": ("uncommon", "wave"), "barb": ("uncommon", "spike"), "kinetochore": ("uncommon", "star"), "nematocyst": ("uncommon", "rod"), "endospore": ("uncommon", "ring"),
+    "lateral-line": ("rare", "wave"), "nucleolus": ("rare", "ring"), "exoskeleton": ("rare", "shield"), "lysozyme": ("rare", "drop"),
+    "apex-genome": ("mythic", "star"), "immortal-line": ("mythic", "ring"), "plague": ("mythic", "cluster"), "tardigrade": ("mythic", "blob"),
+    "lexicon": ("mythic", "shield"), "mirror-membrane": ("mythic", "spike"), "primordial-soup": ("mythic", "drop"), "hydrothermal-vent": ("mythic", "rod"),
 }
 
 

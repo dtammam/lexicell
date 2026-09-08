@@ -6,7 +6,7 @@
   // Every organelle in the game, by rarity, with what it does (Dean, 2026-09-08).
   let { onBack }: { onBack: () => void } = $props();
 
-  const ORDER: readonly Rarity[] = ['common', 'uncommon', 'rare'];
+  const ORDER: readonly Rarity[] = ['common', 'uncommon', 'rare', 'mythic'];
   const groups: readonly { rarity: Rarity; items: readonly ItemDef[] }[] = ORDER.map((rarity) => ({
     rarity,
     items: CONTENT.items.filter((i) => i.rarity === rarity),
@@ -18,7 +18,7 @@
     <h2>Organelles</h2>
     <button class="btn" onclick={onBack}>Back</button>
   </header>
-  <p class="hint">{CONTENT.items.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1.</p>
+  <p class="hint">{CONTENT.items.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1, mythic 0.35.</p>
   <div class="list">
     {#each groups as group (group.rarity)}
       <h3 class={group.rarity}>{group.rarity} ({group.items.length})</h3>
@@ -84,6 +84,10 @@
   }
   h3.rare {
     color: var(--rare);
+  }
+  h3.mythic {
+    color: var(--mythic);
+    text-shadow: 0 0 6px var(--mythic);
   }
   .entry {
     display: flex;

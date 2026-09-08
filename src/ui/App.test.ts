@@ -141,7 +141,7 @@ describe('App', () => {
     expect(entries).toHaveLength(ctx.content.items.length);
     for (const item of ctx.content.items) expect(getByText(item.name)).toBeTruthy();
     expect(document.querySelectorAll('.compendium img.icon')).toHaveLength(ctx.content.items.length);
-    expect(document.querySelectorAll('.compendium h3')).toHaveLength(3);
+    expect(document.querySelectorAll('.compendium h3')).toHaveLength(4);
     await click(getButton('Back'));
     expect(getButton('New run')).toBeTruthy();
   });

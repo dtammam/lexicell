@@ -46,6 +46,33 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Mythic tier and 72 items (PR #31, 2026-09-08)
+
+Dean: even more items, and a mythic pool, explicitly powered. `Rarity`
+gains `mythic` at offer weight 0.35 (engine touch, one adversarial
+round). Fourteen more regulars to 64, then eight mythics that break
+the rules on purpose within the vocabulary: triple damage, heal to
+full, 25 a turn, immunity on even turns. Measured at 500 mediocre
+runs: 22% of runs pick a mythic and those win 65% against 37% overall.
+Shipped content, `npx tsx scripts/sim.ts`:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    77.8% |           9 |       18.6 |         8 |   100 |    99 |    97 |    91 |    91 |    90 |    69 |    70 |    71 |
+| mediocre |  500 |    37.0% |           7 |       33.5 |         7 |   100 |    93 |    79 |    57 |    56 |    56 |    31 |    35 |    38 |
+|   solver |  500 |    94.4% |           9 |       13.7 |         4 |   100 |   100 |    99 |    97 |    96 |    96 |    85 |    85 |    84 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+Mediocre sits at the top of its band; the per-item table shows the
+mythics between 50% and 100% with, which is the intent.
+
 ### Item pool 24 to 50 (PR #30, 2026-09-08)
 
 Dean: "a ton more items." Twenty-six more from the existing effect

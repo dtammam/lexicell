@@ -29,6 +29,7 @@ one that is not here, add the token here first, with a role.
 | `--harm` | enemy HP, damage taken, the danger button | tiles |
 | `--venom` | venom, only venom | any other hazard |
 | `--rare` | K J X Q Z tiles, rare items | selection |
+| `--mythic` | mythic items, with a glow | anything else |
 | `--select` | a selected tile that is not yet a word | valid words |
 
 Act palettes for the arena backdrop are the one place hue varies by

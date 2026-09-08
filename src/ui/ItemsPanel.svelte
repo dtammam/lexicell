@@ -119,4 +119,8 @@
   small.rare {
     color: var(--rare);
   }
+  small.mythic {
+    color: var(--mythic);
+    text-shadow: 0 0 6px var(--mythic);
+  }
 </style>
