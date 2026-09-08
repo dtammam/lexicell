@@ -1,17 +1,19 @@
 // @ts-check
 import eslint from '@eslint/js';
+import svelte from 'eslint-plugin-svelte';
 import tseslint from 'typescript-eslint';
 
 /** Names the engine and content layers must never touch. */
 const DOM_GLOBALS = ['window', 'document', 'navigator', 'localStorage', 'sessionStorage', 'indexedDB', 'fetch', 'requestAnimationFrame'];
 
 export default tseslint.config(
-  { ignores: ['node_modules/', 'dist/', 'coverage/', 'src/content/dictionary/*.txt'] },
+  { ignores: ['node_modules/', 'dist/', 'dev-dist/', 'coverage/', 'src/content/dictionary/*.txt'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
+  ...svelte.configs.recommended,
   {
     languageOptions: {
-      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname, extraFileExtensions: ['.svelte'] },
     },
     rules: {
       '@typescript-eslint/no-unnecessary-condition': 'off',
@@ -67,7 +69,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ['eslint.config.js', 'vitest.config.ts'],
+    // Svelte files: the svelte parser wraps the TS parser so type-aware rules see <script lang="ts">.
+    files: ['**/*.svelte', '**/*.svelte.ts'],
+    languageOptions: { parserOptions: { parser: tseslint.parser } },
+  },
+  {
+    files: ['eslint.config.js', 'vitest.config.ts', 'vite.config.ts'],
     ...tseslint.configs.disableTypeChecked,
   },
 );
