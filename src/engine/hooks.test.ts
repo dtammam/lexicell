@@ -10,7 +10,7 @@ const ctx = { word: 'quartz', hp: 100, maxHp: 100, turn: 1 };
 describe('hooks', () => {
   it('itemDef throws on an unknown id rather than silently skipping', () => {
     expect(() => itemDef(content, 'nope')).toThrow(/unknown item/);
-    expect(itemDef(content, 'lens').name).toBe('Lens');
+    expect(itemDef(content, 'lens').name).toBe('Photoreceptor');
   });
 
   it('gathers in acquisition order and only for the requested hook', () => {
