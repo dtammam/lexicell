@@ -73,12 +73,14 @@
     overflow: hidden;
     isolation: isolate;
     flex: none;
-    border-radius: 14px;
-    padding: 0.4rem 0.8rem 0.6rem;
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: var(--s2) var(--s3) var(--s3);
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    /* Earthbound palettes (Dean, 2026-09-08): saturated, two clashing hues per act, cycling. */
+    gap: var(--s1);
+    /* Act palettes: the one place hue varies by context, and it stays inside the arena. */
     --bg0: #0d2a3a;
     --bg1: #1fb5a8;
     --bg2: #ff4fa3;
@@ -97,9 +99,6 @@
     --bg2: #2fd67c;
     --bg3: #ffd166;
   }
-  /* Three pattern layers behind everything, each looping on its own period so nothing ever
-     visibly resets: a drifts by exactly one tile of its pattern, b and c alternate (breathe,
-     wave) and never jump, and the whole stack cycles hue. Transform, opacity and filter only. */
   .bg {
     position: absolute;
     inset: 0;
@@ -127,7 +126,6 @@
     background: repeating-linear-gradient(0deg, transparent 0 14px, var(--bg3) 14px 17px);
     animation: wave 5s ease-in-out infinite alternate;
   }
-  /* dots: period 56px in both axes */
   .bg[data-pattern='dots'] .layer.a {
     --dx: -56px;
     --dy: -56px;
@@ -137,8 +135,6 @@
   .bg[data-pattern='dots'] .layer.b {
     background: radial-gradient(circle at 50% 50%, var(--bg1) 0 30%, transparent 32%) 28px 28px / 84px 84px;
   }
-  /* stripes: the pattern repeats every 40px along x; the layer is tilted as a whole, so the
-     x-drift stays seamless. */
   .bg[data-pattern='stripes'] .layer.a {
     --dx: -40px;
     --dy: 0px;
@@ -149,7 +145,6 @@
   .bg[data-pattern='stripes'] .layer.b {
     background: repeating-linear-gradient(0deg, transparent 0 30px, var(--bg3) 30px 34px);
   }
-  /* cells: period 70px */
   .bg[data-pattern='cells'] .layer.a {
     --dx: -70px;
     --dy: -70px;
@@ -159,7 +154,6 @@
   .bg[data-pattern='cells'] .layer.b {
     background: radial-gradient(circle at 50% 50%, var(--bg2) 0 12%, transparent 13%) 35px 35px / 70px 70px;
   }
-  /* rings: concentric, so they pulse and spin rather than drift (no period to translate by). */
   .bg[data-pattern='rings'] .layer.a {
     --dx: 0px;
     --dy: 0px;
@@ -195,9 +189,6 @@
     }
   }
   @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
     to {
       transform: rotate(360deg);
     }
@@ -212,23 +203,28 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .layer,
-    .bg {
+    .bg,
+    .you img,
+    .enemy img {
       animation: none;
     }
   }
   /* Text sits on a scrim so the backdrop can be loud. */
   .row,
   .bars {
-    background: rgba(8, 10, 24, 0.55);
-    border-radius: 8px;
-    padding: 0.15rem 0.5rem;
+    background: rgba(18, 8, 38, 0.7);
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    padding: var(--s1) var(--s2);
   }
   .row,
   .bar-label {
     display: flex;
     justify-content: space-between;
-    font-size: 0.85rem;
-    color: #eaeaf4;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    letter-spacing: 0.05em;
+    color: var(--ink);
   }
   .stage {
     display: flex;
@@ -242,21 +238,20 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.2rem;
+    gap: var(--s1);
   }
   .fighter img {
     width: 48px;
     height: 48px;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6));
+    filter: drop-shadow(3px 3px 0 var(--shade));
   }
   .you img {
-    animation: bob 2.4s ease-in-out infinite;
+    animation: bob var(--dur-idle) ease-in-out infinite;
   }
-  /* Each enemy floats its own way (Dean, 2026-09-08). */
   .arena[data-pattern='dots'] .enemy img {
-    animation: squish 1.8s ease-in-out infinite alternate;
+    animation: squish var(--dur-idle) ease-in-out infinite alternate;
   }
   .arena[data-pattern='stripes'] .enemy img {
     animation: sway 1.4s ease-in-out infinite alternate;
@@ -268,59 +263,61 @@
     animation: wobble 3.2s ease-in-out infinite;
   }
   figcaption {
-    font-size: 0.8rem;
-    color: #f4f4fa;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.6);
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    color: var(--ink);
+    text-shadow: 1px 1px 0 var(--shade), 0 0 6px var(--shade);
   }
   .vs {
     align-self: center;
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 0.8rem;
-    letter-spacing: 0.2em;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    color: var(--ink);
+    opacity: 0.7;
+    text-shadow: 1px 1px 0 var(--shade);
   }
   .enemy.hit img {
-    animation: flash 320ms ease-out;
+    animation: flash 320ms var(--ease-step);
   }
   .you.shake {
-    animation: shake 300ms ease-out;
+    animation: shake 300ms var(--ease-step);
   }
   .float {
     position: absolute;
     top: -0.2rem;
-    font-weight: 800;
-    font-size: 1.2rem;
-    animation: rise 700ms ease-out forwards;
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
+    animation: rise 700ms var(--ease-settle) forwards;
     pointer-events: none;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    text-shadow: 1px 1px 0 var(--shade);
   }
   .float.dealt {
-    color: #ffd166;
+    color: var(--score);
   }
   .float.taken {
-    color: #ff6b6b;
+    color: var(--harm);
   }
   .bars {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: var(--s1);
   }
   .bar {
-    height: 10px;
-    border-radius: 5px;
-    background: rgba(255, 255, 255, 0.15);
+    height: 8px;
+    border: 1px solid var(--shade);
+    background: var(--line);
     overflow: hidden;
-    margin-bottom: 0.3rem;
+    margin-bottom: var(--s1);
   }
   .fill {
     height: 100%;
-    transition: width 220ms ease-out;
+    transition: width var(--dur-settle) var(--ease-step);
   }
   .enemy .fill {
-    background: #ff5f7a;
+    background: var(--harm);
   }
   .player .fill {
-    background: #5ac98a;
+    background: var(--life);
   }
   @keyframes bob {
     0%,

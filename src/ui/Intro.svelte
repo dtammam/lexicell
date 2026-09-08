@@ -67,15 +67,15 @@
     <li>Tap tiles to spell a word, then <strong>Attack</strong>. Longer words bite harder.</li>
     <li>Win nine fights and you evolve. Lose your HP and you are soup.</li>
   </ol>
-  <button class="primary" onclick={onBegin}>Divide and conquer</button>
+  <button class="btn life" onclick={onBegin}>Divide and conquer</button>
 </section>
 
 <style>
   .intro {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
-    padding-top: 0.2rem;
+    gap: var(--s3);
+    padding-top: var(--s1);
   }
   .scene {
     position: relative;
@@ -83,53 +83,53 @@
     width: 100%;
     height: 170px;
     padding: 0;
-    border: none;
-    border-radius: 14px;
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
     overflow: hidden;
     color: inherit;
     text-align: left;
-    background: linear-gradient(180deg, #16263a, #0d3a3a);
+    background: linear-gradient(180deg, #0d2a3a, #0d3a3a);
     touch-action: manipulation;
   }
   .scene.beat-1 {
-    background: radial-gradient(circle at 70% 50%, #4a2a7a, #1e0f3a 60%);
+    background: radial-gradient(circle at 70% 50%, #7b3fff, #1e0f3a 60%);
   }
   .scene.beat-2 {
-    background: linear-gradient(180deg, #1a1a2e, #26263f);
+    background: var(--panel-deep);
   }
   .caption {
     position: absolute;
-    left: 0.8rem;
-    right: 0.8rem;
-    bottom: 1.1rem;
+    left: var(--s3);
+    right: var(--s3);
+    bottom: var(--s4);
     margin: 0;
-    font-family: ui-serif, 'New York', Georgia, serif;
-    font-size: 1.05rem;
-    color: #f4f4fa;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
-    animation: caption 600ms ease-out both;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--ink);
+    text-shadow: 1px 1px 0 var(--shade), 0 0 6px var(--shade);
+    animation: caption var(--dur-settle) var(--ease-settle) both;
   }
   .dots {
     position: absolute;
-    right: 0.7rem;
-    top: 0.6rem;
+    right: var(--s3);
+    top: var(--s2);
     display: flex;
-    gap: 4px;
+    gap: var(--s1);
   }
   .dots i {
     width: 6px;
     height: 6px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--line);
   }
   .dots i.on {
-    background: #ffd166;
+    background: var(--score);
   }
   img {
     image-rendering: pixelated;
     position: absolute;
   }
-  /* Beat 0: the pond. You bob on the left; the predator slides in from the right, mouth first. */
   .pond .you {
     left: 22%;
     top: 62px;
@@ -144,7 +144,6 @@
     height: 150px;
     animation: loom 2.4s ease-in both;
   }
-  /* Beat 1: the portal. The ring spins; you dash in and shrink to nothing. */
   .portal .ring {
     position: absolute;
     right: 8%;
@@ -155,16 +154,15 @@
   }
   .portal .ring circle {
     fill: none;
-    stroke: #9b6bff;
+    stroke: var(--rare);
     stroke-width: 2;
     stroke-dasharray: 6 4;
   }
   .portal .ring text {
-    font-family: ui-serif, Georgia, serif;
-    font-size: 11px;
-    font-weight: 700;
+    font-family: var(--font-hud);
+    font-size: 8px;
     letter-spacing: 2px;
-    fill: #ffd166;
+    fill: var(--score);
   }
   .portal .you.dash {
     left: 10%;
@@ -173,7 +171,6 @@
     height: 40px;
     animation: dash 2.2s ease-in both;
   }
-  /* Beat 2: the arrival. Tiles drop in one after another. */
   .arrival {
     position: absolute;
     left: 50%;
@@ -186,20 +183,21 @@
   .arrival .tile {
     width: 30px;
     height: 30px;
-    border-radius: 6px;
-    background: #ffd166;
-    color: #1a1a2e;
-    font-family: ui-serif, Georgia, serif;
-    font-weight: 800;
-    font-size: 1rem;
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: 2px 2px 0 var(--shade);
+    background: var(--score);
+    color: var(--ground);
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: drop 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: drop 500ms var(--ease-settle) both;
     animation-delay: calc(var(--i) * 90ms);
   }
   .arrival .tile.filler {
-    background: #2a2a45;
+    background: var(--tile);
   }
   @keyframes bob {
     0%,
@@ -268,12 +266,13 @@
   }
   h2 {
     margin: 0;
-    font-size: 1.5rem;
-    font-family: ui-serif, 'New York', Georgia, serif;
+    font-family: var(--font-hud);
+    font-size: var(--hud-l);
   }
   li {
     margin: 0;
-    color: #d8d8ea;
+    color: var(--ink);
+    font-size: 15px;
     line-height: 1.4;
   }
   ol {
@@ -281,20 +280,9 @@
     padding-left: 1.2rem;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: var(--s2);
   }
   strong {
-    color: #ffd166;
-  }
-  .primary {
-    margin-top: 0.2rem;
-    padding: 1rem;
-    font-size: 1.1rem;
-    border-radius: 12px;
-    border: none;
-    background: #5ac98a;
-    color: #1a1a2e;
-    font-weight: 700;
-    touch-action: manipulation;
+    color: var(--score);
   }
 </style>

@@ -128,29 +128,15 @@
 </main>
 
 <style>
-  /* Dean's rule (2026-09-08): the game never scrolls. The page is exactly one viewport
-     tall (dvh follows iOS Safari's toolbars), and each screen lays itself out inside .screen. */
-  :global(html),
-  :global(body) {
-    height: 100%;
-    overflow: hidden;
-    overscroll-behavior: none;
-  }
-  :global(body) {
-    margin: 0;
-    background: #1a1a2e;
-    color: #eaeaea;
-    font-family: system-ui, -apple-system, sans-serif;
-    -webkit-tap-highlight-color: transparent;
-  }
+  /* Dean's rule (2026-09-08): the game never scrolls. The page is exactly one viewport tall. */
   main {
     box-sizing: border-box;
     height: 100dvh;
     max-width: 480px;
     margin: 0 auto;
-    padding: 0.5rem 0.75rem;
-    padding-top: max(0.5rem, env(safe-area-inset-top));
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    padding: var(--s2) var(--s3);
+    padding-top: max(var(--s2), env(safe-area-inset-top));
+    padding-bottom: max(var(--s2), env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
   }
@@ -159,40 +145,44 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 0 0 0.5rem;
+    margin: 0 0 var(--s2);
+  }
+  h1 {
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0;
+  }
+  .menu {
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    letter-spacing: 0.1em;
+    background: var(--panel);
+    border: 2px solid var(--shade);
+    box-shadow: 2px 2px 0 var(--shade);
+    color: var(--ink);
+    border-radius: var(--radius);
+    padding: var(--s2) var(--s3);
+    touch-action: manipulation;
   }
   .screen {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    /* A screen that cannot fit (a long item list) scrolls inside itself, never the page. */
     overflow-y: auto;
   }
   .screen > :global(*) {
     flex: 1;
     min-height: 0;
   }
-  h1 {
-    font-size: 1rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: #9a9ab5;
-    margin: 0;
-  }
-  .menu {
-    background: none;
-    border: 1px solid #3d3d5c;
-    color: #9a9ab5;
-    border-radius: 8px;
-    padding: 0.3rem 0.7rem;
-    font-size: 0.85rem;
-    touch-action: manipulation;
-  }
   .error {
-    color: #ff8fa3;
+    color: var(--harm);
   }
   .loading {
-    color: #9a9ab5;
+    color: var(--muted);
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
   }
 </style>

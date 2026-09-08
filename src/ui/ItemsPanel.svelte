@@ -35,9 +35,10 @@
     text-align: left;
     background: none;
     border: none;
-    padding: 0.2rem 0;
-    font-size: 0.85rem;
-    color: #9a9ab5;
+    padding: var(--s1) 0;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--muted);
     touch-action: manipulation;
     text-decoration: underline dotted;
   }
@@ -47,38 +48,43 @@
     right: 0;
     bottom: 100%;
     z-index: 2;
-    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.5);
     list-style: none;
-    margin: 0;
-    padding: 0.6rem 0.8rem;
-    border-radius: 12px;
-    background: #26263f;
+    margin: 0 0 var(--s2);
+    padding: var(--s3);
+    background: var(--panel);
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--s2);
   }
   li {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: var(--s1);
   }
   .name {
-    font-weight: 700;
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
+    display: flex;
+    gap: var(--s2);
+    align-items: baseline;
   }
   .desc {
-    color: #b8b8d0;
-    font-size: 0.9rem;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.35;
   }
   small {
-    font-weight: 400;
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    color: #9a9ab5;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    color: var(--muted);
   }
   small.uncommon {
-    color: #5ac98a;
+    color: var(--life);
   }
   small.rare {
-    color: #ffd166;
+    color: var(--rare);
   }
 </style>

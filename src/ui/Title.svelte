@@ -43,13 +43,13 @@
 
   <div class="buttons">
     {#if hasSave}
-      <button class="primary" onclick={onContinue}>Continue</button>
+      <button class="btn life" onclick={onContinue}>Continue</button>
     {/if}
-    <button class={hasSave ? 'secondary' : 'primary'} class:danger={confirming} onclick={newRun}>
+    <button class="btn" class:life={!hasSave} class:harm={confirming} onclick={newRun}>
       {confirming ? 'Abandon the current run and start over?' : 'New run'}
     </button>
     {#if confirming}
-      <button class="secondary" onclick={() => { confirming = false; }}>Keep it</button>
+      <button class="btn" onclick={() => { confirming = false; }}>Keep it</button>
     {/if}
   </div>
 
@@ -68,87 +68,76 @@
   .title {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    padding-top: 2rem;
+    gap: var(--s5);
+    padding-top: var(--s5);
   }
   .mark {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.4rem;
+    gap: var(--s2);
   }
   .cell {
     width: 72px;
     height: 72px;
-    border-radius: 16px;
-    background: #ffd166;
-    color: #1a1a2e;
-    font-size: 2.6rem;
-    font-weight: 800;
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    background: var(--score);
+    color: var(--ground);
+    font-family: var(--font-hud);
+    font-size: var(--hud-xl);
     display: flex;
     align-items: center;
     justify-content: center;
   }
   h2 {
     margin: 0;
-    font-size: 2rem;
-    letter-spacing: 0.08em;
+    font-family: var(--font-hud);
+    font-size: var(--hud-l);
+    letter-spacing: 0.05em;
   }
   .tag {
     margin: 0;
-    color: #9a9ab5;
+    color: var(--muted);
+    font-size: 14px;
   }
   .buttons {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
-  }
-  .buttons button {
-    padding: 1rem;
-    font-size: 1.1rem;
-    border-radius: 12px;
-    border: none;
-    touch-action: manipulation;
-  }
-  .primary {
-    background: #5ac98a;
-    color: #1a1a2e;
-    font-weight: 700;
-  }
-  .secondary {
-    background: #3d3d5c;
-    color: #eaeaea;
-  }
-  .secondary.danger {
-    background: #e05a5a;
-    color: white;
+    gap: var(--s2);
   }
   .build {
     margin: 0;
     text-align: center;
-    font-size: 0.75rem;
-    color: #55556f;
-    font-family: ui-monospace, monospace;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    color: var(--muted);
   }
   .wotd {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
-    padding: 0.9rem;
-    border-radius: 12px;
-    background: #26263f;
+    gap: var(--s1);
+    padding: var(--s3);
+    background: var(--panel);
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
   }
   .label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: #9a9ab5;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    letter-spacing: 0.1em;
+    color: var(--muted);
   }
   .word {
-    font-size: 1.4rem;
+    font-family: var(--font-hud);
+    font-size: var(--hud-l);
+    color: var(--score);
   }
   .gloss {
-    color: #b8b8d0;
-    line-height: 1.3;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.35;
   }
 </style>

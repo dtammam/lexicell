@@ -28,11 +28,11 @@
 <style>
   .definition {
     margin: 0;
-    font-size: 0.9rem;
-    color: #b8b8d0;
-    line-height: 1.3;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.35;
   }
   strong {
-    color: #eaeaea;
+    color: var(--ink);
   }
 </style>

@@ -28,43 +28,45 @@
   {#if run.stats.bestWord}
     <Definition word={run.stats.bestWord} />
   {/if}
-  <button class="primary" onclick={onNewRun}>New run</button>
+  <button class="btn life" onclick={onNewRun}>New run</button>
 </section>
 
 <style>
   .summary {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--s4);
   }
   h2 {
     margin: 0;
-    font-size: 1.8rem;
-    color: #e05a5a;
+    font-family: var(--font-hud);
+    font-size: var(--hud-l);
+    color: var(--harm);
   }
   h2.won {
-    color: #5ac98a;
+    color: var(--life);
   }
   dl {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.4rem 1rem;
+    gap: var(--s2) var(--s4);
     margin: 0;
+    padding: var(--s3);
+    background: var(--panel);
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
   }
   dt {
-    color: #9a9ab5;
+    color: var(--muted);
+    font-size: 14px;
   }
   dd {
     margin: 0;
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
   }
-  .primary {
-    padding: 0.9rem;
-    font-size: 1.1rem;
-    border-radius: 10px;
-    border: none;
-    background: #e05a5a;
-    color: white;
-    font-weight: 700;
-    touch-action: manipulation;
+  dd code {
+    font-family: var(--font-hud);
   }
 </style>
