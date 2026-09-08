@@ -192,6 +192,8 @@
 <style>
   .fight {
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: var(--s2);

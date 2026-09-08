@@ -52,3 +52,4 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Images for the items | implemented (PR #22: ten hand-drawn 16px glyphs as ASCII maps in scripts/sprites.py, toned by rarity; shown on offers, the items panel and the strip) |
 | 2026-09-08 | Item pool feels shallow; the same items every first offer | implemented (PR #24: 24 items, glyphs for all, two auto-win rares trimmed, bots read offers); rule-bending effects proposed as the next engine wave |
 | 2026-09-08 | The pixel font (regular weight) in the battle area is right; the hyperlegible face is off-vibe | implemented (PR #24: Silkscreen regular for letters, words, names, numbers and buttons at pixel-true sizes; system sans for running text; Atkinson removed) |
+| 2026-09-08 | Desktop: pressing Attack makes the item drawer show a scrollbar, glitchy | implemented (PR #25: the screen never scrolls; the grid absorbs the report growing a line) |

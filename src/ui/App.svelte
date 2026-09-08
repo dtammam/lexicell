@@ -171,7 +171,9 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    /* Never a scrollbar (Dean saw one flicker on desktop when the report grew a line): a
+       screen that outgrows the viewport clips, and the fight's grid absorbs the change. */
+    overflow: hidden;
   }
   .screen > :global(*) {
     flex: 1;
