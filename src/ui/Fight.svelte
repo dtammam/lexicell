@@ -171,6 +171,7 @@
 
 {#if enc}
   <section class="fight">
+    <div class="side">
     <Arena {run} />
 
     <div class="report">
@@ -212,6 +213,8 @@
       <span class="word-text">{word.toUpperCase() || ' '}</span>{#if preview !== null}<span class="preview">{preview}</span>{/if}
     </div>
 
+    </div>
+    <div class="board">
     <div class="grid-box">
     <div class="grid">
       {#key run.stats.turns}
@@ -250,8 +253,11 @@
       </button>
     </div>
 
+    </div>
+    <div class="side tail">
     <ItemsPanel items={run.player.items} />
     <p class="kbd">Type letters to select, Backspace to undo, Enter to attack, Esc to clear.</p>
+    </div>
   </section>
 {/if}
 
@@ -261,6 +267,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--s2);
+  }
+  /* In portrait the two wrappers vanish and their children stack as before; landscape uses them. */
+  .side,
+  .board {
+    display: contents;
   }
   .report {
     flex: none;
@@ -351,45 +362,61 @@
        tile shadows and glows (8 px) inside it. */
     clip-path: inset(-8px);
   }
-  /* Landscape on a phone (playtester, iPhone 17, 2026-09-08: the actions fell off the bottom):
-     arena, report and word line on the left, the grid and its actions on the right, so nothing
-     depends on a tall viewport. */
+  /* Landscape on a phone (playtester, iPhone 17, 2026-09-08: the actions fell off the bottom; Dean
+     the same day: it still scrolled). Two columns bounded to the viewport: the side column (arena,
+     report, word, items) clips its report rather than growing, the board column (grid, actions)
+     sizes the grid to what is left. Nothing depends on a tall viewport and nothing scrolls. */
   @media (orientation: landscape) and (max-height: 560px) {
     .fight {
+      max-height: 100%;
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+      grid-template-rows: minmax(0, 1fr) auto;
       grid-template-areas:
-        'arena grid'
-        'report grid'
-        'missed grid'
-        'word grid'
-        'items grid'
-        '. grid'
-        '. actions';
+        'side board'
+        'tail board';
       column-gap: var(--s4);
+      row-gap: var(--s1);
     }
-    .fight > :global(.arena) {
-      grid-area: arena;
-    }
-    .report {
-      grid-area: report;
-    }
-    .missed {
-      grid-area: missed;
-    }
-    .word {
-      grid-area: word;
-    }
-    .grid-box {
-      grid-area: grid;
+    .side,
+    .board {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s1);
       min-height: 0;
     }
-    .actions {
-      grid-area: actions;
+    .side {
+      grid-area: side;
+      overflow: hidden;
     }
-    .fight > :global(.panel) {
-      grid-area: items;
+    .side.tail {
+      grid-area: tail;
+    }
+    .board {
+      grid-area: board;
+    }
+    /* The report absorbs the squeeze: the arena and the word line keep their size. */
+    .report {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .missed {
+      display: none;
+    }
+    .word {
+      min-height: 1.6rem;
+      line-height: 1.6rem;
+    }
+    .grid-box {
+      min-height: 0;
+    }
+    .side :global(.arena) {
+      padding-top: var(--s1);
+      padding-bottom: var(--s2);
+    }
+    .side :global(.arena .stage) {
+      min-height: 44px;
     }
     /* No room for the hint in the two-column layout; a landscape phone has no keyboard anyway. */
     .kbd {
