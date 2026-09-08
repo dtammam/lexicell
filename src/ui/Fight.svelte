@@ -18,13 +18,13 @@
   const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
   /**
    * Colour carries what the corner number used to (Dean, 2026-09-08: tiles must read at a
-   * glance): vowels warm, common consonants plain, mid-value consonants teal-edged, rare
-   * ones (K J X Q Z) magenta with a glow. Selection colours override all of it.
+   * glance): vowels warm, rare ones (K J X Q Z) magenta with a glow, everything else plain. A
+   * third tier (teal edge for 3-4 point consonants) was dropped on 2026-09-08 when a tester could
+   * not decode three signals. Selection colours override all of it.
    */
-  function tier(letter: string): 'vowel' | 'common' | 'mid' | 'rare' {
+  function tier(letter: string): 'vowel' | 'common' | 'rare' {
     if (VOWELS.has(letter)) return 'vowel';
-    const v = LETTER_VALUE[letter] ?? 1;
-    return v >= 5 ? 'rare' : v >= 3 ? 'mid' : 'common';
+    return (LETTER_VALUE[letter] ?? 1) >= 5 ? 'rare' : 'common';
   }
 
   const enc = $derived(run.encounter);
@@ -196,6 +196,7 @@
           {#if run.lastTurn.redrawn.length > 0}<span class="note">{run.lastTurn.redrawn.length} tiles redrawn</span>{/if}
         {:else}
           <span class="note">Spell a word of 3+ letters</span>
+          {#if run.encounterIndex === 0 && enc.turn <= 3}<span class="note">Yellow tiles are vowels, pink-edged ones are rare letters worth the most. How to play is on the menu.</span>{/if}
         {/if}
       {/key}
       {#if run.rejected}<span class="rejected">{run.rejected}</span>{/if}
@@ -519,9 +520,6 @@
     background: var(--tile-vowel);
     border-color: var(--tile-vowel);
     color: var(--tile-vowel-ink);
-  }
-  .tile[data-tier='mid'] {
-    border-color: var(--mid);
   }
   .tile[data-tier='rare'] {
     border-color: var(--rare);

@@ -6,7 +6,8 @@
     onPlay,
     onContinue,
     onItems,
-  }: { hasSave: boolean; onPlay: () => void; onContinue: () => void; onItems: () => void } = $props();
+    onHelp,
+  }: { hasSave: boolean; onPlay: () => void; onContinue: () => void; onItems: () => void; onHelp: () => void } = $props();
 
   // Two-step abandon: with a save, "New run" first asks, then replaces it. Closes tracker #4.
   let confirming = $state.raw(false);
@@ -43,16 +44,20 @@
   </div>
 
   <div class="buttons">
-    {#if hasSave}
-      <button class="btn life" onclick={onContinue}>Continue</button>
-    {/if}
-    <button class="btn" class:life={!hasSave} class:harm={confirming} onclick={newRun}>
-      {confirming ? 'Abandon the current run and start over?' : 'New run'}
-    </button>
     {#if confirming}
-      <button class="btn" onclick={() => { confirming = false; }}>Keep it</button>
+      <!-- Two plain choices and nothing else (Dean, 2026-09-08: a tester read the red button as a
+           message and "Continue" as "continue to a new game"). -->
+      <p class="ask">Abandon the current run and start over?</p>
+      <button class="btn harm" onclick={newRun}>Yes, start over</button>
+      <button class="btn life" onclick={() => { confirming = false; }}>Keep my run</button>
+    {:else}
+      {#if hasSave}
+        <button class="btn life" onclick={onContinue}>Continue</button>
+      {/if}
+      <button class="btn" class:life={!hasSave} onclick={newRun}>New run</button>
+      <button class="btn" onclick={onItems}>Organelles</button>
+      <button class="btn" onclick={onHelp}>How to play</button>
     {/if}
-    <button class="btn" onclick={onItems}>Organelles</button>
   </div>
 
   <p class="build">build {__BUILD_NUMBER__} · {__BUILD_SHA__}</p>
@@ -103,6 +108,12 @@
     margin: 0;
     color: var(--muted);
     font-size: var(--text);
+  }
+  .ask {
+    margin: 0;
+    font-size: var(--text);
+    color: var(--harm);
+    text-align: center;
   }
   .buttons {
     display: flex;

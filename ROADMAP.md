@@ -290,6 +290,12 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #46 (2026-09-08): readability after a tester's session: tiles
+  carry two signals (vowel fill, rare edge; the mid tier and `--mid`
+  are gone), a How to play card from the title with the legend at
+  real point values, a first-fight hint line, a per-device Readable
+  type toggle (system sans), Pixelify Sans ligatures off ("find" had
+  read as "And").
 - PR #44 (2026-09-08): landscape fight bounded to the viewport (side
   and board columns; the report absorbs the squeeze). Dean: "landscape
   requires scrolling". Not verified on a device.
