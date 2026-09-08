@@ -434,6 +434,32 @@ describe('App', () => {
     expect(after.lastTurn?.word).toBe(word);
   });
 
+  it('How to play opens from the title with the tile legend, and Readable type toggles and persists per device', async () => {
+    render(App);
+    await click(await findByText('How to play', 15000));
+    expect(getByText('How to play')).toBeTruthy();
+    expect(getByText(/Rare letter, worth the most: K 5, J 6, X 6, Q 8, Z 8/)).toBeTruthy();
+    expect(document.querySelectorAll('.legend .tile')).toHaveLength(6);
+    expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(false);
+    await click(getButton('Readable type: off'));
+    expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(true);
+    expect(JSON.parse(localStorage.getItem('lexicell.settings') ?? 'null')).toEqual({ readable: true });
+    expect(getButton('Readable type: on')).toBeTruthy();
+    await click(getButton('Back'));
+    expect(await findByText('New run')).toBeTruthy();
+    expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(true);
+    cleanup();
+    render(App);
+    await findByText('New run', 15000);
+    expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(true);
+  });
+
+  it('the first fight shows the two tile signals in the report line', async () => {
+    await startRun();
+    expect(getByText(/Yellow tiles are vowels, pink-edged ones are rare letters/)).toBeTruthy();
+    expect(document.querySelector('.tile[data-tier="mid"]')).toBeNull();
+  });
+
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
     for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {
@@ -538,13 +564,13 @@ describe('App', () => {
     expect(document.querySelectorAll('button.tile .value')).toHaveLength(0);
   });
 
-  it('every tile carries a tier that matches its letter: vowel, common, mid, or rare', async () => {
+  it('every tile carries a tier that matches its letter: vowel, common, or rare', async () => {
     await startRun();
     const vowels = new Set(['a', 'e', 'i', 'o', 'u']);
     for (const b of tiles()) {
       const letter = b.querySelector('.letter')?.textContent?.toLowerCase() ?? '';
       const v = LETTER_VALUE[letter] ?? 1;
-      const expected = vowels.has(letter) ? 'vowel' : v >= 5 ? 'rare' : v >= 3 ? 'mid' : 'common';
+      const expected = vowels.has(letter) ? 'vowel' : v >= 5 ? 'rare' : 'common';
       expect(b.dataset.tier, letter).toBe(expected);
     }
   });

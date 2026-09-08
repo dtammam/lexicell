@@ -6,7 +6,8 @@
     onPlay,
     onContinue,
     onItems,
-  }: { hasSave: boolean; onPlay: () => void; onContinue: () => void; onItems: () => void } = $props();
+    onHelp,
+  }: { hasSave: boolean; onPlay: () => void; onContinue: () => void; onItems: () => void; onHelp: () => void } = $props();
 
   // Two-step abandon: with a save, "New run" first asks, then replaces it. Closes tracker #4.
   let confirming = $state.raw(false);
@@ -53,6 +54,7 @@
       <button class="btn" onclick={() => { confirming = false; }}>Keep it</button>
     {/if}
     <button class="btn" onclick={onItems}>Organelles</button>
+    <button class="btn" onclick={onHelp}>How to play</button>
   </div>
 
   <p class="build">build {__BUILD_NUMBER__} · {__BUILD_SHA__}</p>

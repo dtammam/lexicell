@@ -11,10 +11,19 @@
   import Summary from './Summary.svelte';
   import Title from './Title.svelte';
   import Compendium from './Compendium.svelte';
+  import Help from './Help.svelte';
+  import { loadSettings, saveSettings, type Settings } from './settings';
 
   // The seed is the only wall-clock the game reads, and it is read here, never in the engine.
   const seed = () => Date.now() >>> 0;
-  const persist = createPersist(browserStorage());
+  const storage = browserStorage();
+  const persist = createPersist(storage);
+  // Per-device settings (Dean, 2026-09-08): a Readable type toggle for players the pixel faces cost letters.
+  let settings: Settings = $state.raw(loadSettings(storage));
+  function toggleReadable() {
+    settings = { ...settings, readable: !settings.readable };
+    saveSettings(storage, settings);
+  }
 
   let ctx: EngineContext | null = $state.raw(null);
   let store: Store | null = $state.raw(null);
@@ -22,7 +31,7 @@
   // The state before the latest action; Fight uses it to say what the grid held before a word was played.
   let prev: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
-  let screen: 'title' | 'intro' | 'run' | 'items' = $state.raw('title');
+  let screen: 'title' | 'intro' | 'run' | 'items' | 'help' = $state.raw('title');
   // True when a run can be continued: an in-memory store, or a save on disk before one exists.
   let hasSave = $state.raw(false);
   let recoveries = 0;
@@ -81,6 +90,9 @@
   function toItems() {
     screen = 'items';
   }
+  function toHelp() {
+    screen = 'help';
+  }
 
   /**
    * A saved run that passes persist's shape check but still breaks a screen would come
@@ -100,7 +112,7 @@
   }
 </script>
 
-<main>
+<main data-readable={settings.readable ? '' : undefined}>
   <header class="top">
     <h1>Lexicell</h1>
     {#if screen === 'run'}
@@ -115,8 +127,10 @@
       <p class="loading">Loading words...</p>
     {:else if screen === 'items'}
       <Compendium onBack={toTitle} />
+    {:else if screen === 'help'}
+      <Help onBack={toTitle} readable={settings.readable} onToggleReadable={toggleReadable} />
     {:else if screen === 'title' || !run}
-      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} />
+      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} />
     {:else if screen === 'intro'}
       <Intro {onBegin} />
     {:else if run.phase === 'fight'}
