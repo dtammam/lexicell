@@ -44,12 +44,12 @@ context; they are defined on the arena and stay inside it.
   sits on an 8 px grid, so letters use 16, 24 or 32 px and tile
   letters round down to the grid; at other sizes it aliases and U
   starts to look like V.
-- `--font-ui` is the system sans: descriptions, definitions, the
-  intro lines, hints. 13 to 16 px. A paragraph in a pixel face is
-  unreadable, so running text never uses it.
-- Two faces, no third: one vendored under `public/fonts` with its Open
-  Font License text, one the device's own. Nothing loads from a third
-  party.
+- `--font-ui` is Pixelify Sans (Dean, 2026-09-08: the normal text was
+  too normal): a pixel face with a real lowercase, for descriptions,
+  definitions, the intro lines, hints. Always `--text` (16 px); it
+  aliases below that.
+- Two faces, both pixel, both vendored under `public/fonts` with their
+  Open Font License texts. Nothing loads from a third party.
 
 ## Shape
 

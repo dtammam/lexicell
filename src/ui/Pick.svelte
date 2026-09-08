@@ -44,7 +44,7 @@
   .hint {
     margin: 0;
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text);
   }
   .offer {
     display: flex;
@@ -82,12 +82,11 @@
   }
   .flavor {
     color: var(--score);
-    font-style: italic;
-    font-size: 12px;
+    font-size: var(--text);
   }
   .desc {
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text);
     line-height: 1.35;
   }
   small {
@@ -103,6 +102,6 @@
   }
   .owned {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text);
   }
 </style>

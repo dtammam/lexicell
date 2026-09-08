@@ -60,7 +60,7 @@
   }
   dt {
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text);
   }
   dd {
     margin: 0;
