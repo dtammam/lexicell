@@ -60,11 +60,12 @@
 
 <style>
   .arena {
+    flex: none;
     border-radius: 14px;
-    padding: 0.6rem 0.8rem 0.8rem;
+    padding: 0.4rem 0.8rem 0.6rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.3rem;
     background: linear-gradient(180deg, #1f2b3a 0%, #142033 100%);
   }
   /* Three acts, three moods: pond, tide pool, deep. Cosmetic only (pack: theme is art). */
@@ -85,7 +86,7 @@
     display: flex;
     justify-content: space-around;
     align-items: flex-end;
-    min-height: 92px;
+    min-height: 68px;
   }
   .fighter {
     position: relative;
@@ -96,8 +97,8 @@
     gap: 0.2rem;
   }
   .fighter img {
-    width: 64px;
-    height: 64px;
+    width: 48px;
+    height: 48px;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
   }

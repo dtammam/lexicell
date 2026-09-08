@@ -7,6 +7,7 @@
 </script>
 
 {#if items.length > 0}
+  <div class="panel">
   <button class="strip" onclick={() => { open = !open; }} aria-expanded={open}>
     Items ({items.length}): {items.map((id) => itemDef(id).name).join(', ')}
   </button>
@@ -21,10 +22,16 @@
       {/each}
     </ul>
   {/if}
+  </div>
 {/if}
 
 <style>
+  .panel {
+    position: relative;
+    flex: none;
+  }
   .strip {
+    width: 100%;
     text-align: left;
     background: none;
     border: none;
@@ -35,6 +42,12 @@
     text-decoration: underline dotted;
   }
   .sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    z-index: 2;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.5);
     list-style: none;
     margin: 0;
     padding: 0.6rem 0.8rem;

@@ -96,6 +96,7 @@
       <button class="menu" onclick={toTitle}>Menu</button>
     {/if}
   </header>
+  <div class="screen">
   <svelte:boundary onerror={recover}>
     {#if error}
       <p class="error">Something broke: {error}</p>
@@ -114,9 +115,18 @@
       <p class="error">The saved run could not be drawn. Starting a new one.</p>
     {/snippet}
   </svelte:boundary>
+  </div>
 </main>
 
 <style>
+  /* Dean's rule (2026-09-08): the game never scrolls. The page is exactly one viewport
+     tall (dvh follows iOS Safari's toolbars), and each screen lays itself out inside .screen. */
+  :global(html),
+  :global(body) {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   :global(body) {
     margin: 0;
     background: #1a1a2e;
@@ -125,17 +135,34 @@
     -webkit-tap-highlight-color: transparent;
   }
   main {
+    box-sizing: border-box;
+    height: 100dvh;
     max-width: 480px;
     margin: 0 auto;
-    padding: 0.75rem;
-    padding-top: max(0.75rem, env(safe-area-inset-top));
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding: 0.5rem 0.75rem;
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
   }
   .top {
+    flex: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.5rem;
+  }
+  .screen {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    /* A screen that cannot fit (a long item list) scrolls inside itself, never the page. */
+    overflow-y: auto;
+  }
+  .screen > :global(*) {
+    flex: 1;
+    min-height: 0;
   }
   h1 {
     font-size: 1rem;
