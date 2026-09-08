@@ -51,9 +51,9 @@
   }
   h2 {
     margin: 0;
-    font-family: var(--font-letter);
+    font-family: var(--font-head);
     font-weight: 400;
-    font-size: var(--hud-l);
+    font-size: var(--head);
   }
   .hint {
     flex: none;
@@ -106,8 +106,8 @@
     min-width: 0;
   }
   .name {
-    font-family: var(--font-letter);
-    font-size: var(--hud-m);
+    font-family: var(--font-head);
+    font-size: var(--name);
   }
   .flavor {
     color: var(--score);

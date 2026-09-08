@@ -87,7 +87,7 @@
     box-shadow: var(--shadow);
     background: var(--score);
     color: var(--ground);
-    font-family: var(--font-hud);
+    font-family: var(--font-tile);
     font-size: var(--hud-xl);
     display: flex;
     align-items: center;
@@ -95,9 +95,9 @@
   }
   h2 {
     margin: 0;
-    font-family: var(--font-letter);
+    font-family: var(--font-head);
     font-weight: 400;
-    font-size: var(--hud-l);
+    font-size: var(--head);
   }
   .tag {
     margin: 0;

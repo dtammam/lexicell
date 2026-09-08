@@ -7,22 +7,10 @@
  */
 
 @font-face {
-  font-family: 'Silkscreen';
+  font-family: 'Press Start 2P';
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts/silkscreen-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Silkscreen';
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/silkscreen-700.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'DotGothic16';
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/dotgothic16.woff2') format('woff2');
+  src: url('/fonts/press-start-2p.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Pixelify Sans';
@@ -63,15 +51,23 @@
   --tile-valid-ink: var(--ground);
   --tile-locked-ink: #6a5599;
 
-  /* Type (Dean, 2026-09-08, three rulings). The pixel face in its REGULAR weight is the voice
-     of the game, never bold. Silkscreen (5px grid, 8px multiples) is the LETTER face: tile
-     letters, the word line, the missed word, the wordmark, headings. Its digits were the
-     problem (3 8 6 9 0 share most of their dots), so the HUD role moved to DotGothic16
-     (Dean's pick from seven faces): numbers, HP lines, names, badges, buttons, the build
-     stamp. DotGothic16 is a 16px grid: 16 or 32 px, never 8, never 24. Three faces, all
-     pixel, all vendored. */
-  --font-hud: 'DotGothic16', ui-monospace, monospace;
-  --font-letter: 'Silkscreen', ui-monospace, monospace;
+  /* Type, by role (Dean's readout from the type lab, 2026-09-08, then "Silkscreen leaves"):
+       tiles       Press Start 2P, half the tile side rounded to 8px, capped at 32px
+       word line   Press Start 2P 24px (and the missed word, the word of the day)
+       headings    Pixelify Sans 24px; names 20px
+       HUD         Press Start 2P 16px: numbers, HP lines, badges, labels, the build stamp
+       buttons     Press Start 2P 16px
+       prose       Pixelify Sans 16px
+     Two faces. Press Start 2P (8x8 grid: 16, 24 or 32 px, never bold) is everything in
+     capitals; Pixelify Sans (any size from 16) is everything with a lowercase. Press Start
+     2P is a wide face (one em per glyph), so HUD lines stay short and buttons may wrap.
+     Both vendored under public/fonts with their OFL texts. */
+  --font-tile: 'Press Start 2P', ui-monospace, monospace;
+  --font-hud: 'Press Start 2P', ui-monospace, monospace;
+  --font-letter: 'Press Start 2P', ui-monospace, monospace;
+  --font-head: 'Pixelify Sans', system-ui, sans-serif;
+  --head: 24px;
+  --name: 20px;
   /* Running text is Pixelify Sans (Dean, 2026-09-08: the normal text was too normal): a pixel
      face with a real lowercase that stays readable at 16px. Never below 16px. */
   --font-ui: 'Pixelify Sans', system-ui, -apple-system, sans-serif;
@@ -123,6 +119,7 @@ body {
 .btn {
   font-family: var(--font-hud);
   font-variant-numeric: tabular-nums;
+  line-height: 1.25;
   font-weight: 400;
   font-size: var(--hud-m);
   padding: var(--s3) var(--s2);

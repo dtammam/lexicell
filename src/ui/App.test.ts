@@ -357,7 +357,7 @@ describe('App', () => {
     await startRun();
     for (const i of nonWordTriple()) await click(tiles()[i] ?? null);
     await click(getButton('Shuffle'));
-    expect(getButton('Shuffle? Costs a turn')).toBeTruthy();
+    expect(getButton('Costs a turn')).toBeTruthy();
     await click(attackButton());
     expect(document.querySelector('.rejected')).not.toBeNull();
     expect(getButton('Shuffle')).toBeTruthy();
@@ -426,12 +426,12 @@ describe('App', () => {
     await startRun();
     const before = gridLetters();
     await click(getButton('Shuffle'));
-    expect(getButton('Shuffle? Costs a turn')).toBeTruthy();
+    expect(getButton('Costs a turn')).toBeTruthy();
     await click(tiles()[0] ?? null); // any other action disarms
     expect(getButton('Shuffle')).toBeTruthy();
     await click(getButton('Clear'));
     await click(getButton('Shuffle'));
-    await click(getButton('Shuffle? Costs a turn'));
+    await click(getButton('Costs a turn'));
     if (queryByText('Choose an item')) throw new Error('a shuffle deals no damage; the enemy cannot have died');
     expect(getByText('Turn 2')).toBeTruthy();
     expect(getByText('Shuffled the grid')).toBeTruthy();

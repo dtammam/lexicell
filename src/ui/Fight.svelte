@@ -185,7 +185,7 @@
 
     <div class="actions">
       <button class="btn" disabled={enc.selection.length === 0} onclick={() => { dispatch({ type: 'clearSelection' }); }}>Clear</button>
-      <button class="btn shuffle" class:armed={shuffleArmed} onclick={onShuffle}>{shuffleArmed ? 'Shuffle? Costs a turn' : 'Shuffle'}</button>
+      <button class="btn shuffle" class:armed={shuffleArmed} onclick={onShuffle}>{shuffleArmed ? 'Costs a turn' : 'Shuffle'}</button>
       <button class="btn primary harm" class:ready={valid} class:life={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>
         {preview !== null ? `Attack for ${preview}` : 'Attack'}
       </button>
@@ -254,10 +254,16 @@
     font-family: var(--font-letter);
     font-weight: 400;
     font-size: var(--hud-l);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.05em;
     min-height: 2rem;
     line-height: 2rem;
     color: var(--ink);
+  }
+  .word-text {
+    /* Press Start 2P is one em per glyph: a sixteen-letter word on a narrow phone wraps
+       rather than clips. */
+    overflow-wrap: anywhere;
+    line-height: 1.1;
   }
   .word.valid {
     color: var(--life);
@@ -345,10 +351,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--font-letter);
-    /* The letter is the thing: about half the tile's side, rounded down to the pixel grid. */
+    font-family: var(--font-tile);
+    /* The letter is the thing: about half the tile's side, rounded down to the 8px grid and
+       capped at 32px (Dean's lab size; the face is heavy above it). */
     font-size: 24px;
-    font-size: round(down, calc(min(100cqw, 100cqh) / 4 * 0.5), 8px);
+    font-size: min(32px, round(down, calc(min(100cqw, 100cqh) / 4 * 0.5), 8px));
     font-weight: 400;
     line-height: 1;
     touch-action: manipulation;
