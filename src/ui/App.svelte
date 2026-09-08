@@ -17,6 +17,8 @@
   let ctx: EngineContext | null = $state.raw(null);
   let store: Store | null = $state.raw(null);
   let run: RunState | null = $state.raw(null);
+  // The state before the latest action; Fight uses it to say what the grid held before a word was played.
+  let prev: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
   let screen: 'title' | 'run' = $state.raw('title');
   // True when a run can be continued: an in-memory store, or a save on disk before one exists.
@@ -38,6 +40,7 @@
   function openStore(c: EngineContext) {
     const s = createStore(c, persist, seed);
     s.subscribe((state) => {
+      prev = run;
       run = state;
     });
     store = s;
@@ -105,7 +108,7 @@
     {:else if screen === 'title' || !run}
       <Title {hasSave} {onPlay} {onContinue} />
     {:else if run.phase === 'fight'}
-      <Fight {run} {dispatch} {isWord} {ctx} />
+      <Fight {run} {prev} {dispatch} {isWord} {ctx} />
     {:else if run.phase === 'pick'}
       <Pick {run} {dispatch} />
     {:else}

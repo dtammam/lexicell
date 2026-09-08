@@ -9,10 +9,11 @@
 
   let {
     run,
+    prev = null,
     dispatch,
     isWord,
     ctx,
-  }: { run: RunState; dispatch: (action: Action) => void; isWord: (word: string) => boolean; ctx: EngineContext } = $props();
+  }: { run: RunState; prev?: RunState | null; dispatch: (action: Action) => void; isWord: (word: string) => boolean; ctx: EngineContext } = $props();
 
   const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
   /**
@@ -43,6 +44,29 @@
     candCache = { grid, hp: run.player.hp, items: run.player.items.length, list };
     return list;
   });
+  /**
+   * The word you missed (Dean, 2026-09-08): after a word is played, the best word that was on
+   * that grid. Captured once per turn from `prev`, the state before the action, at the moment
+   * the turn changes; later taps move `prev` but not this.
+   */
+  let missed = $state.raw<Candidate | null>(null);
+  let missedTurn = -1;
+  $effect(() => {
+    const t = run.stats.turns;
+    const p = prev;
+    if (t === missedTurn) return;
+    missedTurn = t;
+    if (!p?.encounter || !run.lastTurn || run.lastTurn.word === '') {
+      missed = null;
+      return;
+    }
+    let best: Candidate | null = null;
+    for (const c of candidateWords(p, ctx)) if (!best || c.damage > best.damage) best = c;
+    missed = best;
+  });
+  const beatable = $derived(missed !== null && run.lastTurn !== null && run.lastTurn.word !== '' && missed.damage > run.lastTurn.damage && missed.word !== run.lastTurn.word);
+  const wasBest = $derived(missed !== null && run.lastTurn !== null && run.lastTurn.word !== '' && !beatable);
+
   /** Damage the selected word would deal, shown before Attack (Dean, 2026-09-08: make me want to hunt). */
   const preview = $derived(valid ? (candidates.find((c) => c.word === word)?.damage ?? null) : null);
 
@@ -113,6 +137,11 @@
     </div>
     {#if run.lastTurn && run.lastTurn.word !== ''}
       <Definition word={run.lastTurn.word} />
+      {#if beatable && missed}
+        <p class="missed">Best there: <strong>{missed.word.toUpperCase()}</strong> for {missed.damage}</p>
+      {:else if wasBest}
+        <p class="missed best">Best word on that grid.</p>
+      {/if}
     {/if}
 
     <div class="word" class:valid>
@@ -190,6 +219,19 @@
   }
   .rejected {
     color: #ff8fa3;
+  }
+  .missed {
+    flex: none;
+    margin: 0;
+    font-size: 0.85rem;
+    color: #9a9ab5;
+  }
+  .missed strong {
+    color: #ffd166;
+    letter-spacing: 0.05em;
+  }
+  .missed.best {
+    color: #5ac98a;
   }
   .word {
     flex: none;
