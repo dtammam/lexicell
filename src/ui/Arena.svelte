@@ -18,6 +18,13 @@
   const pattern = $derived(PATTERNS[enc?.enemy.id ?? ''] ?? 'dots');
   const dealt = $derived(run.lastTurn?.damage ?? 0);
   const taken = $derived(run.lastTurn?.enemyDamage ?? 0);
+  // Effects wave: the shield rides the player's bar as a second segment; poison and stun sit
+  // on the enemy as badges. Shield is capped by tuning, so the segment is sized against maxHp
+  // and clipped by the bar.
+  const shield = $derived(run.player.shield ?? 0);
+  const shieldPct = $derived(Math.min(100, (100 * (run.player.hp + shield)) / run.player.maxHp));
+  const poison = $derived(enc?.enemy.poison ?? 0);
+  const stunned = $derived(enc?.enemy.stunned ?? 0);
 
   function fallback(e: Event) {
     const img = e.currentTarget as HTMLImageElement;
@@ -55,6 +62,12 @@
         <figure class="fighter enemy" class:hit={dealt > 0}>
           <img src="{base}sprites/{enc.enemy.id}.png" alt={enemyName(enc.enemy.id)} onerror={fallback} />
           {#if dealt > 0}<span class="float dealt">-{dealt}</span>{/if}
+          {#if poison > 0 || stunned > 0}
+            <span class="badges">
+              {#if poison > 0}<span class="badge poison" title="Poison: takes this much next turn, then one less">{`\u2623${poison}`}</span>{/if}
+              {#if stunned > 0}<span class="badge stun" title="Stunned: skips this many attacks">{`\u2749${stunned}`}</span>{/if}
+            </span>
+          {/if}
           <figcaption>{enemyName(enc.enemy.id)}</figcaption>
         </figure>
       {/key}
@@ -62,9 +75,12 @@
     <div class="bars">
       <div class="bar-label">
         <strong>You</strong>
-        <span>{run.player.hp} / {run.player.maxHp}</span>
+        <span>{run.player.hp} / {run.player.maxHp}{#if shield > 0}<span class="shield-num"> +{shield}</span>{/if}</span>
       </div>
-      <div class="bar player"><div class="fill" style="width: {(100 * run.player.hp) / run.player.maxHp}%"></div></div>
+      <div class="bar player">
+        {#if shield > 0}<div class="fill shield" style="width: {shieldPct}%"></div>{/if}
+        <div class="fill" style="width: {(100 * run.player.hp) / run.player.maxHp}%"></div>
+      </div>
       <div class="bar-label">
         <strong>{enemyName(enc.enemy.id)}</strong>
         <span>{enc.enemy.hp} / {enc.enemy.maxHp}</span>
@@ -338,6 +354,7 @@
     gap: var(--s1);
   }
   .bar {
+    position: relative;
     height: 8px;
     border: 1px solid var(--shade);
     background: var(--line);
@@ -345,8 +362,41 @@
     margin-bottom: var(--s1);
   }
   .fill {
+    position: absolute;
+    left: 0;
+    top: 0;
     height: 100%;
     transition: width var(--dur-settle) var(--ease-step);
+  }
+  .fill.shield {
+    background: var(--shield);
+  }
+  .shield-num {
+    color: var(--shield);
+  }
+  .badges {
+    position: absolute;
+    right: -6px;
+    top: -6px;
+    display: flex;
+    gap: var(--s1);
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    line-height: 1;
+    pointer-events: none;
+  }
+  .badge {
+    padding: 2px 3px;
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    background: var(--ground);
+    box-shadow: 2px 2px 0 var(--shade);
+  }
+  .badge.poison {
+    color: var(--score);
+  }
+  .badge.stun {
+    color: var(--select);
   }
   .enemy .fill {
     background: var(--harm);

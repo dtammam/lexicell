@@ -18,7 +18,7 @@
     <h2>Organelles</h2>
     <button class="btn" onclick={onBack}>Back</button>
   </header>
-  <p class="hint">{CONTENT.items.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1, mythic 0.35.</p>
+  <p class="hint">{CONTENT.items.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1, mythic 0.35, and never more than two commons at once.</p>
   <div class="list">
     {#each groups as group (group.rarity)}
       <h3 class={group.rarity}>{group.rarity} ({group.items.length})</h3>
