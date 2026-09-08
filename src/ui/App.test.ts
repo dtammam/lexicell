@@ -69,10 +69,11 @@ async function attackOnce(prefer: 'long' | 'short' = 'long'): Promise<string> {
   return word;
 }
 
-/** From a fresh render: title screen, New run, starting pick, then the first fight. */
+/** From a fresh render: title screen, New run, the intro, starting pick, then the first fight. */
 async function startRun() {
   render(App);
   await click(await findByText('New run', 15000));
+  await click(await findByText('Divide and conquer'));
   await findByText('Choose a starting item', 15000);
   expect(document.querySelectorAll('button.offer')).toHaveLength(3);
   await click(document.querySelector('button.offer'));
@@ -103,7 +104,11 @@ describe('App', () => {
     expect(ctx.dictionary.has(word)).toBe(true);
     expect((document.querySelector('.wotd .gloss')?.textContent ?? '').length).toBeGreaterThan(0);
     await click(play);
+    expect(await findByText('You are a cell.')).toBeTruthy();
+    expect(document.querySelectorAll('.dish .cell')).toHaveLength(2);
+    await click(getButton('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
+    expect(getByText(/Tap one\. You keep it/)).toBeTruthy();
     await click(document.querySelector('button.offer'));
     await findByText('Encounter 1 / 9');
     expect(tiles()).toHaveLength(16);
@@ -241,6 +246,7 @@ describe('App', () => {
     vi.spyOn(Date, 'now').mockReturnValue(20260918);
     render(App);
     await click(await findByText('New run', 15000));
+    await click(await findByText('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
     const offered = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { offer: string[] }).offer;
     expect(offered).toHaveLength(3);
@@ -286,6 +292,7 @@ describe('App', () => {
     await click(getButton('New run'));
     vi.spyOn(Date, 'now').mockReturnValue(SEED + 1);
     await click(getButton('Abandon the current run and start over?'));
+    await click(await findByText('Divide and conquer'));
     expect(await findByText('Choose a starting item')).toBeTruthy();
     const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { rng: { seed: number }; player: { items: string[] } };
     expect(after.player.items).toEqual([]);
@@ -303,6 +310,7 @@ describe('App', () => {
     await click(getButton('New run'));
     vi.spyOn(Date, 'now').mockReturnValue(SEED + 7);
     await click(getButton('Abandon the current run and start over?'));
+    await click(await findByText('Divide and conquer'));
     expect(await findByText('Choose a starting item')).toBeTruthy();
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { stats: { turns: number }; rng: { seed: number } };
     expect(saved.stats.turns).toBe(0);
@@ -449,6 +457,8 @@ describe('App', () => {
     expect(getByText('Encounters reached')).toBeTruthy();
     expect(getByText(String(SEED))).toBeTruthy();
     await click(getButton('New run'));
+    // A new run from the summary skips the intro: the player has just finished one.
     expect(await findByText('Choose a starting item')).toBeTruthy();
+    expect(queryByText('You are a cell.')).toBeNull();
   }, 60000);
 });

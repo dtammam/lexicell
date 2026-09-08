@@ -53,11 +53,12 @@ export function getByText(m: Matcher, root: ParentNode = document.body): HTMLEle
 }
 
 export async function findByText(m: Matcher, timeout = 5000): Promise<HTMLElement> {
-  const deadline = Date.now() + timeout;
+  // performance.now, not Date.now: tests pin Date.now to the run seed, which would freeze the deadline.
+  const deadline = performance.now() + timeout;
   for (;;) {
     const el = queryByText(m);
     if (el) return el;
-    if (Date.now() > deadline) throw new Error(`timed out waiting for text ${String(m)}`);
+    if (performance.now() > deadline) throw new Error(`timed out waiting for text ${String(m)}`);
     await new Promise((r) => setTimeout(r, 20));
   }
 }
