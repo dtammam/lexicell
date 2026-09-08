@@ -116,11 +116,13 @@ describe('App', () => {
     expect(getByText(/a portal made of letters/)).toBeTruthy();
     expect(document.querySelector('.portal .ring')).not.toBeNull();
     await click(document.querySelector('.scene'));
-    expect(getByText('Long words hit hard.')).toBeTruthy();
+    expect(getByText('A long word hits hard.')).toBeTruthy();
     const arrival = Array.from(document.querySelectorAll('.arrival .tile')).map((t) => t.textContent).join('');
-    expect(arrival).toBe('LONGWORDSHITHARD');
+    expect(arrival).toBe('LONGWORDHITSHARD');
+    // Rows of four must each be a word: the grid reads row by row on the screen.
+    expect(arrival.match(/.{4}/g)).toEqual(['LONG', 'WORD', 'HITS', 'HARD']);
     await click(document.querySelector('.scene'));
-    expect(getByText('Long words hit hard.')).toBeTruthy();
+    expect(getByText('A long word hits hard.')).toBeTruthy();
     await click(getButton('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
     expect(getByText(/Tap one\. You keep it/)).toBeTruthy();

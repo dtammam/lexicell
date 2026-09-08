@@ -5,10 +5,11 @@
   let { onBegin }: { onBegin: () => void } = $props();
 
   const base = import.meta.env.BASE_URL;
-  const BEATS = ['Something ate your pond.', 'You escaped through the only door left: a portal made of letters.', 'Long words hit hard.'];
+  const BEATS = ['Something ate your pond.', 'You escaped through the only door left: a portal made of letters.', 'A long word hits hard.'];
   const RING = 'LEXICELL·WORDS·';
-  // Sixteen letters, one per tile, the whole lesson in a grid.
-  const GRID = 'LONGWORDSHITHARD';
+  // Sixteen letters, one per tile, the whole lesson in a grid. Four rows of four, so the phrase
+  // has to split cleanly at every fourth letter (Dean, 2026-09-08: WORDS HIT read as WORD SHIT).
+  const GRID = 'LONGWORDHITSHARD';
 
   let beat = $state.raw(0);
   let timer: ReturnType<typeof setTimeout> | null = null;
