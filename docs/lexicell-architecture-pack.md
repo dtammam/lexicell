@@ -129,6 +129,22 @@ Captured without filtering, from the first conversation:
 
 ---
 
+## Design pillars
+
+Proposed 2026-09-08 after Dean's first play session, confirmed by Dean
+the same day. Every feature answers to one of these; a feature that
+serves none is cut.
+
+1. **A long word is an event.** The biggest, brightest thing on the
+   screen is the damage number of a long word. Items, curves and art
+   exist to make a seven-letter word feel like a boss kill.
+2. **Attrition is the tension.** HP carries across all nine
+   encounters and there is no healing between fights unless an item
+   says so. Every hit taken in act 1 is a hit that matters in act 3.
+3. **Vocabulary is the character.** The player's words are their
+   build as much as their items are. Letters are set in the largest
+   type on screen; the word line is the hero, the chrome is quiet.
+
 ## Riskiest assumption
 
 **That word-spelling stays engaging when difficulty scales through item multipliers rather than through demanding harder words.**
