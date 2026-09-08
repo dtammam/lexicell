@@ -48,6 +48,12 @@ and what is still open ships disclosed here.
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #38 (2026-09-08): Dean's type-lab readout shipped: Press Start 2P
+  for tiles, the word line, HUD and buttons; Pixelify Sans for
+  headings, names and prose. Silkscreen and DotGothic16 removed; two
+  vendored faces. The armed shuffle label shortened to fit the wide
+  face.
+- PR #37 (2026-09-08): playtest-log row for the type lab.
 - PR #36 (2026-09-08): DotGothic16 vendored as the HUD face (Dean's
   pick from seven faces); Silkscreen keeps tiles, the word line and
   headings; no digit under 16 px; tabular digits.

@@ -190,7 +190,7 @@
     box-shadow: 2px 2px 0 var(--shade);
     background: var(--score);
     color: var(--ground);
-    font-family: var(--font-letter);
+    font-family: var(--font-tile);
     font-weight: 400;
     font-size: var(--hud-m);
     display: flex;
@@ -269,9 +269,9 @@
   }
   h2 {
     margin: 0;
-    font-family: var(--font-letter);
+    font-family: var(--font-head);
     font-weight: 400;
-    font-size: var(--hud-l);
+    font-size: var(--head);
   }
   li {
     margin: 0;

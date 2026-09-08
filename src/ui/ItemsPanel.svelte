@@ -96,9 +96,9 @@
     min-width: 0;
   }
   .name {
-    font-family: var(--font-letter);
+    font-family: var(--font-head);
     font-weight: 400;
-    font-size: var(--hud-m);
+    font-size: var(--name);
     display: flex;
     gap: var(--s2);
     align-items: baseline;

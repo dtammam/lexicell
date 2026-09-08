@@ -37,28 +37,28 @@ context; they are defined on the arena and stay inside it.
 
 ## Type
 
-- The pixel face in its regular weight is the voice of the game
-  (Dean, 2026-09-08, after trying a hyperlegible face and finding it
-  off-vibe). Never bold. Two pixel faces carry two roles:
-  - `--font-letter` is Silkscreen 400: tile letters, the word line,
-    the missed word, the wordmark, headings, item names. Silkscreen
-    sits on an 8 px grid, so it is set at 16, 24 or 32 px and tile
-    letters round down to the grid; at other sizes it aliases and U
-    starts to look like V.
-  - `--font-hud` is DotGothic16 (Dean, 2026-09-08, picked from seven
-    faces after Silkscreen's digits proved unreadable: on a 5 px grid
-    3 8 6 9 0 share most of their dots): HP lines, damage numbers,
-    venom counts, turn counters, badges, buttons, labels, the build
-    stamp, every run statistic. DotGothic16 is a 16 px grid: 16 or
-    32 px, never 8, never 24. Digits are tabular wherever they line up.
+- Two faces, chosen by Dean role by role in the type lab (2026-09-08,
+  after Silkscreen, Atkinson Hyperlegible, Space Grotesk and
+  DotGothic16 each had their day): Press Start 2P is everything in
+  capitals, Pixelify Sans is everything with a lowercase.
+  - `--font-tile`, `--font-letter`, `--font-hud` are all Press Start
+    2P 400: tile letters (half the tile side rounded down to 8 px,
+    capped at 32 px), the word line and the missed word (24 px), the
+    word of the day, the wordmark cell, HP lines, damage numbers,
+    venom counts, turn counters, badges, labels, buttons, the build
+    stamp, every run statistic (16 px). An 8 x 8 grid: 16, 24 or 32
+    px, never bold, never off the grid. It is a wide face (one em per
+    glyph): HUD lines stay short, buttons may wrap to two lines, and
+    the word line wraps rather than clips.
+  - `--font-head` is Pixelify Sans: headings at `--head` (24 px),
+    item names at `--name` (20 px). `--font-ui` is Pixelify Sans for
+    prose at `--text` (16 px). One face with a lowercase, sized by
+    role.
 - No digit is ever set under 16 px. `--hud-s` is 16 px for that
-  reason; there is no smaller HUD size.
-- `--font-ui` is Pixelify Sans (Dean, 2026-09-08: the normal text was
-  too normal): a pixel face with a real lowercase, for descriptions,
-  definitions, the intro lines, hints. Always `--text` (16 px); it
-  aliases below that.
-- Three faces, all pixel, all vendored under `public/fonts` with their
-  Open Font License texts. Nothing loads from a third party.
+  reason; there is no smaller HUD size. Digits are tabular wherever
+  they line up.
+- Both faces are vendored under `public/fonts` with their Open Font
+  License texts. Nothing loads from a third party.
 
 ## Shape
 
@@ -96,7 +96,7 @@ context; they are defined on the arena and stay inside it.
 
 ## What "slop" looks like, so it stays out
 
-A component with its own hex values. A fourth font. A pixel face in
+A component with its own hex values. A third font. A pixel face in
 bold, or at a size off its grid. A digit under 16 px. A paragraph in the pixel face. A pill
 button. A
 soft drop shadow. A gradient on a card. An easing curve on a state

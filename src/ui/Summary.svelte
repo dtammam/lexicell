@@ -39,9 +39,9 @@
   }
   h2 {
     margin: 0;
-    font-family: var(--font-letter);
+    font-family: var(--font-head);
     font-weight: 400;
-    font-size: var(--hud-l);
+    font-size: var(--head);
     color: var(--harm);
   }
   h2.won {
