@@ -43,5 +43,5 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Backdrop should be more Earthbound: brighter, cycling palette, wavy | implemented (PR #14) |
 | 2026-09-08 | Backdrop loop visibly resets; must be seamless | implemented (PR #14: each layer loops on its own period or alternates; nothing jumps) |
 | 2026-09-08 | Enemies should float too, each with a different motion | implemented (PR #14: squish, sway, pulse, wobble by enemy) |
-| 2026-09-08 | Wife playtest: the first pick screen made no sense, what am I doing here; wants a silly one-screen intro with the cell dividing | to do (PR #16: onboarding screen after New run, and an instruction line on the pick screen); built as onboarding, not story, per the pack |
+| 2026-09-08 | Wife playtest: the first pick screen made no sense, what am I doing here; wants a silly one-screen intro with the cell dividing | implemented (PR #16: one onboarding screen after New run with the cell dividing, and an instruction line on the pick screen); onboarding, not story, per the pack |
 | 2026-09-08 | A public URL via GitHub Pages so people can play from a link without Docker | implemented (PR #15: https://dtammam.github.io/lexicell/ on every merge to main) |

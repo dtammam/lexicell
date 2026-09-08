@@ -11,6 +11,7 @@
 
 <section class="pick">
   <h2>{run.pendingPicks > 0 ? 'Choose a starting item' : 'Choose an item'}</h2>
+  <p class="hint">{run.pendingPicks > 0 ? 'Tap one. You keep it for the whole run, and your first fight starts right after.' : 'Tap one to add it to your cell. The next fight starts right after.'}</p>
   {#each offer as id, i (id)}
     {@const item = itemDef(id)}
     <button class="offer" onclick={() => { dispatch({ type: 'pickItem', index: i }); }}>
@@ -32,6 +33,11 @@
   h2 {
     margin: 0;
     font-size: 1.2rem;
+  }
+  .hint {
+    margin: 0;
+    color: #9a9ab5;
+    font-size: 0.9rem;
   }
   .offer {
     display: flex;

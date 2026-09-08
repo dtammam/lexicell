@@ -3,6 +3,7 @@
   import type { RunState } from '../engine/types';
   import { loadContext } from './context';
   import Fight from './Fight.svelte';
+  import Intro from './Intro.svelte';
   import { createPersist } from './persist';
   import Pick from './Pick.svelte';
   import { browserStorage } from './storage';
@@ -20,7 +21,7 @@
   // The state before the latest action; Fight uses it to say what the grid held before a word was played.
   let prev: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
-  let screen: 'title' | 'run' = $state.raw('title');
+  let screen: 'title' | 'intro' | 'run' = $state.raw('title');
   // True when a run can be continued: an in-memory store, or a save on disk before one exists.
   let hasSave = $state.raw(false);
   let recoveries = 0;
@@ -55,12 +56,15 @@
     else openStore(ctx);
   }
 
-  /** Title: New run. Replaces whatever run existed; Title asks first when one does. */
+  /** Title: New run. Replaces whatever run existed (Title asks first when one does), then the intro. */
   function onPlay() {
     if (!ctx) return;
     persist.clear();
     if (store) store.dispatch({ type: 'newRun', seed: seed() });
     else openStore(ctx);
+    screen = 'intro';
+  }
+  function onBegin() {
     screen = 'run';
   }
 
@@ -107,6 +111,8 @@
       <p class="loading">Loading words...</p>
     {:else if screen === 'title' || !run}
       <Title {hasSave} {onPlay} {onContinue} />
+    {:else if screen === 'intro'}
+      <Intro {onBegin} />
     {:else if run.phase === 'fight'}
       <Fight {run} {prev} {dispatch} {isWord} {ctx} />
     {:else if run.phase === 'pick'}
