@@ -543,6 +543,19 @@ TEMPLATED = {
     "ambush": ("rare", "spike"), "hive": ("rare", "cluster"), "bastion": ("rare", "shield"), "venom-crown": ("rare", "star"),
     "hourglass": ("rare", "drop"), "leviathan": ("rare", "wave"), "phage": ("rare", "rod"), "osmoregulator": ("rare", "ring"),
     "singularity": ("mythic", "star"), "eternal-return": ("mythic", "ring"),
+    # Effects wave, batch 3: the last forty-three, to 200.
+    "flagellin": ("common", "rod"), "mucilage": ("common", "blob"), "kelp": ("common", "wave"), "thorn": ("common", "spike"),
+    "ballast": ("common", "drop"), "filament": ("common", "rod"), "echo": ("common", "ring"), "gullet": ("common", "blob"),
+    "pebble": ("common", "cluster"), "lichen": ("common", "cluster"), "spiracle": ("common", "ring"), "tremor": ("common", "star"),
+    "sap": ("common", "drop"), "bristle": ("common", "spike"), "cocoon": ("common", "shield"), "nerve-net": ("common", "wave"),
+    "tide": ("common", "wave"), "seed": ("common", "drop"), "talon": ("common", "spike"), "grit": ("common", "shield"),
+    "burrow": ("common", "ring"), "glow": ("common", "star"),
+    "venom-fang": ("uncommon", "spike"), "warden": ("uncommon", "shield"), "lodestone": ("uncommon", "cluster"), "pressure": ("uncommon", "drop"),
+    "anchor": ("uncommon", "shield"), "syncopation": ("uncommon", "rod"), "long-arm": ("uncommon", "rod"), "slipstream": ("uncommon", "wave"),
+    "ricochet": ("uncommon", "star"), "pulsar": ("uncommon", "star"), "mimic": ("uncommon", "blob"), "oracle": ("uncommon", "ring"),
+    "colossus": ("rare", "shield"), "venom-heart": ("rare", "drop"), "clockwork": ("rare", "ring"), "glutton": ("rare", "blob"),
+    "scalpel": ("rare", "rod"), "wellspring": ("rare", "wave"), "tectonic": ("rare", "cluster"), "keystone": ("rare", "star"),
+    "protocell": ("mythic", "blob"),
 }
 
 

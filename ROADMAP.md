@@ -28,13 +28,11 @@ Ordered as Dean set it on 2026-09-08 ("design wave" bookkeeping, then
 the landscape fit, the effects wave in full, run history, starting
 cells).
 
-- **Effects wave, batches 2 to 4**: 88 more items to 200 (target 90 /
-  60 / 38 / 12 by rarity; now 46 / 35 / 22 / 9), each merged on its
-  pasted sim table and per-item table. Batch 2 carries the harness
-  fixes the gate disclosed: bots that spend free shuffles, a sim column
-  that separates shuffles from dead-grid scrambles, `scripts/item-impact.ts`
-  in the repo with a 10,000-run mode so the reskin rule is measurable.
-  Plan: `docs/exec-plans/active/effects-wave.md`.
+- **Effects wave: closed** (PR #47, 200 items, curve F). The plan is
+  in `docs/exec-plans/completed/effects-wave.md`. Left for later: a
+  10,000-run per-item table to make the two-point reskin rule
+  measurable; the 3000-run tables catch degenerate and never-picked
+  items only.
 - **Run history with export** (Dean, deferred behind features, now
   queued after the wave): a per-device list of finished runs, exported
   as a file. Touches persistence: plan and reviewer round.
@@ -66,6 +64,55 @@ wave (curve C in PR #19, curve D in PR #41); the save schema is v3 and
 persist refuses every other version (tracker #3 closed).
 
 ## Shipped
+
+### Effects wave, content batch 3: the pool reaches 200 (PR #47, 2026-09-08)
+
+The last forty-three items (22 common, 12 uncommon, 8 rare, 1 mythic):
+the pool is 200 exactly at the plan's composition, 90 / 60 / 38 / 12.
+Rare-letter scaling (Flagellin), the venom capstone (Venom Heart), lock
+synergy (Warden), missing-HP (Pressure), cadence (Syncopation,
+Clockwork), first-turn (Pulsar), finishers (Scalpel), a shuffle economy
+(Slipstream), trades (Ballast, Wellspring), and Protocell as the twelfth
+mythic. Curve F, the one tuning pass promised for the final pool: act 3
+damage 2.4 / 2.7 / 2.8 (was 2.8 / 3.1 / 3.2; hp unchanged), because the
+bigger pool and the lock removals had pulled greedy to 53.6% on curve D.
+Measured on the way: curve D 53.6 / 31.4, act 3 damage minus 0.2 each
+56.8 / 32.6, minus 0.4 each (curve F, shipped) 59.4 / 33.6.
+
+The 3000-run per-item table on curve F then caught a family, not an
+item: lifesteal. With the greedy bot's big words, Siphon at a quarter
+(common) won 90%, Hemolymph 92%, Zooxanthellae 93%, Osmoregulator 91%,
+Glutton 99%; every lifesteal fraction came down (Siphon and Glutton to
+15%, Zooxanthellae 25%, Hemolymph 30%, Osmoregulator and Phage 15%;
+the mythics keep theirs). Pressure, an uncommon, won 87% for the
+mediocre bot in 294 runs: now +2 per missing tenth and no heal on hit.
+The low-HP heal-on-hit locks (Endospore 96%, Second Wind 99%,
+Membrane Pump 90% for greedy) were trimmed. Draw-bias traps got a
+flat bonus to stand on (Vowel Magnet 1.2 and +3, Chemotaxis 1.3 and
++3, Lodestone 1.5, Patience heals 6). Curve F before those edits:
+greedy 59.4%, mediocre 33.6%, solver 81.0%.
+
+`npx tsx scripts/sim.ts` on curve F with 200 items, shipped:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    57.6% |           9 |       20.7 |         0 |       15 |   100 |   100 |    97 |    90 |    90 |    89 |    62 |    66 |    69 |
+| mediocre |  500 |    25.2% |           6 |       30.3 |         0 |        1 |   101 |    94 |    79 |    58 |    55 |    56 |    37 |    46 |    54 |
+|   solver |  500 |    80.0% |           9 |       15.9 |         1 |        8 |   100 |   100 |    99 |    96 |    96 |    96 |    80 |    80 |    79 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+All three criteria pass with the whole pool. Mediocre sits lower in
+its band than before the lifesteal and Pressure fixes; those items had
+been carrying it. Per-item table at 3000
+runs per bot: `docs/sim/batch-3-impact.md`. The effects wave closes:
+plan moved to `docs/exec-plans/completed/effects-wave.md`.
 
 ### Effects wave, content batch 2 and harness fixes (PR #45, 2026-09-08)
 
