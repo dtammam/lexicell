@@ -17,6 +17,11 @@ export const TUNING: Tuning = {
   lengthBonus: [1, 1, 1, 1, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5],
   startingPicks: 1,
   venomMax: 4,
+  // Effects wave (2026-09-08): poison is a bounded burn, the shield a bounded buffer, and a perUnit
+  // addMult never compounds past x2.5 total (1 + 1.5).
+  poisonMax: 12,
+  shieldMax: 30,
+  perUnitMultCap: 1.5,
 };
 
 export const ENCOUNTERS: readonly EncounterDef[] = [

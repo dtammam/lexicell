@@ -11,7 +11,7 @@ export interface StorageLike {
 export const SAVE_KEY = 'lexicell.run';
 
 /**
- * The exact key set of a v1 RunState. Load refuses a blob whose keys differ, so a
+ * The exact key set of a RunState (v3 since the effects wave; the player and enemy gained fields, the top level did not). Load refuses a blob whose keys differ, so a
  * RunState field added or removed without bumping SAVE_VERSION drops the old save
  * instead of resuming into a shape the reducer never produced (tech-debt #3).
  * persist.test.ts binds this list to newRun's actual output.
@@ -78,6 +78,8 @@ function looksLikeRunState(value: unknown): value is RunState {
     isNum(v.player.hp) &&
     isNum(v.player.maxHp) &&
     Array.isArray(v.player.items) &&
+    isNum(v.player.shield) &&
+    isNum(v.player.freeShuffles) &&
     encounterOk &&
     (v.phase !== 'fight' || v.encounter !== null) &&
     (v.offer === null || Array.isArray(v.offer)) &&

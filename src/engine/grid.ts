@@ -25,16 +25,27 @@ export function isVowel(letter: string): boolean {
   return VOWELS.includes(letter);
 }
 
-function weights(vowelWeight: number): Weighted<string>[] {
-  return Object.entries(LETTER_WEIGHT).map(([item, w]) => ({ item, weight: isVowel(item) ? w * vowelWeight : w }));
+/**
+ * Draw bias. A number multiplies every vowel (the pre-wave vowelWeight); a record multiplies
+ * each named letter (letterWeight, effects wave). Missing letters keep their base weight.
+ */
+export type LetterBias = number | Readonly<Record<string, number>>;
+
+export function biasFor(bias: LetterBias, letter: string): number {
+  if (typeof bias === 'number') return isVowel(letter) ? bias : 1;
+  return bias[letter] ?? 1;
+}
+
+function weights(bias: LetterBias): Weighted<string>[] {
+  return Object.entries(LETTER_WEIGHT).map(([item, w]) => ({ item, weight: w * biasFor(bias, item) }));
 }
 
 const VOWEL_WEIGHTS: Weighted<string>[] = Object.entries(LETTER_WEIGHT)
   .filter(([l]) => isVowel(l))
   .map(([item, weight]) => ({ item, weight }));
 
-export function drawLetter(rng: Rng, vowelWeight = 1): [string, Rng] {
-  return weightedPick(rng, weights(vowelWeight));
+export function drawLetter(rng: Rng, bias: LetterBias = 1): [string, Rng] {
+  return weightedPick(rng, weights(bias));
 }
 
 export function plainTile(letter: string): Tile {
@@ -78,12 +89,12 @@ export function enforceVowelFloor(rng: Rng, grid: readonly Tile[]): [Tile[], Rng
 }
 
 /** Replace the tiles at `indices` with fresh draws, then apply the vowel floor. */
-export function refill(rng: Rng, grid: readonly Tile[], indices: readonly number[], vowelWeight = 1): [Tile[], Rng] {
+export function refill(rng: Rng, grid: readonly Tile[], indices: readonly number[], bias: LetterBias = 1): [Tile[], Rng] {
   const out = grid.slice();
   let r = rng;
   for (const i of indices) {
     let l: string;
-    [l, r] = drawLetter(r, vowelWeight);
+    [l, r] = drawLetter(r, bias);
     out[i] = plainTile(l);
   }
   return enforceVowelFloor(r, out);
@@ -100,7 +111,7 @@ function longestWord(words: readonly string[]): number {
  * letters. Regenerates on failure; the vowel floor makes failure rare enough
  * that the attempt cap is a safety net, not a code path.
  */
-export function freshGrid(rng: Rng, solver: Solver, vowelWeight = 1): [Tile[], Rng] {
+export function freshGrid(rng: Rng, solver: Solver, bias: LetterBias = 1): [Tile[], Rng] {
   let r = rng;
   let grid: Tile[] = [];
   for (let attempt = 0; attempt < FRESH_GRID_ATTEMPTS; attempt++) {
@@ -108,7 +119,7 @@ export function freshGrid(rng: Rng, solver: Solver, vowelWeight = 1): [Tile[], R
       r,
       Array.from({ length: GRID_SIZE }, () => plainTile('a')),
       Array.from({ length: GRID_SIZE }, (_, i) => i),
-      vowelWeight,
+      bias,
     );
     if (longestWord(solver.solve(playableLetters(grid))) >= FRESH_GRID_MIN_WORD) return [grid, r];
   }

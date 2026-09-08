@@ -16,8 +16,12 @@ export interface Tile {
 
 export const GRID_SIZE = 16;
 
-/** The moments at which items contribute effects. Fixed set; see hooks.ts for order. */
-export type Hook = 'onTurnStart' | 'onTileDraw' | 'onWordScored' | 'onDamageTaken' | 'onEncounterEnd';
+/**
+ * The moments at which items contribute effects. Fixed set; see hooks.ts for order.
+ * onPick (effects wave) fires once, for the item just taken, with no encounter in play: only
+ * player-side effects (heal, maxHp, shield, freeShuffle) do anything there.
+ */
+export type Hook = 'onTurnStart' | 'onTileDraw' | 'onWordScored' | 'onDamageTaken' | 'onEncounterEnd' | 'onPick';
 
 /** mythic (2026-09-08): explicitly overpowered, weighted so about half of runs ever see one. */
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'mythic';
@@ -62,6 +66,12 @@ export interface Tuning {
   readonly startingPicks: number;
   /** Venom grows by one per turn up to this bite; a hazard should nudge, not execute. */
   readonly venomMax: number;
+  /** Poison on the enemy is capped here; it ticks for its value then shrinks by one. */
+  readonly poisonMax: number;
+  /** The player's shield never holds more than this. */
+  readonly shieldMax: number;
+  /** A perUnit-scaled addMult never resolves above this multiplier (0.1 x 12 items would be x2.2 on everything). */
+  readonly perUnitMultCap: number;
 }
 
 export interface Content {
@@ -78,6 +88,10 @@ export interface PlayerState {
   readonly maxHp: number;
   /** Item ids in acquisition order. Hooks apply in this order. */
   readonly items: readonly string[];
+  /** Absorbs enemy damage before HP. Persists across encounters until spent; capped by tuning.shieldMax. */
+  readonly shield: number;
+  /** Shuffles that do not hand the turn to the enemy. */
+  readonly freeShuffles: number;
 }
 
 export interface EnemyState {
@@ -85,6 +99,10 @@ export interface EnemyState {
   readonly hp: number;
   readonly maxHp: number;
   readonly damage: number;
+  /** Damage taken at the start of each turn; shrinks by one per tick (venom in reverse). */
+  readonly poison: number;
+  /** Attacks the enemy will skip. An attack turn consumes one; specials still fire. */
+  readonly stunned: number;
 }
 
 export interface Encounter {
@@ -112,6 +130,14 @@ export interface TurnReport {
   readonly venom: number;
   /** Tile indices consumed this turn, before the grid settled (gravity). The UI animates from it. */
   readonly used: readonly number[];
+  /** Damage the enemy took from poison at the start of this turn. */
+  readonly poison: number;
+  /** True when the enemy's attack this turn was skipped by a stun. */
+  readonly stunned: boolean;
+  /** Enemy damage the shield absorbed this turn. */
+  readonly shielded: number;
+  /** Tile indices redrawn in place mid-turn (redrawTiles), not settled. */
+  readonly redrawn: readonly number[];
 }
 
 export interface RunStats {
@@ -125,7 +151,7 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 2;
+  readonly v: 3;
   readonly rng: Rng;
   readonly phase: Phase;
   readonly encounterIndex: number;

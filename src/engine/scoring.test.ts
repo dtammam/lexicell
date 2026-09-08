@@ -4,7 +4,7 @@ import type { Effect } from './effects';
 import type { Tuning } from './types';
 
 /** Fixed table for these tests so content tuning can move without breaking formula tests. */
-const T: Tuning = { lengthBonus: [1, 1, 1, 1, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5], startingPicks: 0, venomMax: 4 };
+const T: Tuning = { lengthBonus: [1, 1, 1, 1, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5], startingPicks: 0, venomMax: 4, poisonMax: 12, shieldMax: 30, perUnitMultCap: 1.5 };
 const scoreWord = (w: string, e: readonly Effect[]) => score(w, e, T);
 
 describe('scoring placeholder formula', () => {
@@ -16,7 +16,7 @@ describe('scoring placeholder formula', () => {
     expect(lengthBonus(3, T)).toBe(1);
     expect(lengthBonus(5, T)).toBe(1.5);
     expect(lengthBonus(40, T)).toBe(6.5);
-    expect(() => lengthBonus(3, { lengthBonus: [], startingPicks: 0, venomMax: 4 })).toThrow(RangeError);
+    expect(() => lengthBonus(3, { lengthBonus: [], startingPicks: 0, venomMax: 4, poisonMax: 12, shieldMax: 30, perUnitMultCap: 1.5 })).toThrow(RangeError);
   });
 
   it('bare word: letters * lengthBonus', () => {

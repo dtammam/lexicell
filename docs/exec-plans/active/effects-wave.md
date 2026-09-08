@@ -1,9 +1,10 @@
 # Exec plan: the effects wave (the road to 200 items)
 
-Status: DRAFT 2026-09-08, awaiting Dean's answers to the numbered
-questions. Engine wave: new effect types, new hooks, new state, save
-v3. One adversarial round at the end of the engine PR under iteration
-mode; content batches ship on the sim table.
+Status: ACTIVE 2026-09-08. Dean answered all six questions "agree"
+(1 "I like", 2 "Agree", 3 "Yep looks good", 4 "Okay", 5 "Seems good
+agree", 6 "yep works"). Engine wave: new effect types, new hooks, new
+state, save v3. One adversarial round at the end of the engine PR
+under iteration mode; content batches ship on the sim table.
 
 ## Dean's ask
 

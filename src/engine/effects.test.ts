@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EFFECT_ORDER, evaluateCondition, resolveEffects, type Effect } from './effects';
+import { EFFECT_ORDER, evaluateCondition, resolveEffects, unitCount, type Effect } from './effects';
 
 const ctx = { word: 'quartz', hp: 20, maxHp: 100, turn: 6 };
 
@@ -80,5 +80,96 @@ describe('resolveEffects', () => {
       { type: 'condition', when: { kind: 'minLength', value: 0 }, then: [] },
     ];
     for (const e of sample) expect(EFFECT_ORDER, e.type).toContain(e.type);
+  });
+});
+
+describe('effects wave: new conditions and perUnit', () => {
+  const ctx = { hp: 60, maxHp: 100, turn: 1, items: 3, enemyHp: 20, enemyMaxHp: 100, venomedTiles: 2, lockedTiles: 1 };
+
+  it('word-shape conditions read the word and are false without one', () => {
+    const w = { ...ctx, word: 'splinter' };
+    expect(evaluateCondition({ kind: 'startsWith', letters: 'st' }, w)).toBe(true);
+    expect(evaluateCondition({ kind: 'startsWith', letters: 'p' }, w)).toBe(false);
+    expect(evaluateCondition({ kind: 'endsWith', letters: 'r' }, w)).toBe(true);
+    expect(evaluateCondition({ kind: 'uniqueLetters' }, w)).toBe(true);
+    expect(evaluateCondition({ kind: 'repeatLetter' }, w)).toBe(false);
+    expect(evaluateCondition({ kind: 'repeatLetter' }, { ...ctx, word: 'letter' })).toBe(true);
+    expect(evaluateCondition({ kind: 'uniqueLetters' }, { ...ctx, word: 'letter' })).toBe(false);
+    expect(evaluateCondition({ kind: 'minVowels', value: 2 }, w)).toBe(true);
+    expect(evaluateCondition({ kind: 'minVowels', value: 3 }, w)).toBe(false);
+    for (const kind of ['startsWith', 'endsWith'] as const) expect(evaluateCondition({ kind, letters: 'abcdefghijklmnopqrstuvwxyz' }, ctx)).toBe(false);
+    expect(evaluateCondition({ kind: 'uniqueLetters' }, ctx)).toBe(false);
+    expect(evaluateCondition({ kind: 'repeatLetter' }, ctx)).toBe(false);
+    expect(evaluateCondition({ kind: 'minVowels', value: 0 }, ctx)).toBe(false);
+  });
+
+  it('fight-state conditions: enemyHpBelow is strict and needs an enemy, firstTurn is turn 1 only', () => {
+    expect(evaluateCondition({ kind: 'enemyHpBelow', fraction: 0.25 }, ctx)).toBe(true);
+    expect(evaluateCondition({ kind: 'enemyHpBelow', fraction: 0.2 }, ctx)).toBe(false);
+    expect(evaluateCondition({ kind: 'enemyHpBelow', fraction: 0.9 }, { hp: 1, maxHp: 1, turn: 1 })).toBe(false);
+    expect(evaluateCondition({ kind: 'firstTurn' }, ctx)).toBe(true);
+    expect(evaluateCondition({ kind: 'firstTurn' }, { ...ctx, turn: 2 })).toBe(false);
+  });
+
+  it('unitCount reads every unit; word units are zero without a word', () => {
+    const w = { ...ctx, word: 'quartz' };
+    expect(unitCount('item', w)).toBe(3);
+    expect(unitCount('letter', w)).toBe(6);
+    expect(unitCount('vowel', w)).toBe(2);
+    expect(unitCount('consonant', w)).toBe(4);
+    expect(unitCount('rareLetter', w)).toBe(2);
+    expect(unitCount('turn', w)).toBe(1);
+    expect(unitCount('missingTenth', w)).toBe(4);
+    expect(unitCount('venomedTile', w)).toBe(2);
+    expect(unitCount('lockedTile', w)).toBe(1);
+    for (const u of ['letter', 'vowel', 'consonant', 'rareLetter'] as const) expect(unitCount(u, ctx)).toBe(0);
+    expect(unitCount('item', { hp: 1, maxHp: 1, turn: 1 })).toBe(0);
+  });
+
+  it('perUnit scales its children by the count, caps addMult, and drops them at zero', () => {
+    const per: Effect = {
+      type: 'perUnit',
+      unit: 'item',
+      then: [
+        { type: 'addFlat', value: 2 },
+        { type: 'addMult', value: 0.6 },
+        { type: 'heal', value: 1 },
+        { type: 'scramble' },
+      ],
+    };
+    const out = resolveEffects([per], { ...ctx, perUnitMultCap: 1.5 });
+    expect(out).toEqual([
+      { type: 'addFlat', value: 6 },
+      { type: 'addMult', value: 1.5 },
+      { type: 'heal', value: 3 },
+    ]);
+    expect(resolveEffects([per], { ...ctx, items: 0 })).toEqual([]);
+    expect(resolveEffects([per], { ...ctx, items: 1 })[1]).toEqual({ type: 'addMult', value: 0.6 });
+  });
+
+  it('perUnit nests with conditions and with itself', () => {
+    const nested: Effect = {
+      type: 'condition',
+      when: { kind: 'minLength', value: 5 },
+      then: [{ type: 'perUnit', unit: 'vowel', then: [{ type: 'perUnit', unit: 'item', then: [{ type: 'addFlat', value: 1 }] }] }],
+    };
+    expect(resolveEffects([nested], { ...ctx, word: 'audio' })).toEqual([{ type: 'addFlat', value: 12 }]);
+    expect(resolveEffects([nested], { ...ctx, word: 'ax' })).toEqual([]);
+  });
+
+  it('EFFECT_ORDER covers the effects wave types too', () => {
+    const wave: Effect[] = [
+      { type: 'poisonEnemy', value: 1 },
+      { type: 'stun', value: 1 },
+      { type: 'shield', value: 1 },
+      { type: 'lifesteal', fraction: 0.5 },
+      { type: 'freeShuffle', value: 1 },
+      { type: 'redrawTiles', count: 1 },
+      { type: 'letterWeight', letters: 'e', value: 2 },
+      { type: 'maxHp', value: 1 },
+      { type: 'perUnit', unit: 'item', then: [] },
+    ];
+    for (const e of wave) expect(EFFECT_ORDER, e.type).toContain(e.type);
+    expect(EFFECT_ORDER).toHaveLength(21);
   });
 });

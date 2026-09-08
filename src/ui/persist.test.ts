@@ -36,15 +36,21 @@ describe('persist', () => {
     expect(createPersist(fakeStorage()).load()).toBeNull();
   });
 
-  it('drops a blob with the wrong version, including a v1 save from before venom', () => {
+  it('drops a blob with the wrong version, including v1 and v2 saves from before the effects wave', () => {
     const s = newRun(3, ctx);
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: SAVE_VERSION + 1 }) });
     expect(createPersist(storage).load()).toBeNull();
     expect(storage.data.has(SAVE_KEY)).toBe(false);
-    expect(SAVE_VERSION).toBe(2);
-    const v1 = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 1 }) });
-    expect(createPersist(v1).load()).toBeNull();
-    expect(v1.data.has(SAVE_KEY)).toBe(false);
+    expect(SAVE_VERSION).toBe(3);
+    for (const old of [1, 2]) {
+      const stale = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: old }) });
+      expect(createPersist(stale).load()).toBeNull();
+      expect(stale.data.has(SAVE_KEY)).toBe(false);
+    }
+    // A v2-shaped player (no shield, no freeShuffles) under a forged v: 3 is dropped by the shape check.
+    const v2player = { hp: s.player.hp, maxHp: s.player.maxHp, items: s.player.items };
+    const forged = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, player: v2player }) });
+    expect(createPersist(forged).load()).toBeNull();
   });
 
   it('drops a blob whose shape is not the current one (a missing field, an extra field)', () => {
