@@ -31,6 +31,14 @@ describe('content bundle', () => {
     }
   });
 
+  it('every item carries a mechanic and a separate line of flavor, neither empty', () => {
+    for (const i of CONTENT.items) {
+      expect(i.description.length, i.id).toBeGreaterThan(0);
+      expect(i.flavor.length, i.id).toBeGreaterThan(0);
+      expect(i.flavor, i.id).not.toMatch(/\d/);
+    }
+  });
+
   it('tuning knobs are finite: startingPicks is a non-negative integer', () => {
     // newRun floors and clamps, but NaN/Infinity would still leave pendingPicks non-JSON. Content must never carry them.
     expect(Number.isInteger(CONTENT.tuning.startingPicks)).toBe(true);

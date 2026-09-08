@@ -28,6 +28,7 @@
           <span class="text">
             <span class="name">{item.name}</span>
             <span class="desc">{item.description}</span>
+            <span class="flavor">{item.flavor}</span>
           </span>
         </div>
       {/each}
@@ -103,6 +104,10 @@
   .name {
     font-family: var(--font-letter);
     font-size: var(--hud-m);
+  }
+  .flavor {
+    color: var(--score);
+    font-size: var(--text);
   }
   .desc {
     color: var(--muted);
