@@ -2,9 +2,9 @@
   import { selectedWord, type Action } from '../engine/reducer';
   import { LETTER_VALUE } from '../engine/scoring';
   import type { RunState } from '../engine/types';
+  import Arena from './Arena.svelte';
   import Definition from './Definition.svelte';
   import ItemsPanel from './ItemsPanel.svelte';
-  import { enemyName } from './lookup';
 
   let {
     run,
@@ -16,7 +16,6 @@
 
   const enc = $derived(run.encounter);
   const word = $derived(selectedWord(run));
-  const encounterNo = $derived(run.encounterIndex + 1);
   // The same dictionary the reducer validates against, so green always means Attack will land.
   const valid = $derived(word.length >= 3 && isWord(word));
   const canAttack = $derived(word.length >= 3);
@@ -28,22 +27,7 @@
 
 {#if enc}
   <section class="fight">
-    <header>
-      <div class="row">
-        <span>Encounter {encounterNo} / 9</span>
-        <span>Turn {enc.turn}</span>
-      </div>
-      <div class="bar-label">
-        <strong>{enemyName(enc.enemy.id)}</strong>
-        <span>{enc.enemy.hp} / {enc.enemy.maxHp}</span>
-      </div>
-      <div class="bar enemy"><div class="fill" style="width: {(100 * enc.enemy.hp) / enc.enemy.maxHp}%"></div></div>
-      <div class="bar-label">
-        <strong>You</strong>
-        <span>{run.player.hp} / {run.player.maxHp}</span>
-      </div>
-      <div class="bar player"><div class="fill" style="width: {(100 * run.player.hp) / run.player.maxHp}%"></div></div>
-    </header>
+    <Arena {run} />
 
     <div class="report">
       {#key run.stats.turns}
@@ -98,29 +82,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-  }
-  .row,
-  .bar-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.9rem;
-  }
-  .bar {
-    height: 10px;
-    border-radius: 5px;
-    background: #2e2e48;
-    overflow: hidden;
-    margin-bottom: 0.4rem;
-  }
-  .fill {
-    height: 100%;
-    transition: width 200ms ease-out;
-  }
-  .enemy .fill {
-    background: #e05a5a;
-  }
-  .player .fill {
-    background: #5ac98a;
   }
   .report {
     min-height: 1.4rem;

@@ -228,6 +228,32 @@ describe('App', () => {
     expect(after.rng.seed).not.toBe(before.rng.seed);
   });
 
+  it('the arena shows you and the enemy by sprite id, and replays hit and shake on a turn', async () => {
+    await startRun();
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { encounter: { enemy: { id: string } } };
+    const enemyImg = document.querySelector<HTMLImageElement>('.fighter.enemy img');
+    expect(document.querySelector<HTMLImageElement>('.fighter.you img')?.getAttribute('src')).toBe('/sprites/player.png');
+    expect(enemyImg?.getAttribute('src')).toBe(`/sprites/${saved.encounter.enemy.id}.png`);
+    expect(document.querySelector('.arena')?.getAttribute('data-act')).toBe('1');
+    expect(document.querySelector('.fighter.enemy.hit')).toBeNull();
+    await attackOnce('short');
+    if (queryByText('Choose an item')) return; // one-shot kill: no arena to inspect
+    expect(document.querySelector('.fighter.enemy.hit')).not.toBeNull();
+    expect(document.querySelector('.float.dealt')?.textContent).toMatch(/^-\d+$/);
+    const took = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { lastTurn: { enemyDamage: number } }).lastTurn.enemyDamage;
+    expect(document.querySelector('.fighter.you.shake') !== null).toBe(took > 0);
+  });
+
+  it('a sprite that fails to load falls back to the unknown sprite', async () => {
+    await startRun();
+    const img = document.querySelector<HTMLImageElement>('.fighter.enemy img');
+    if (!img) throw new Error('no enemy sprite');
+    img.dispatchEvent(new Event('error'));
+    expect(img.getAttribute('src')).toBe('/sprites/unknown.png');
+    img.dispatchEvent(new Event('error'));
+    expect(img.getAttribute('src')).toBe('/sprites/unknown.png');
+  });
+
   it('the item strip opens a panel listing every carried item with its description', async () => {
     await startRun();
     const strip = getByText(/^Items \(1\): /);
