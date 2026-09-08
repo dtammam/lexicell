@@ -131,6 +131,20 @@ describe('App', () => {
     expect(getButton('Clear').disabled).toBe(true);
   });
 
+  it('Organelles on the title lists every item with its icon, grouped by rarity, and Back returns', async () => {
+    render(App);
+    await findByText('New run', 15000);
+    await click(getButton('Organelles'));
+    expect(await findByText('Organelles')).toBeTruthy();
+    const entries = document.querySelectorAll('.compendium .entry');
+    expect(entries).toHaveLength(ctx.content.items.length);
+    for (const item of ctx.content.items) expect(getByText(item.name)).toBeTruthy();
+    expect(document.querySelectorAll('.compendium img.icon')).toHaveLength(ctx.content.items.length);
+    expect(document.querySelectorAll('.compendium h3')).toHaveLength(3);
+    await click(getButton('Back'));
+    expect(getButton('New run')).toBeTruthy();
+  });
+
   it('a solver word lands: the report shows the hit and the enemy bar drops, or the enemy dies into a pick', async () => {
     await startRun();
     const before = document.querySelector('.bar.enemy .fill')?.getAttribute('style') ?? '';
