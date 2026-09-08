@@ -148,10 +148,21 @@ pick screen; new report lines in the report colours.
    batch lands with the UI so you play the new verbs early. Recommend:
    agree.
 
+## Progress
+
+- Task 1 `feat/effects-engine` (PR #39, 1b99bf1): shipped. Sim with
+  the untouched 72 items: greedy 78.0%, mediocre 48.4% (FAIL, band
+  20-40), solver 94.4%. One-variable measurements in ROADMAP: the
+  offer rule lifts mediocre ~3.5 points, the bot's rarity tiebreak ~8.
+  Acceptance line 1 is therefore not met at the engine PR and moves
+  to batch 1 (tracker #7).
+
 ## Acceptance
 
-- All three sim criteria pass after the engine PR with the existing 72
-  items (no content change yet), and after every batch.
+- All three sim criteria pass after content batch 1 (which reworks the
+  72 and lands with the UI PR), and after every later batch. The first
+  draft required this at the engine PR; the engine PR also changed the
+  mediocre bot, and the measured result is in Progress above.
 - Every new verb has a reducer test that a mutant deleting its
   application fails.
 - Determinism: replay of 3 bots x 30 seeds byte-identical (the mythic
