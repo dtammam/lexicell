@@ -17,7 +17,8 @@
     "lint": "eslint . && tsc --noEmit && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "sim": "tsx scripts/sim.ts",
     "diag:words": "tsx scripts/word-gap.ts",
-    "dict:build": "tsx scripts/build-dictionary.ts"
+    "dict:build": "tsx scripts/build-dictionary.ts",
+    "defs:build": "tsx scripts/build-definitions.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

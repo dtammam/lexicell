@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { RunState } from '../engine/types';
+  import Definition from './Definition.svelte';
   import { itemDef } from './lookup';
 
   let { run, onNewRun }: { run: RunState; onNewRun: () => void } = $props();
@@ -24,6 +25,9 @@
     <dt>Seed</dt>
     <dd><code>{run.rng.seed}</code></dd>
   </dl>
+  {#if run.stats.bestWord}
+    <Definition word={run.stats.bestWord} />
+  {/if}
   <button class="primary" onclick={onNewRun}>New run</button>
 </section>
 

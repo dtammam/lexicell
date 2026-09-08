@@ -111,6 +111,17 @@ describe('App', () => {
     expect(Array.from(document.querySelectorAll('button.tile .order')).map((o) => o.textContent)).toEqual(idx.map((_, n) => String(n + 1)));
   });
 
+  it('a played word shows its definition under the report once the table loads', async () => {
+    await startRun();
+    const word = await attackOnce('short');
+    const gloss = (await import('./definitions')).defineWord(word);
+    const expected = await gloss;
+    if (expected === null) return; // WordNet covers ~60% of ENABLE; an undefined word renders nothing, which is fine.
+    if (queryByText('Choose an item')) return; // one-shot kill: the pick screen has no report line.
+    const el = await findByText(new RegExp(`^${word}: `));
+    expect(el.textContent).toContain(expected);
+  });
+
   it('rejects a non-word without spending the turn, and Clear empties the selection', async () => {
     await startRun();
     const all = gridLetters();

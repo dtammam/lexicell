@@ -2,6 +2,7 @@
   import { selectedWord, type Action } from '../engine/reducer';
   import { LETTER_VALUE } from '../engine/scoring';
   import type { RunState } from '../engine/types';
+  import Definition from './Definition.svelte';
   import { enemyName } from './lookup';
 
   let {
@@ -57,6 +58,9 @@
       {/key}
       {#if run.rejected}<span class="rejected">{run.rejected}</span>{/if}
     </div>
+    {#if run.lastTurn && run.lastTurn.word !== ''}
+      <Definition word={run.lastTurn.word} />
+    {/if}
 
     <div class="word" class:valid>{word.toUpperCase() || ' '}</div>
 
