@@ -317,17 +317,17 @@ describe('venom: a tile that bites until you spend it', () => {
   it('bites every turn and grows; spending the tile cures it; it can kill', () => {
     const s0 = polypTurn(41, 1);
     const enc0 = s0.encounter as Encounter;
-    const grid = enc0.grid.map((t, i) => (i === 5 ? { ...t, venom: 4 } : t));
+    const grid = enc0.grid.map((t, i) => (i === 5 ? { ...t, venom: 2 } : t));
     const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
-    // Play a word that avoids tile 5: the venom bites for 4 and grows to 5.
+    // Play a word that avoids tile 5: the venom bites for 2 and grows to 3.
     const cands = candidateWords(s1, ctx).sort((a, b) => a.damage - b.damage);
     const avoiding = cands.find((c) => !(candidateIndices(s1, c.word) ?? []).includes(5));
     if (!avoiding) throw new Error('no word avoiding tile 5');
     const s2 = play(s1, avoiding.word);
     expect(s2.phase).toBe('fight');
-    expect(s2.lastTurn?.venom).toBe(4);
+    expect(s2.lastTurn?.venom).toBe(2);
     const g2 = (s2.encounter as Encounter).grid;
-    expect(g2.filter((t) => t.venom > 0).map((t) => t.venom)).toEqual([5]);
+    expect(g2.filter((t) => t.venom > 0).map((t) => t.venom)).toEqual([3]);
     // Now spend it: settle may have moved it; find it and play a word through it.
     const at = g2.findIndex((t) => t.venom > 0);
     const through = candidateWords(s2, ctx).find((c) => (candidateIndices(s2, c.word) ?? []).includes(at));
@@ -338,11 +338,26 @@ describe('venom: a tile that bites until you spend it', () => {
       // Spent before the bite: the refill removes it ahead of the next turn start, so no venom this turn.
       expect(s3.lastTurn?.venom).toBe(0);
     }
-    // Lethal: 3 HP against a 4 bite.
-    const dying: RunState = { ...s1, player: { ...s1.player, hp: 3 } };
+    // Lethal: 1 HP against a 2 bite.
+    const dying: RunState = { ...s1, player: { ...s1.player, hp: 1 } };
     const dead = play(dying, avoiding.word);
     expect(dead.phase).toBe('summary');
     expect(dead.outcome).toBe('lost');
+  });
+
+  it('venom grows to tuning.venomMax and no further', () => {
+    const s0 = polypTurn(44, 1);
+    const enc0 = s0.encounter as Encounter;
+    const max = CONTENT.tuning.venomMax;
+    const grid = enc0.grid.map((t, i) => (i === 9 ? { ...t, venom: max } : t));
+    const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
+    const cands = candidateWords(s1, ctx).sort((a, b) => a.damage - b.damage);
+    const avoiding = cands.find((c) => !(candidateIndices(s1, c.word) ?? []).includes(9));
+    if (!avoiding) throw new Error('no word avoiding tile 9');
+    const s2 = play(s1, avoiding.word);
+    if (s2.phase !== 'fight') return;
+    expect(s2.lastTurn?.venom).toBe(max);
+    expect((s2.encounter as Encounter).grid.filter((t) => t.venom > 0).map((t) => t.venom)).toEqual([max]);
   });
 
   it('a shuffle cures venom (and costs the turn), and the whole state stays JSON-clean and deterministic', () => {

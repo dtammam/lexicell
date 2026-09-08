@@ -261,20 +261,20 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
     stats: { ...a.state.stats, damageDealt: a.state.stats.damageDealt + a.enemyDamage },
   };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
-  s = venomBite(s);
+  s = venomBite(s, ctx.content.tuning.venomMax);
   if (s.player.hp <= 0) return { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null };
   return s;
 }
 
 /** Every venomous tile bites for its venom, then grows by one. A tile is cured only by leaving the grid. */
-function venomBite(state: RunState): RunState {
+function venomBite(state: RunState, venomMax: number): RunState {
   const enc = state.encounter;
   if (!enc) return state;
   const bite = enc.grid.reduce((sum, t) => sum + t.venom, 0);
   if (bite === 0) return state;
   const hp = clampHp(state.player.hp - bite, state.player.maxHp);
   const taken = state.player.hp - hp;
-  const grid = enc.grid.map((t) => (t.venom > 0 ? { ...t, venom: t.venom + 1 } : t));
+  const grid = enc.grid.map((t) => (t.venom > 0 ? { ...t, venom: Math.min(t.venom + 1, Math.max(1, venomMax)) } : t));
   return {
     ...state,
     player: { ...state.player, hp },

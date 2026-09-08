@@ -32,6 +32,7 @@ describe('content bundle', () => {
   it('tuning knobs are finite: startingPicks is a non-negative integer', () => {
     // newRun floors and clamps, but NaN/Infinity would still leave pendingPicks non-JSON. Content must never carry them.
     expect(Number.isInteger(CONTENT.tuning.startingPicks)).toBe(true);
+    expect(CONTENT.tuning.venomMax).toBeGreaterThanOrEqual(1);
     expect(CONTENT.tuning.startingPicks).toBeGreaterThanOrEqual(0);
     for (const b of CONTENT.tuning.lengthBonus) expect(Number.isFinite(b)).toBe(true);
   });

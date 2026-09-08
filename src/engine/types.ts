@@ -56,6 +56,8 @@ export interface Tuning {
   readonly lengthBonus: readonly number[];
   /** Item picks offered before the first encounter (a starting kit). 0 = none. */
   readonly startingPicks: number;
+  /** Venom grows by one per turn up to this bite; a hazard should nudge, not execute. */
+  readonly venomMax: number;
 }
 
 export interface Content {

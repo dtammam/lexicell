@@ -16,6 +16,7 @@ export const PLAYER_MAX_HP = 100;
 export const TUNING: Tuning = {
   lengthBonus: [1, 1, 1, 1, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5],
   startingPicks: 1,
+  venomMax: 4,
 };
 
 export const ENCOUNTERS: readonly EncounterDef[] = [
