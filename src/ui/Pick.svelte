@@ -32,8 +32,9 @@
   }
   h2 {
     margin: 0;
-    font-family: var(--font-hud);
-    font-size: var(--hud-m);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 20px;
   }
   .hint {
     margin: 0;
@@ -61,8 +62,9 @@
     box-shadow: var(--shadow-press);
   }
   .name {
-    font-family: var(--font-hud);
-    font-size: var(--hud-m);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 17px;
     display: flex;
     gap: var(--s2);
     align-items: baseline;

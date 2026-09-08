@@ -65,8 +65,9 @@
     gap: var(--s1);
   }
   .name {
-    font-family: var(--font-hud);
-    font-size: var(--hud-m);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 16px;
     display: flex;
     gap: var(--s2);
     align-items: baseline;

@@ -93,8 +93,9 @@
   }
   h2 {
     margin: 0;
-    font-family: var(--font-hud);
-    font-size: var(--hud-l);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 28px;
     letter-spacing: 0.05em;
   }
   .tag {
@@ -131,8 +132,10 @@
     color: var(--muted);
   }
   .word {
-    font-family: var(--font-hud);
-    font-size: var(--hud-l);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: 0.06em;
     color: var(--score);
   }
   .gloss {

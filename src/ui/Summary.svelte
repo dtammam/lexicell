@@ -39,8 +39,9 @@
   }
   h2 {
     margin: 0;
-    font-family: var(--font-hud);
-    font-size: var(--hud-l);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 28px;
     color: var(--harm);
   }
   h2.won {
@@ -63,8 +64,9 @@
   }
   dd {
     margin: 0;
-    font-family: var(--font-hud);
-    font-size: var(--hud-m);
+    font-family: var(--font-letter);
+    font-weight: 700;
+    font-size: 16px;
   }
   dd code {
     font-family: var(--font-hud);

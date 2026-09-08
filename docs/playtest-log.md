@@ -48,3 +48,4 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | The intro should do something with me, a little graphic at least | implemented (PR #17: three animated beats, pond, portal, arrival, using the sprites; tap to skip; button always available) |
 | 2026-09-08 | Tempo: fights that drag feel like grinding (from the fun discussion) | implemented in part (PR #19: act 2 softer, act 3 harder; all Phase 0 criteria pass); Dean to judge on the phone |
 | 2026-09-08 | Font, colours, design feel slop-coded; wants a design language | implemented (PR #20: three directions on a canvas, Dean chose Plasma; tokens in src/ui/theme.css, rules in docs/design-language.md, every component refactored onto them, fonts vendored under OFL) |
+| 2026-09-08 | Legibility: nobody should burn cycles on U versus V | implemented (PR #21: letters, words and names in Atkinson Hyperlegible, built for exactly this; the pixel face is numbers and labels only) |
