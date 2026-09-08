@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Action } from '../engine/reducer';
   import type { RunState } from '../engine/types';
+  import ItemIcon from './ItemIcon.svelte';
   import { itemDef } from './lookup';
 
   let { run, dispatch }: { run: RunState; dispatch: (action: Action) => void } = $props();
@@ -15,8 +16,11 @@
   {#each offer as id, i (id)}
     {@const item = itemDef(id)}
     <button class="offer" onclick={() => { dispatch({ type: 'pickItem', index: i }); }}>
-      <span class="name">{item.name} <small class={item.rarity}>{item.rarity}</small></span>
-      <span class="desc">{item.description}</span>
+      <ItemIcon {id} size={40} />
+      <span class="text">
+        <span class="name">{item.name} <small class={item.rarity}>{item.rarity}</small></span>
+        <span class="desc">{item.description}</span>
+      </span>
     </button>
   {/each}
   {#if owned.length > 0}
@@ -43,9 +47,9 @@
   }
   .offer {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--s1);
+    flex-direction: row;
+    align-items: center;
+    gap: var(--s3);
     text-align: left;
     padding: var(--s3);
     border: 2px solid var(--shade);
@@ -60,6 +64,12 @@
   .offer:active {
     transform: translate(3px, 3px);
     box-shadow: var(--shadow-press);
+  }
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    min-width: 0;
   }
   .name {
     font-family: var(--font-letter);
