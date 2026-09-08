@@ -60,6 +60,27 @@ describe('run history', () => {
     expect(loadHistory(fake({ [HISTORY_KEY]: JSON.stringify({ v: 1, runs: 'x' }) }))).toEqual([]);
     const mixed = fake({ [HISTORY_KEY]: JSON.stringify({ v: 1, runs: [entry(1), { seed: 'no' }, null, { ...entry(2), outcome: 'meh' }] }) });
     expect(loadHistory(mixed).map((r) => r.seed)).toEqual([1]);
+    // Every field is checked on its own (gate W3): break one at a time and the entry is dropped.
+    const good = entry(3);
+    const broken: Record<string, unknown>[] = [
+      { ...good, seed: '3' },
+      { ...good, startedAt: 7 },
+      { ...good, endedAt: null },
+      { ...good, encounterReached: 'nine' },
+      { ...good, turns: null },
+      { ...good, damageDealt: 'lots' },
+      { ...good, damageTaken: undefined },
+      { ...good, bestWord: 9 },
+      { ...good, bestWordDamage: '9' },
+      { ...good, items: 'lens' },
+      { ...good, items: ['lens', 4] },
+      { ...good, build: 118 },
+    ];
+    for (const b of broken) {
+      const s = fake({ [HISTORY_KEY]: JSON.stringify({ v: 1, runs: [b] }) });
+      expect(loadHistory(s), JSON.stringify(b)).toEqual([]);
+    }
+    expect(loadHistory(fake({ [HISTORY_KEY]: JSON.stringify({ v: 1, runs: [good] }) }))).toEqual([good]);
     const refusing = fake({}, true);
     expect(loadHistory(refusing)).toEqual([]);
     expect(() => appendRun(refusing, entry(1))).not.toThrow();
@@ -91,7 +112,7 @@ describe('run history', () => {
   });
 
   it('JSON export re-parses to the same entries; CSV has a header, one row per run, and escapes quotes, commas and semicolons', () => {
-    const runs = [entry(1), entry(2, { bestWord: 'a"b,c', items: ['x;y', 'z'], outcome: 'won' })];
+    const runs = [entry(1), entry(2, { bestWord: 'a"b,c', items: ['x;y', 'z'], outcome: 'won', build: 'line one\nline two' })];
     const back = JSON.parse(exportJson(runs)) as { v: number; runs: HistoryEntry[] };
     expect(back.v).toBe(1);
     expect(back.runs).toEqual(runs);
@@ -101,6 +122,8 @@ describe('run history', () => {
     expect(lines[0]).toBe('seed,startedAt,endedAt,outcome,encounterReached,turns,damageDealt,damageTaken,bestWord,bestWordDamage,items,build');
     expect(lines[2]).toContain('"a""b,c"');
     expect(lines[2]).toContain('"x;y;z"');
+    expect(csv).toContain('"line one\nline two"');
+    expect(lines).toHaveLength(3); // the embedded newline is quoted, not a row break: 3 lines only because split is on CRLF
     expect(lines[2]).toContain(',won,');
     expect(lines[1]).toContain(`,${runs[0]?.build}`);
   });

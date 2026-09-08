@@ -65,8 +65,9 @@
     s.subscribe((state) => {
       // A run that just reached its end is recorded once, at the transition into summary.
       if (state.phase === 'summary' && run && run.phase !== 'summary' && run.rng.seed === state.rng.seed && state.outcome) record(state, state.outcome);
-      // A fresh run (seed changed, or the first state) gets its start time.
-      if (!run || run.rng.seed !== state.rng.seed) markRunStarted(storage, state.rng.seed, nowIso());
+      // A fresh run (seed changed, or the first state) gets its start time, once: a Continue after a
+      // reload publishes with `run` null too and must not move it (gate W1).
+      if ((!run || run.rng.seed !== state.rng.seed) && runStartedAt(storage, state.rng.seed) === null) markRunStarted(storage, state.rng.seed, nowIso());
       prev = run;
       run = state;
     });
@@ -111,8 +112,14 @@
   function toHelp() {
     screen = 'help';
   }
+  // History remembers where it was opened from, so Back returns there (the summary, or the title).
+  let historyFrom: 'title' | 'run' = $state.raw('title');
   function toHistory() {
+    historyFrom = screen === 'run' ? 'run' : 'title';
     screen = 'history';
+  }
+  function fromHistory() {
+    screen = historyFrom;
   }
   function onClearHistory() {
     clearHistory(storage);
@@ -126,6 +133,13 @@
    */
   function recover(e: unknown, reset: () => void) {
     console.error('render failed', e);
+    // A screen that is not the run (History, Organelles, How to play) must never cost the player
+    // their run: go back to the title and keep the save (gate suggestion, run-history round).
+    if (screen !== 'run' && recoveries++ < 1) {
+      screen = 'title';
+      setTimeout(reset, 0);
+      return;
+    }
     if (recoveries++ < 1 && store) {
       persist.clear();
       store.dispatch({ type: 'newRun', seed: seed() });
@@ -155,7 +169,7 @@
     {:else if screen === 'help'}
       <Help onBack={toTitle} readable={settings.readable} onToggleReadable={toggleReadable} />
     {:else if screen === 'history'}
-      <History runs={history} onBack={toTitle} onClear={onClearHistory} />
+      <History runs={history} onBack={fromHistory} onClear={onClearHistory} />
     {:else if screen === 'title' || !run}
       <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} onHistory={toHistory} />
     {:else if screen === 'intro'}

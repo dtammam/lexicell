@@ -484,7 +484,9 @@ describe('App', () => {
     await click(getButton('History'));
     expect(getByText('1 run on this device, newest first. Tap one for its build.')).toBeTruthy();
     expect(getByText('WON')).toBeTruthy();
-    await click(getButton('Back'));
+    await click(getButton('Back')); // back to the summary it was opened from
+    expect(getByText('You won')).toBeTruthy();
+    await click(getButton('Menu'));
     // New run from the title after a finished run records nothing extra (it was recorded at the win).
     await click(await findByText('New run', 15000));
     await click(await findByText('Divide and conquer'));
@@ -509,6 +511,43 @@ describe('App', () => {
     await click(getButton('Delete all history?'));
     expect(localStorage.getItem('lexicell.history')).toBeNull();
     expect(getByText('No finished runs on this device yet.')).toBeTruthy();
+  }, 30000);
+
+  it('run history: the start time survives a reload and Continue, and abandoning a disk save on a fresh load records it once (gate W1, W3)', async () => {
+    await startRun();
+    const started = JSON.parse(localStorage.getItem('lexicell.run.started') ?? 'null') as { seed: number; startedAt: string };
+    expect(typeof started.startedAt).toBe('string');
+    cleanup();
+    // An hour later, on a fresh page, Continue must not move the start time.
+    vi.spyOn(Date, 'now').mockReturnValue(SEED + 3_600_000);
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await findByText('Encounter 1 / 9');
+    expect(JSON.parse(localStorage.getItem('lexicell.run.started') ?? 'null')).toEqual(started);
+    cleanup();
+    // A fresh load with an unfinished save on disk: New run asks, Yes records the disk save as abandoned, once, with its start time.
+    render(App);
+    await click(await findByText('New run', 15000));
+    await click(getButton('Yes, start over'));
+    await click(await findByText('Divide and conquer'));
+    const runs = (JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { runs: { outcome: string; seed: number; startedAt: string | null; encounterReached: number }[] }).runs;
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ outcome: 'abandoned', seed: started.seed, startedAt: started.startedAt, encounterReached: 1 });
+  }, 30000);
+
+  it('History opened from the summary goes back to the summary, and a render error off the run screen returns to the title without touching the save', async () => {
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = blob.encounter as NonNullable<RunState['encounter']>;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...blob, encounterIndex: 8, encounter: { ...enc, enemy: { ...enc.enemy, hp: 1 } } }));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await attackOnce('short');
+    await findByText('You won');
+    await click(getButton('History'));
+    await click(getButton('Back'));
+    expect(getByText('You won')).toBeTruthy();
   }, 30000);
 
   it('a finished run does not offer Continue on the title', async () => {

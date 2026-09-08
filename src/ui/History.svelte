@@ -69,7 +69,7 @@
             <span class="line best">{r.bestWord ? `${r.bestWord.toUpperCase()} for ${r.bestWordDamage}` : 'no word played'}</span>
           </span>
           <span class="icons">
-            {#each r.items.slice(0, 6) as id (id)}<ItemIcon {id} size={16} />{/each}
+            {#each r.items.slice(0, 6) as id, j (`${id}-${j}`)}<ItemIcon {id} size={16} />{/each}
             {#if r.items.length > 6}<span class="more">+{r.items.length - 6}</span>{/if}
           </span>
         </button>

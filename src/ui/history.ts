@@ -109,7 +109,7 @@ export function clearHistory(storage: StorageLike): void {
   }
 }
 
-/** Remember when the current run started, keyed by seed, so the entry can carry it. */
+/** Remember when the current run started. One slot (there is one save); the seed says which run it belongs to. */
 export function markRunStarted(storage: StorageLike, seed: number, now: string): void {
   try {
     storage.setItem(RUN_STARTED_KEY, JSON.stringify({ seed, startedAt: now }));
