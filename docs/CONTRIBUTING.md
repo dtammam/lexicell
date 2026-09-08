@@ -9,9 +9,9 @@ file is the mechanics.
 - **Language:** TypeScript, strict, `noUncheckedIndexedAccess`,
   `exactOptionalPropertyTypes`. ES modules.
 - **Runtime:** Node 24 (pinned in `.nvmrc` and `package.json` engines)
-  for tests and the sim. The browser target arrives
-  with Phase 1 (Vite + Svelte 5); nothing under `src/engine` or
-  `src/content` may depend on either environment.
+  for tests and the sim. The browser target is Vite 7 + Svelte 5
+  (`src/ui/`); nothing under `src/engine` or `src/content` may depend
+  on either environment. Vite stays on 7 while vitest 3 pins it.
 - **Package manager:** npm. `npm install` runs `prepare`, which points
   `core.hooksPath` at `.githooks/`.
 
@@ -20,9 +20,11 @@ file is the mechanics.
 | Action | Command |
 |--------|---------|
 | Install | `npm install` |
-| Lint + typecheck | `npm run lint` |
+| Lint + typecheck | `npm run lint` (eslint, tsc, svelte-check) |
+| Dev server | `npm run dev` |
+| Production build | `npm run build` (then `npm run preview` serves `dist/`) |
 | Test | `npm test` (`npm run test:watch` for the loop) |
-| Sim | `npm run sim -- [--runs N] [--bot greedy\|mediocre] [--items none\|a,b] [--seed S] [--json]` |
+| Sim | `npm run sim -- [--runs N] [--bot greedy\|mediocre\|solver] [--items none\|a,b] [--seed S] [--variant base\|pre-act1] [--json]` |
 | Rebuild dictionary | `npm run dict:build` |
 
 ## Layout
@@ -31,7 +33,9 @@ file is the mechanics.
 |------|------|
 | `src/engine/` | Pure rules. Reducer, RNG, solver, scoring, hooks, effects, grid, candidates. No framework, no DOM, no Node built-ins. |
 | `src/content/` | Data only: items, enemies, bosses, acts (the encounter curve and tuning), the word list. |
-| `src/ui/` | Svelte 5 components. EMPTY until Phase 0 exit criteria are met and reported. |
+| `src/ui/` | Svelte 5 screens and their plumbing: `store.ts` (the only caller of `reduce`), `persist.ts` (versioned localStorage), `context.ts` (dictionary via `?raw`), `lookup.ts` (ids to names). Components render state and call `dispatch`; nothing else changes state. |
+| `public/` | Static assets copied into `dist/` as-is: PWA icons. |
+| `.github/workflows/` | `ci.yml` on branches and PRs; `docker-publish.yml` builds, smokes and pushes the nginx image from main. See `docs/deploy.md`. |
 | `scripts/` | Node-side tooling: the sim, the dictionary build, Node loaders. May import the engine; the engine never imports it. |
 | `docs/` | The architecture pack, this file, exec plans, the tech-debt tracker. |
 
@@ -62,6 +66,10 @@ you edit loses its em dashes as part of the edit.
 - Framework: vitest. Tests sit beside the module: `foo.ts` and
   `foo.test.ts`. Test files may read fixtures from disk via
   `scripts/lib/`; non-test engine code may not.
+- Node is the default test environment. A component test opts into
+  jsdom with a `// @vitest-environment jsdom` first line and mounts
+  the real component through `@testing-library/svelte`; see
+  `src/ui/App.test.ts`, which plays a whole run through the DOM.
 - **Every engine module ships with tests in the same commit.**
 - A test binds behaviour, not presence. If deleting the guard the test
   is about leaves the test green, the test is wrong.

@@ -1,0 +1,11 @@
+node_modules
+dist
+dev-dist
+coverage
+.git
+.github
+.githooks
+.claude
+docs
+scripts
+*.log

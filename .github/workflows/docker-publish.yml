@@ -1,0 +1,125 @@
+name: Publish Docker Image
+
+# Tagging (filetube's scheme, releases not yet cut):
+#   push to main          -> `edge` + `sha-<short>`
+#   push a tag vX.Y.Z     -> `X.Y.Z`, `X.Y`, `X`, `latest`
+# The NUC's compose file follows `edge` until a release exists (docs/deploy.md).
+on:
+  push:
+    branches: ['main']
+    tags: ['v*.*.*']
+  # Manual dispatch runs qualify, build and smoke but skips every push-side step:
+  # the way to validate this file after editing it, before the next real push.
+  workflow_dispatch:
+
+concurrency:
+  group: docker-publish-${{ github.ref_type }}
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm test
+      - run: npm run sim -- --runs 10
+
+  publish:
+    needs: [qualify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Assert tag matches package.json version
+        if: github.ref_type == 'tag'
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          PKG="v$(node -p "require('./package.json').version")"
+          if [ "$PKG" != "$REF_NAME" ]; then
+            echo "::error::tag ${REF_NAME} != package.json ${PKG}"
+            exit 1
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: deantammam/lexicell
+          tags: |
+            type=edge,branch=main
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=short
+
+      # Build once, load locally, smoke THAT image, push THAT image. Nothing untested ships.
+      - name: Build image (load only)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: lexicell-candidate:local
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test the built image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name smoke -p 8080:80 lexicell-candidate:local
+          fail() { echo "::error::smoke failed: $1"; docker logs smoke || true; docker rm -f smoke || true; exit 1; }
+          code=000
+          for i in $(seq 1 30); do
+            code=$(curl -s --max-time 5 -o /tmp/index.html -w '%{http_code}' http://127.0.0.1:8080/ || true)
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          [ "$code" = "200" ] || fail "GET / returned $code"
+          grep -q '<title>Lexicell</title>' /tmp/index.html || fail "index.html is not Lexicell"
+          grep -q 'manifest.webmanifest' /tmp/index.html || fail "index.html does not link the manifest"
+          for p in /manifest.webmanifest /sw.js /icons/icon-192.png; do
+            c=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:8080$p" || true)
+            [ "$c" = "200" ] || fail "GET $p returned $c"
+          done
+          c=$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/some/deep/route || true)
+          [ "$c" = "200" ] || fail "SPA fallback returned $c"
+          echo "smoke OK"
+          docker rm -f smoke
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Promote the smoked image to every tag
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          [ -n "$TAGS" ] || { echo "::error::no tags for a push event"; exit 1; }
+          while IFS= read -r t; do
+            [ -n "$t" ] || continue
+            docker tag lexicell-candidate:local "$t"
+            docker push "$t"
+          done <<< "$TAGS"
+          {
+            echo '### Published'
+            echo "- image id: $(docker inspect --format '{{.Id}}' lexicell-candidate:local)"
+            echo "- tags:"
+            while IFS= read -r t; do [ -n "$t" ] && echo "  - $t"; done <<< "$TAGS"
+          } >> "$GITHUB_STEP_SUMMARY"

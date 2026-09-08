@@ -13,14 +13,10 @@ and what is still open ships disclosed here.
 - [x] Exit criteria: mediocre 23.2% (band 20-40%), no dead grids, items move win rate (0.0% with `--items none`). Greedy 91.0% against the < 90% bar: Dean ruled it noise at n=500 (2026-09-06) and signed Phase 0 off as met on 2026-09-08. Disclosed, not hidden.
 - [x] Dean's decisions on the structural finding: greedy capped at 7, attacks stay per word, act 1 eased plus a starting kit, act 2 and E9 next.
 
-### Phase 1 - Walking skeleton (ACTIVE from 2026-09-08, plan `docs/exec-plans/active/phase-1-walking-skeleton.md`)
+### Phase 1 - Walking skeleton (BUILT 2026-09-08, plan `docs/exec-plans/active/phase-1-walking-skeleton.md`)
 
-Dean's go on 2026-09-08: "get us up and running before worrying too
-much about the larger process. Game should be playable." Vite + Svelte
-5 + PWA scaffold, one fight screen plus the bare pick and summary
-screens the real reducer needs, localStorage persist, nginx image,
-GitHub Actions. Exit: Dean plays one fight on his phone from the
-home-screen icon, offline.
+- [x] Vite + Svelte 5 + PWA scaffold, persist, store, Fight/Pick/Summary screens, nginx image, CI and publish workflows (see Shipped)
+- [ ] Exit: Dean plays one fight on his phone from the home-screen icon, offline. Needs HTTPS on the NUC and the Docker Hub secrets on the repo. The plan moves to `completed/` when Dean ticks this.
 
 ### Phase 2 - MVP
 
@@ -49,6 +45,45 @@ home-screen icon, offline.
   occurrences over 1500 runs. Pre-dates the act-1 wave.
 
 ## Shipped
+
+### Phase 1 walking skeleton (`feat/phase-1-skeleton`, merged 2026-09-08)
+
+Vite 7 + Svelte 5 + TypeScript scaffold with the engine import wall
+verified by probe; dictionary bundled as a lazy `?raw` chunk;
+versioned localStorage persist behind an injectable Storage; a
+plain-TS store that is the only caller of `reduce`; Fight, Pick and
+Summary screens; PWA manifest and service worker precaching the
+dictionary; generated icons; nginx image; CI on branches; Docker
+publish on main (`deantammam/lexicell:edge`). Dean's 2026-09-08
+direction: playable first, iterate after. Scope is the pack's Phase 1
+plus the bare pick and summary screens the real reducer needs.
+
+No browser extension was available, so the promised manual pass
+became a jsdom suite that mounts the real App with the real
+dictionary and reducer and plays a run through the DOM.
+
+What the gate caught (one adversarial round, APPROVE with two
+warnings, fix round, re-APPROVE): a save with the right keys and
+wrong types loaded, threw in render and came back on every reload
+(now refused by a typed shape check, with a render boundary that
+drops the save and starts fresh as the net); Pick's index binding was
+unbound by the suite (bound at seed 20260918); the turn-start report
+rendering was unbound (same test); a false claim about workbox's
+default file-size cap in a comment; and the plan named a file that
+did not exist.
+
+Measured at merge: `npm test` 111 passed, `npm run lint` clean
+(eslint, tsc, svelte-check), build 59 kB app + 1,665.56 kB dictionary
+chunk (440.03 kB gzip), service worker precaches 14 entries. CI green
+on the branch. The Docker image is unbuilt on the dev box (no Docker);
+the publish workflow builds, smokes and pushes it in CI once Dean adds
+`DOCKER_USERNAME` and `DOCKER_PASSWORD` to the repository secrets.
+
+Still open: the Phase 1 exit is Dean's alone (HTTPS on the NUC, home
+screen install, airplane mode, one fight). Locked tiles are disabled
+in the UI but no test binds that; the reducer rejects a locked tile
+anyway. `npm run sim -- --runs 10` in CI is a smoke, not a gate: it
+exits 0 when a criterion prints FAIL.
 
 ### Act-1 wave (`tune/greedy-cap`, merged 2026-09-08)
 
