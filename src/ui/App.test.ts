@@ -41,8 +41,10 @@ async function attackOnce(prefer: 'long' | 'short' = 'long'): Promise<string> {
   return word;
 }
 
+/** From a fresh render: title screen, New run, starting pick, then the first fight. */
 async function startRun() {
   render(App);
+  await click(await findByText('New run', 15000));
   await findByText('Choose a starting item', 15000);
   expect(document.querySelectorAll('button.offer')).toHaveLength(3);
   await click(document.querySelector('button.offer'));
@@ -59,9 +61,19 @@ afterEach(() => {
 });
 
 describe('App', () => {
-  it('loads, opens on the starting pick, then shows the fight with 16 tiles and Attack disabled', async () => {
+  it('loads to the title with a word of the day, New run opens the starting pick, then the fight with 16 tiles and Attack disabled', async () => {
     render(App);
     expect(getByText('Loading words...')).toBeTruthy();
+    const play = await findByText('New run', 15000);
+    expect(queryButton('Continue')).toBeNull();
+    const wotd = await findByText('Word of the day');
+    expect(wotd).toBeTruthy();
+    const word = document.querySelector('.wotd .word')?.textContent ?? '';
+    expect(word.length).toBeGreaterThanOrEqual(5);
+    expect(word.length).toBeLessThanOrEqual(8);
+    expect(ctx.dictionary.has(word)).toBe(true);
+    expect((document.querySelector('.wotd .gloss')?.textContent ?? '').length).toBeGreaterThan(0);
+    await click(play);
     await findByText('Choose a starting item', 15000);
     await click(document.querySelector('button.offer'));
     await findByText('Encounter 1 / 9');
@@ -152,6 +164,7 @@ describe('App', () => {
     cleanup();
 
     render(App);
+    await click(await findByText('Continue', 15000));
     await findByText(/Encounter \d \/ 9|Choose an item/);
     expect(queryByText('Choose a starting item')).toBeNull();
     expect(mainHtml()).toBe(snapshot);
@@ -162,6 +175,7 @@ describe('App', () => {
     // 4 at turn start, so the fight opens on the turn-start report with no word played yet.
     vi.spyOn(Date, 'now').mockReturnValue(20260918);
     render(App);
+    await click(await findByText('New run', 15000));
     await findByText('Choose a starting item', 15000);
     const offered = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { offer: string[] }).offer;
     expect(offered).toHaveLength(3);
@@ -184,10 +198,46 @@ describe('App', () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify(blob));
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     render(App);
+    await click(await findByText('Continue', 15000));
     expect(await findByText('Choose a starting item', 15000)).toBeTruthy();
     expect(quiet).toHaveBeenCalled();
     const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { phase: string; encounter: null };
     expect(after.phase).toBe('pick');
+  });
+
+  it('Menu returns to the title; Continue resumes in place; New run asks, then abandons and replaces the save', async () => {
+    await startRun();
+    const before = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { rng: { seed: number } };
+    await click(getButton('Menu'));
+    expect(getButton('Continue')).toBeTruthy();
+    await click(getButton('Continue'));
+    expect(await findByText('Encounter 1 / 9')).toBeTruthy();
+    await click(getButton('Menu'));
+    await click(getButton('New run'));
+    expect(getButton('Abandon the current run and start over?')).toBeTruthy();
+    await click(getButton('Keep it'));
+    expect(getButton('New run')).toBeTruthy();
+    expect(queryButton('Keep it')).toBeNull();
+    await click(getButton('New run'));
+    vi.spyOn(Date, 'now').mockReturnValue(SEED + 1);
+    await click(getButton('Abandon the current run and start over?'));
+    expect(await findByText('Choose a starting item')).toBeTruthy();
+    const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { rng: { seed: number }; player: { items: string[] } };
+    expect(after.player.items).toEqual([]);
+    expect(after.rng.seed).toBe(SEED + 1);
+    expect(after.rng.seed).not.toBe(before.rng.seed);
+  });
+
+  it('the item strip opens a panel listing every carried item with its description', async () => {
+    await startRun();
+    const strip = getByText(/^Items \(1\): /);
+    expect(document.querySelector('.sheet')).toBeNull();
+    await click(strip);
+    const rows = document.querySelectorAll('.sheet li');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.querySelector('.desc')?.textContent?.length ?? 0).toBeGreaterThan(0);
+    await click(strip);
+    expect(document.querySelector('.sheet')).toBeNull();
   });
 
   it('plays a whole run to the summary and can start a new one', async () => {

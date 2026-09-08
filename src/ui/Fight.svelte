@@ -3,6 +3,7 @@
   import { LETTER_VALUE } from '../engine/scoring';
   import type { RunState } from '../engine/types';
   import Definition from './Definition.svelte';
+  import ItemsPanel from './ItemsPanel.svelte';
   import { enemyName } from './lookup';
 
   let {
@@ -88,9 +89,7 @@
       <button class="primary" class:ready={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>Attack</button>
     </div>
 
-    {#if run.player.items.length > 0}
-      <div class="items">Items: {run.player.items.join(', ')}</div>
-    {/if}
+    <ItemsPanel items={run.player.items} />
   </section>
 {/if}
 
@@ -256,10 +255,6 @@
   }
   .secondary:disabled {
     color: #6a6a85;
-  }
-  .items {
-    font-size: 0.85rem;
-    color: #9a9ab5;
   }
   @keyframes pop {
     from {
