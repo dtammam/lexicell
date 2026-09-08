@@ -272,6 +272,13 @@ describe('starting kit (tuning.startingPicks)', () => {
     expect(newRun(5, ctx).phase).toBe('fight');
     expect(newRun(5, nodeContext()).phase).toBe('pick');
   });
+
+  it('newRun clamps a negative or fractional startingPicks rather than trusting content', () => {
+    const neg = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: -1 } });
+    expect(newRun(5, neg).pendingPicks).toBe(0);
+    const frac = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1.5 } });
+    expect(newRun(5, frac).pendingPicks).toBe(1);
+  });
 });
 
 describe('boss mechanic and dead-grid guard', () => {
