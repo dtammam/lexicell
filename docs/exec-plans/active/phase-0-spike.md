@@ -162,6 +162,27 @@ act-2 + E9 wave, content only, no gate:
 
 ## Open questions for Dean (answered 2026-09-06; kept for the record)
 
+Dean's answers, verbatim in substance:
+
+1. Agree. Greedy capped at 7; uncapped `solver` reported, never judged.
+2. Override, no. Attacks stay per word played. Pacing by tiles makes
+   damage-per-tile the thing that matters and flattens the incentive to
+   find long words, which is the core skill expression. If the numbers
+   fail under attack-per-word, fix the HP curve and formula. Not a knob.
+3. Override on sequencing: cap first, rerun, show tables before
+   flattening. If flattening is still needed, a lower exponent before
+   fully linear; "long word = event" is a stated goal.
+4. Agree on sequencing. When items come up: the pool stays majority
+   scoring modifiers. Armour and heal exist for attrition tension across
+   the 9 encounters, not as the core. A flat-damage item is the least
+   interesting kind of item there is.
+
+Then (same day): A + B both become content; greedy 91% at n=500 is
+noise; next wave is act 2 and E9 only, never act 1 again; E9 should cost
+mediocre 50-60 HP with a full kit and greedy 25-35 so strong runs can
+still die there. The questions as originally asked:
+
+
 1. Cap the greedy bot at 7 letters so it models a strong human rather
    than a solver? **Recommend: yes**, and keep an uncapped `solver` bot
    in the sim as an upper bound that is reported but not a criterion.
