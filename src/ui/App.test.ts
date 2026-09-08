@@ -75,7 +75,10 @@ async function startRun() {
   await click(await findByText('New run', 15000));
   await click(await findByText('Divide and conquer'));
   await findByText('Choose a starting item', 15000);
-  expect(document.querySelectorAll('button.offer')).toHaveLength(3);
+  const offers = document.querySelectorAll('button.offer');
+  expect(offers).toHaveLength(3);
+  const offered = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { offer: string[] }).offer;
+  offers.forEach((o, i) => { expect(o.querySelector('img.icon')?.getAttribute('src')).toBe(`/sprites/items/${offered[i]}.png`); });
   await click(document.querySelector('button.offer'));
   expect(await findByText('Encounter 1 / 9')).toBeTruthy();
 }

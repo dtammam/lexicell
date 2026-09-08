@@ -1,4 +1,6 @@
+import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { WORDS_PATH } from '../../scripts/lib/load-dictionary';
 import { CONTENT } from './index';
 
 describe('content bundle', () => {
@@ -39,6 +41,11 @@ describe('content bundle', () => {
     }
     expect(CONTENT.tuning.startingPicks).toBeGreaterThanOrEqual(0);
     for (const b of CONTENT.tuning.lengthBonus) expect(Number.isFinite(b)).toBe(true);
+  });
+
+  it('every item has a generated icon under public/sprites/items (scripts/sprites.py)', () => {
+    const root = WORDS_PATH.replace(/src\/content\/dictionary\/words\.txt$/, '');
+    for (const item of CONTENT.items) expect(existsSync(`${root}public/sprites/items/${item.id}.png`), item.id).toBe(true);
   });
 
   it('the boss has a distinct mechanic', () => {

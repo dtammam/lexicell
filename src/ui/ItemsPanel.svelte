@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ItemIcon from './ItemIcon.svelte';
   import { itemDef } from './lookup';
 
   // A tap on the item strip opens the sheet; every carried item with its name, rarity and text.
@@ -9,15 +10,19 @@
 {#if items.length > 0}
   <div class="panel">
   <button class="strip" onclick={() => { open = !open; }} aria-expanded={open}>
-    Items ({items.length}): {items.map((id) => itemDef(id).name).join(', ')}
+    <span class="icons">{#each items as id, i (`${id}-${i}`)}<ItemIcon {id} size={24} />{/each}</span>
+    <span class="label">Items ({items.length}): {items.map((id) => itemDef(id).name).join(', ')}</span>
   </button>
   {#if open}
     <ul class="sheet">
       {#each items as id, i (`${id}-${i}`)}
         {@const item = itemDef(id)}
         <li>
-          <span class="name">{item.name} <small class={item.rarity}>{item.rarity}</small></span>
-          <span class="desc">{item.description}</span>
+          <ItemIcon {id} size={32} />
+          <span class="text">
+            <span class="name">{item.name} <small class={item.rarity}>{item.rarity}</small></span>
+            <span class="desc">{item.description}</span>
+          </span>
         </li>
       {/each}
     </ul>
@@ -32,6 +37,9 @@
   }
   .strip {
     width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
     text-align: left;
     background: none;
     border: none;
@@ -61,8 +69,26 @@
   }
   li {
     display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--s3);
+  }
+  .icons {
+    display: flex;
+    gap: var(--s1);
+    flex: none;
+  }
+  .label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .text {
+    display: flex;
     flex-direction: column;
     gap: var(--s1);
+    min-width: 0;
   }
   .name {
     font-family: var(--font-letter);
