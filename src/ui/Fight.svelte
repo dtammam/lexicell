@@ -48,6 +48,10 @@
    * The word you missed (Dean, 2026-09-08): after a word is played, the best word that was on
    * that grid. Captured once per turn from `prev`, the state before the action, at the moment
    * the turn changes; later taps move `prev` but not this.
+   *
+   * Only words that are GONE are revealed (Dean, 2026-09-08: a word that survived the refill is a
+   * free hint, not a lesson). A word still spellable on the new grid is skipped; the best of the
+   * rest is shown, and the play is praised when it beat every word that is now gone.
    */
   let missed = $state.raw<Candidate | null>(null);
   let missedTurn = -1;
@@ -60,8 +64,9 @@
       missed = null;
       return;
     }
+    const stillHere = new Set(candidateWords(run, ctx).map((c) => c.word));
     let best: Candidate | null = null;
-    for (const c of candidateWords(p, ctx)) if (!best || c.damage > best.damage) best = c;
+    for (const c of candidateWords(p, ctx)) if (!stillHere.has(c.word) && (!best || c.damage > best.damage)) best = c;
     missed = best;
   });
   const beatable = $derived(missed !== null && run.lastTurn !== null && run.lastTurn.word !== '' && missed.damage > run.lastTurn.damage && missed.word !== run.lastTurn.word);

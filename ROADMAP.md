@@ -46,10 +46,6 @@ cells).
   `docs/exec-plans/active/starting-cells.md` (PR #48), five questions
   for Dean. Engine and save schema: reviewer round. Builds after run
   history.
-- **"Best there" reveal** (Dean, 2026-09-08, a design question): the
-  missed-word line can hand the player a word still on the grid.
-  Proposed: reveal only words that shared a tile with the word played.
-  Waiting on Dean's word.
 - **Daily seed** as the return hook (Phase 3 in the pack; no
   achievements). **Sound and graphics direction**: deliberately not
   yet (Dean).
@@ -316,6 +312,9 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #50 (2026-09-08): the missed-word reveal names only words that are
+  gone from the new grid, never one still spellable (Dean: it read as
+  a cheat).
 - PR #49 (2026-09-08): "tiles do not need to touch" said outright on the
   How to play card and in the first-fight hint (a player assumed Boggle
   adjacency).
