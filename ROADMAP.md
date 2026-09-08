@@ -295,6 +295,9 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #49 (2026-09-08): "tiles do not need to touch" said outright on the
+  How to play card and in the first-fight hint (a player assumed Boggle
+  adjacency).
 - PR #46 (2026-09-08): readability after a tester's session: tiles
   carry two signals (vowel fill, rare edge; the mid tier and `--mid`
   are gone), a How to play card from the title with the legend at

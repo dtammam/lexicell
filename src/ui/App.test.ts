@@ -442,6 +442,7 @@ describe('App', () => {
     await click(await findByText('How to play', 15000));
     expect(getByText('How to play')).toBeTruthy();
     expect(getByText(/Rare letter, worth the most: K 5, J 6, X 6, Q 8, Z 8/)).toBeTruthy();
+    expect(getByText(/Tiles do not need to touch/)).toBeTruthy();
     expect(document.querySelectorAll('.legend .tile')).toHaveLength(6);
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(false);
     await click(getButton('Readable type: off'));
@@ -459,7 +460,7 @@ describe('App', () => {
 
   it('the first fight shows the two tile signals in the report line', async () => {
     await startRun();
-    expect(getByText(/Yellow tiles are vowels, pink-edged ones are rare letters/)).toBeTruthy();
+    expect(getByText(/Tiles do not need to touch: pick letters anywhere. Yellow tiles are vowels, pink-edged ones are rare letters/)).toBeTruthy();
     expect(document.querySelector('.tile[data-tier="mid"]')).toBeNull();
   });
 
