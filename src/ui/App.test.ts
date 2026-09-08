@@ -229,15 +229,19 @@ describe('App', () => {
     expect(getByText(new RegExp(`^${word.toUpperCase()} hit for ${expected}$`))).toBeTruthy();
   });
 
-  it('after a word, the best word that was on that grid is revealed, or the play is praised as the best', async () => {
+  it('after a word, the best word that was on that grid AND is now gone is revealed, or the play is praised as the best', async () => {
     await startRun();
     const before = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
-    let best = { word: '', damage: 0 };
-    for (const c of candidateWords(before, ctx)) if (c.damage > best.damage) best = c;
     const word = await attackOnce('short');
     if (queryByText('Choose an item')) return;
-    const played = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState).lastTurn?.damage ?? 0;
+    const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    // A word still spellable on the new grid is never revealed: that would be a hint, not a lesson.
+    const stillHere = new Set(candidateWords(after, ctx).map((c) => c.word));
+    let best = { word: '', damage: 0 };
+    for (const c of candidateWords(before, ctx)) if (!stillHere.has(c.word) && c.damage > best.damage) best = c;
+    const played = after.lastTurn?.damage ?? 0;
     const el = document.querySelector('.missed');
+    if (best.word !== '') expect(stillHere.has(best.word)).toBe(false);
     if (best.damage > played && best.word !== word) {
       expect(el?.textContent).toBe(`Best there: ${best.word.toUpperCase()} for ${best.damage}`);
     } else {
