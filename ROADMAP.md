@@ -145,6 +145,20 @@ The mediocre criterion FAILS. Measured one variable at a time
 | mediocre |  500 |    36.4% |           7 |       33.4 |         7 |   100 |    93 |    79 |    57 |    56 |    56 |    31 |    34 |    37 |
 ```
 
+Gate (adversarial, two rounds): round one found the perUnit cap
+skipping count one and per-child instead of total (fixed: every child
+under a perUnit scales, the scalers' addMult is capped as a total), and
+six binding gaps (RNG advance in redraw and free-shuffle scramble, stun
+cadence on a two-turn attacker, pure-perUnit preview, conditionCtx
+wiring, onPick target), all bound by tests; persist now rejects an
+enemy without poison/stunned; turnEvery never fires at turn 0. Round
+two APPROVEd with three one-assertion follow-ups, landed in the merge.
+Disclosed (S7): the bots' free-shuffle rule is nearly inert (0 shuffles
+in full greedy runs holding 500 charges) and the sim's "scrambles"
+column counts every shuffle, so once free-shuffle items ship it
+conflates shuffles with dead-grid scrambles; both are harness work for
+batch 2.
+
 So the offer rule (Dean's design, question 2) is worth about 3.5
 points and the bot reading rarity about 8. The second is a change to
 the instrument, not the game: a casual player who takes the glowing

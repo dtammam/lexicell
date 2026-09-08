@@ -828,6 +828,27 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
     expect(s1.player.shield).toBe(10);
   });
 
+  it('the reducer passes tuning.perUnitMultCap into the context (gate M30)', () => {
+    const scaler: ItemDef = { id: 't-cap', name: 'C', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'perUnit', unit: 'item', then: [{ type: 'addMult', value: 2 }] }] } };
+    const tight = withItem(scaler, { tuning: { ...CONTENT.tuning, startingPicks: 0, perUnitMultCap: 0.4 } });
+    const s0 = withEnemy(fightWith(26, tight, ['t-cap']));
+    const word = anyWord(s0, tight, 4);
+    const s1 = play(s0, word, tight);
+    // With the cap at 0.4 the multiplier is 1.4, never the 3 the item asks for.
+    expect(s1.lastTurn?.mult).toBe(1.4);
+    expect(s1.lastTurn?.damage).toBe(Math.floor((s1.lastTurn?.base ?? 0) * 1.4));
+  });
+
+  it('lifesteal heals from the damage actually dealt, not the word score (gate M43)', () => {
+    const c = withItem({ id: 't-leech', name: 'L', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'lifesteal', fraction: 1 }] } });
+    const s0 = withEnemy(fightWith(14, c, ['t-leech']), 3, 6);
+    const hurt: RunState = { ...s0, player: { ...s0.player, hp: 40 } };
+    const s1 = play(hurt, anyWord(hurt, c, 5), c);
+    expect(s1.phase).toBe('pick');
+    expect(s1.lastTurn?.healed).toBe(3);
+    expect(s1.player.hp).toBe(43);
+  });
+
   it('lifesteal heals a floored fraction of the word damage', () => {
     const c = withItem({ id: 't-leech', name: 'L', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'lifesteal', fraction: 0.5 }] } });
     const s0 = withEnemy(fightWith(14, c, ['t-leech']));
