@@ -9,6 +9,9 @@ COPY tsconfig.json vite.config.ts index.html ./
 COPY scripts/lib/service-worker.ts ./scripts/lib/
 COPY public/ ./public/
 COPY src/ ./src/
+# Stamped onto the title screen so a phone can say which build it runs.
+ARG BUILD_SHA=unknown
+ENV BUILD_SHA=$BUILD_SHA
 RUN npm run build
 
 # Stage 2: nginx serves dist/. No Node at runtime; the game has no backend.

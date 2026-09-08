@@ -53,6 +53,8 @@
     {/if}
   </div>
 
+  <p class="build">build {__BUILD_SHA__}</p>
+
   {#if wotd}
     <div class="wotd">
       <span class="label">Word of the day</span>
@@ -120,6 +122,13 @@
   .secondary.danger {
     background: #e05a5a;
     color: white;
+  }
+  .build {
+    margin: 0;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #55556f;
+    font-family: ui-monospace, monospace;
   }
   .wotd {
     display: flex;
