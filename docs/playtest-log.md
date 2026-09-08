@@ -61,3 +61,4 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Occasional tiles should shake or shiver, subtly, as if biologically unstable | to do (PR #28) |
 | 2026-09-08 | Intro's third beat: fill all sixteen tiles with the phrase, and make the closing line say that the longest words are how you evolve and deal damage | to do (PR #28) |
 | 2026-09-08 | Graft picked items onto the organism so it visibly evolves with the build | implemented (PR #29: every carried organelle sits on a ring around your body in the arena, bobbing) |
+| 2026-09-08 | A ton more items | implemented (PR #30: 50 items, 26 new from the existing vocabulary with real identities and trade-offs; procedural glyphs; all three sim criteria pass) |

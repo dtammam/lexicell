@@ -500,6 +500,84 @@ ITEMS = {
 }
 
 
+# Procedural glyphs for the second expansion: a template per item, seeded by id, so 26 items
+# get distinct organelle shapes without 26 hand-drawn maps. Replace any with an ASCII map in
+# ITEMS above when it deserves a hand.
+TEMPLATED = {
+    "microtubule": ("common", "rod"), "cytoplasm": ("common", "blob"), "contractile-vacuole": ("common", "ring"),
+    "osmosis": ("common", "drop"), "histone": ("common", "cluster"), "ribbon": ("common", "wave"),
+    "stinger": ("common", "spike"), "spine": ("common", "star"), "mucus": ("common", "blob"), "buoyancy": ("common", "ring"),
+    "chitin-plate": ("uncommon", "shield"), "toxin-sac": ("uncommon", "drop"), "flagellar-motor": ("uncommon", "star"),
+    "hemoglobin": ("uncommon", "cluster"), "antibody": ("uncommon", "spike"), "catalase": ("uncommon", "rod"),
+    "lure": ("uncommon", "wave"), "membrane-pump": ("uncommon", "ring"), "spore-cloud": ("uncommon", "cluster"), "ganglion": ("uncommon", "star"),
+    "metamorphosis": ("rare", "shield"), "hydra": ("rare", "spike"), "bioluminescence": ("rare", "star"),
+    "apoptosis": ("rare", "blob"), "quorum": ("rare", "cluster"), "stem-cell": ("rare", "ring"),
+}
+
+
+def template_rows(kind: str, seed: str) -> list[str]:
+    rng = random.Random(seed)
+    grid = [["." for _ in range(SIZE)] for _ in range(SIZE)]
+    c = SIZE // 2
+    def put(x, y, ch="#"):
+        if 0 <= x < SIZE and 0 <= y < SIZE:
+            grid[y][x] = ch
+    def disc(cx, cy, r, ch="#"):
+        for y in range(SIZE):
+            for x in range(SIZE):
+                if (x - cx + 0.5) ** 2 + (y - cy + 0.5) ** 2 <= r * r:
+                    put(x, y, ch)
+    if kind == "ring":
+        r = rng.choice([5, 6])
+        disc(c, c, r); disc(c, c, r - 2, ".")
+        put(c - 2, c - r + 1, "o"); put(c - 3, c - r + 2, "o")
+    elif kind == "blob":
+        for _ in range(3):
+            disc(c + rng.randint(-2, 2), c + rng.randint(-2, 2), rng.randint(3, 5))
+        put(c - 2, c - 3, "o"); put(c - 3, c - 2, "o")
+    elif kind == "rod":
+        w = rng.choice([2, 3])
+        for y in range(2, SIZE - 2):
+            for x in range(c - w + 1, c + w):
+                put(x, y)
+        for y in range(2, 6):
+            put(c - w + 1, y, "o")
+    elif kind == "drop":
+        disc(c, c + 2, 5)
+        for i in range(5):
+            for x in range(c - i // 2, c + i // 2 + 1):
+                put(x, 2 + i)
+        put(c - 2, c + 1, "o"); put(c - 2, c + 2, "o")
+    elif kind == "cluster":
+        for _ in range(rng.randint(4, 6)):
+            disc(rng.randint(3, SIZE - 4), rng.randint(3, SIZE - 4), rng.choice([1, 2]))
+        put(4, 4, "o")
+    elif kind == "wave":
+        for x in range(1, SIZE - 1):
+            y = c + int(round(3 * ((x * 0.8) % 2 - 1))) if False else c + [0, 1, 2, 2, 1, 0, -1, -2, -2, -1][x % 10]
+            put(x, y); put(x, y + 1)
+        put(2, c - 1, "o")
+    elif kind == "spike":
+        for i in range(6):
+            put(c + i, c - i); put(c + i + 1, c - i); put(c - i, c + i); put(c - i - 1, c + i)
+        disc(c, c, 2)
+        put(c - 1, c - 1, "o")
+    elif kind == "star":
+        for i in range(-6, 7):
+            put(c + i, c); put(c, c + i)
+            if abs(i) <= 4:
+                put(c + i, c + i); put(c + i, c - i)
+        disc(c, c, 2); put(c - 1, c - 1, "o")
+    elif kind == "shield":
+        for y in range(2, 13):
+            half = 6 if y < 8 else 6 - (y - 8)
+            for x in range(c - half, c + half):
+                put(x, y)
+        for y in range(3, 7):
+            put(c - 4, y, "o")
+    return ["".join(r) for r in grid]
+
+
 def item_icon(rarity: str, rows: list[str]) -> Image.Image:
     fill, hi, outline = ITEM_TONES[rarity]
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
@@ -527,6 +605,9 @@ def main() -> None:
         assert len(rows) == SIZE and all(len(r) == SIZE for r in rows), item_id
         item_icon(rarity, rows).save(items_dir / f"{item_id}.png", optimize=True)
         print(f"wrote items/{item_id}.png ({rarity})")
+    for item_id, (rarity, kind) in TEMPLATED.items():
+        item_icon(rarity, template_rows(kind, item_id)).save(items_dir / f"{item_id}.png", optimize=True)
+        print(f"wrote items/{item_id}.png ({rarity}, {kind})")
 
 
 if __name__ == "__main__":
