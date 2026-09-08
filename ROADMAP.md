@@ -46,6 +46,39 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Item pool 10 to 24 (PR #24, 2026-09-08)
+
+Dean: the first offer was always the same commons. Fourteen items from
+the existing effect vocabulary (six common, five uncommon, three rare,
+two of them trade-offs), each with a hand-drawn glyph. Balance by
+measurement: Regeneration and Cyst were near-100% wins (heal on every
+hit) and were trimmed; the wider pool diluted sustain and offense, so
+flat items were raised across the board. The mediocre bot now reads
+an offer and prefers items whose conditions it can meet, as a casual
+human does; the random picker wasted picks on 6+ letter items.
+
+Shipped content, `npx tsx scripts/sim.ts`:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    86.6% |           9 |       17.4 |         3 |   100 |    99 |    97 |    92 |    92 |    92 |    75 |    77 |    79 |
+| mediocre |  500 |    17.8% |           6 |       29.3 |        16 |   100 |    93 |    77 |    54 |    53 |    53 |    23 |    27 |    26 |
+|   solver |  500 |    95.6% |           9 |       13.0 |         5 |   100 |   100 |    99 |    97 |    97 |    97 |    89 |    90 |    91 |
+
+Exit criteria:
+  FAIL  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+Disclosed: mediocre sits at 17.8% at 500 runs, below the 20-40 band
+by 2.2 points (a 300-run sweep read 20.0%). Softening act 3 or E9 did
+not move it and pushed greedy past 90, so curve C stays; the miss is
+the price of a pool a human can build with, and the next lever is
+rule-bending effects, not numbers.
+
 ### Tuning wave (PR #19, 2026-09-08): the boss lock lands, venom, acts 2 and 3
 
 The boss's lock now skips the tiles of the word just played, so it

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { candidateWords } from '../engine/candidates';
 import type { RunState } from '../engine/types';
+import { newRun } from '../engine/reducer';
 import { LETTER_VALUE } from '../engine/scoring';
 import { tilesForWord } from '../engine/solver';
 import App from './App.svelte';
@@ -253,23 +254,28 @@ describe('App', () => {
     expect(mainHtml()).toBe(snapshot);
   });
 
-  it('tapping the third offer picks the third item, and a turn-start item reports "Turn start" (seed 20260918)', async () => {
-    // Gate W2 and S1 for Phase 1. At this seed the offer is long-fuse, sharp-pen, spores; spores deals
-    // 4 at turn start, so the fight opens on the turn-start report with no word played yet.
-    vi.spyOn(Date, 'now').mockReturnValue(20260918);
+  it('tapping a later offer picks that item, and a turn-start item reports "Turn start"', async () => {
+    // Gate W2 and S1 for Phase 1. Spores deals 6 at turn start (raised 2026-09-08), so the fight opens
+    // on the turn-start report with no word played yet.
+    // The pool grew on 2026-09-08, so the seed is searched for: the first from 20260918 whose
+    // starting offer holds Spores somewhere other than slot 0, and that slot is tapped.
+    let seed = 20260918;
+    let at = -1;
+    for (; at < 1; seed++) at = newRun(seed, ctx).offer?.indexOf('spores') ?? -1;
+    seed--;
+    vi.spyOn(Date, 'now').mockReturnValue(seed);
     render(App);
     await click(await findByText('New run', 15000));
     await click(await findByText('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
     const offered = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { offer: string[] }).offer;
     expect(offered).toHaveLength(3);
-    const third = document.querySelectorAll('button.offer')[2] ?? null;
-    await click(third);
+    expect(offered[at]).toBe('spores');
+    await click(document.querySelectorAll('button.offer')[at] ?? null);
     await findByText('Encounter 1 / 9');
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { player: { items: string[] } };
-    expect(saved.player.items).toEqual([offered[2]]);
-    expect(offered[2]).toBe('spores');
-    expect(getByText('Turn start: 4 damage')).toBeTruthy();
+    expect(saved.player.items).toEqual(['spores']);
+    expect(getByText('Turn start: 6 damage')).toBeTruthy();
     expect(queryByText(/hit for/)).toBeNull();
   });
 

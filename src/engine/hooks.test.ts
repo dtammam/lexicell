@@ -16,23 +16,23 @@ describe('hooks', () => {
   it('gathers in acquisition order and only for the requested hook', () => {
     const raw = gatherEffects('onWordScored', ['lens', 'sharp-pen', 'bandage'], content);
     expect(raw).toEqual([
-      { type: 'addMult', value: 0.5 },
-      { type: 'addFlat', value: 5 },
+      { type: 'addMult', value: 0.7 },
+      { type: 'addFlat', value: 8 },
     ]);
-    expect(gatherEffects('onEncounterEnd', ['lens', 'sharp-pen', 'bandage'], content)).toEqual([{ type: 'heal', value: 15 }]);
+    expect(gatherEffects('onEncounterEnd', ['lens', 'sharp-pen', 'bandage'], content)).toEqual([{ type: 'heal', value: 20 }]);
   });
 
   it('collect resolves conditions and applies the fixed order', () => {
     const items = ['lens', 'long-fuse', 'sharp-pen', 'leech'];
     expect(collectEffects('onWordScored', items, content, ctx)).toEqual([
-      { type: 'addFlat', value: 5 },
-      { type: 'addMult', value: 0.5 },
+      { type: 'addFlat', value: 8 },
+      { type: 'addMult', value: 0.7 },
       { type: 'addMult', value: 1 },
-      { type: 'heal', value: 3 },
+      { type: 'heal', value: 4 },
     ]);
     expect(collectEffects('onWordScored', items, content, { ...ctx, word: 'cat' })).toEqual([
-      { type: 'addFlat', value: 5 },
-      { type: 'addMult', value: 0.5 },
+      { type: 'addFlat', value: 8 },
+      { type: 'addMult', value: 0.7 },
     ]);
   });
 
@@ -42,9 +42,9 @@ describe('hooks', () => {
 });
 
 describe('placeholder item set (roadmap deliverable 5)', () => {
-  it('has ten items with unique ids', () => {
-    expect(ITEMS).toHaveLength(10);
-    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(10);
+  it('has twenty-four items with unique ids (ten placeholders plus the 2026-09-08 expansion)', () => {
+    expect(ITEMS).toHaveLength(24);
+    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(24);
   });
 
   it('uses at least three hooks and four effect types', () => {
