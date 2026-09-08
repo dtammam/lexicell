@@ -1,6 +1,5 @@
 // @ts-check
 import eslint from '@eslint/js';
-import globals from 'globals';
 import svelte from 'eslint-plugin-svelte';
 import tseslint from 'typescript-eslint';
 
@@ -72,7 +71,11 @@ export default tseslint.config(
   {
     // Svelte files: the svelte parser wraps the TS parser so type-aware rules see <script lang="ts">.
     files: ['**/*.svelte', '**/*.svelte.ts'],
-    languageOptions: { globals: globals.browser, parserOptions: { parser: tseslint.parser } },
+    languageOptions: {
+      // The browser globals the UI actually uses; listed by hand rather than pulling the `globals` package.
+      globals: Object.fromEntries(['window', 'document', 'navigator', 'localStorage', 'console', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'URL', 'fetch', 'Date', 'Math', 'JSON', 'Error', 'String', 'Number', 'Array', 'Object', 'Set', 'Map', 'Promise'].map((g) => [g, 'readonly'])),
+      parserOptions: { parser: tseslint.parser },
+    },
   },
   {
     files: ['eslint.config.js', 'vitest.config.ts', 'vite.config.ts'],
