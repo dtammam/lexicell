@@ -62,3 +62,5 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Intro's third beat: fill all sixteen tiles with the phrase, and make the closing line say that the longest words are how you evolve and deal damage | to do (PR #28) |
 | 2026-09-08 | Graft picked items onto the organism so it visibly evolves with the build | implemented (PR #29: every carried organelle sits on a ring around your body in the arena, bobbing) |
 | 2026-09-08 | A ton more items | implemented (PR #30: 50 items, 26 new from the existing vocabulary with real identities and trade-offs; procedural glyphs; all three sim criteria pass) |
+| 2026-09-08 | Even more items, and a mythic pool, explicitly powered | implemented (PR #31: 72 items, 8 mythic at weight 0.35, glowing gold) |
+| 2026-09-08 | A 200-item pool | to do: needs the effects wave first, or 200 becomes reskins of twelve effects; pack scoped v1 at 20-30, so this is a scope change for Dean to confirm |

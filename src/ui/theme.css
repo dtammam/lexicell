@@ -41,6 +41,7 @@
   --harm: #ff5c5c; /* enemy HP, damage taken, the danger button */
   --venom: #7dff5a; /* venom, and nothing else */
   --rare: #ff4fa3; /* K J X Q Z, rare items */
+  --mythic: #fff3a0; /* mythic items only: explicitly overpowered */
   --mid: #35e0d8; /* 3-4 point consonants share the life hue at low weight */
   --select: #ff9f43; /* a selected tile that is not yet a word */
 

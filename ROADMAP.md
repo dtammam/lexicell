@@ -46,6 +46,44 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Mythic tier and 72 items (PR #31, 2026-09-08)
+
+Dean: even more items, and a mythic pool, explicitly powered. `Rarity`
+gains `mythic` at offer weight 0.35 (engine touch, one adversarial
+round). Fourteen more regulars to 64, then eight mythics that break
+the rules on purpose within the vocabulary: triple damage, heal to
+full, 25 a turn, immunity on even turns. Measured at 500 mediocre
+runs: 22% of runs pick a mythic and those win 65% against 37% overall.
+Shipped content, `npx tsx scripts/sim.ts`:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    77.8% |           9 |       18.6 |         8 |   100 |    99 |    97 |    91 |    91 |    90 |    69 |    70 |    71 |
+| mediocre |  500 |    37.0% |           7 |       33.5 |         7 |   100 |    93 |    79 |    57 |    56 |    56 |    31 |    35 |    38 |
+|   solver |  500 |    94.4% |           9 |       13.7 |         4 |   100 |   100 |    99 |    97 |    96 |    96 |    85 |    85 |    84 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+Mediocre sits at the top of its band; the per-item table shows the
+mythics winning between 50% and 100% of the runs that hold them, which
+is the intent.
+
+Gate (adversarial, one round): the reduceDamage floor at zero had no
+test and Tardigrade's 999 made it load-bearing (a mutant dropping it
+turned an enemy hit into a full heal); Sheath's text said odd turns
+but turnEvery 1 fires every turn, now even turns; the mythic offer
+weight had no binding test. All three fixed in the round. Disclosed:
+the mediocre bot's offer score rates five of the eight mythics no
+higher than an ordinary two-effect common and passed on 43% of the
+mythics it was offered, so "22% pick a mythic" is a bot artefact, not
+the items' pull (tracker #6).
+
 ### Item pool 24 to 50 (PR #30, 2026-09-08)
 
 Dean: "a ton more items." Twenty-six more from the existing effect
