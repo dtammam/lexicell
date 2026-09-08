@@ -43,7 +43,7 @@
   .hint {
     margin: 0;
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text);
   }
   .offer {
     display: flex;
@@ -81,7 +81,7 @@
   }
   .desc {
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text);
     line-height: 1.35;
   }
   small {
@@ -97,6 +97,6 @@
   }
   .owned {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text);
   }
 </style>
