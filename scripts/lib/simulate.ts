@@ -10,7 +10,10 @@ export interface RunResult {
   readonly encounterReached: number;
   readonly hpAtEncounterStart: readonly number[];
   readonly turns: number;
+  /** Dead-grid (or item) scrambles: a scrambled report on a turn that was not a shuffle. */
   readonly scrambles: number;
+  /** Shuffle actions the bot took, free or costed. */
+  readonly shuffles: number;
   readonly finalHp: number;
   readonly items: readonly string[];
 }
@@ -19,12 +22,15 @@ export function simulateRun(botName: BotName, seed: number, ctx: EngineContext):
   const bot = makeBot(botName, seed);
   let state: RunState = newRun(seed, ctx);
   let scrambles = 0;
+  let shuffles = 0;
   for (let guard = 0; guard < 5000; guard++) {
     const actions = nextAction(bot, state, ctx);
     if (!actions) break;
     for (const a of actions) state = reduce(state, a, ctx);
     if (state.rejected) throw new Error(`seed ${seed}: bot action rejected: ${state.rejected}`);
-    if (state.lastTurn?.scrambled) scrambles++;
+    // A shuffle sets `scrambled` too (the whole grid moved); count it as a shuffle, not a scramble.
+    if (actions.some((a) => a.type === 'shuffle')) shuffles++;
+    else if (state.lastTurn?.scrambled) scrambles++;
   }
   if (state.phase !== 'summary') throw new Error(`seed ${seed}: run did not terminate`);
   return {
@@ -34,6 +40,7 @@ export function simulateRun(botName: BotName, seed: number, ctx: EngineContext):
     hpAtEncounterStart: state.stats.hpAtEncounterStart,
     turns: state.stats.turns,
     scrambles,
+    shuffles,
     finalHp: state.player.hp,
     items: state.player.items,
   };
@@ -49,6 +56,7 @@ export interface Summary {
   readonly reachedPerEncounter: readonly number[];
   readonly meanTurns: number;
   readonly totalScrambles: number;
+  readonly totalShuffles: number;
 }
 
 export function summarise(bot: BotName, results: readonly RunResult[]): Summary {
@@ -74,6 +82,7 @@ export function summarise(bot: BotName, results: readonly RunResult[]): Summary 
     reachedPerEncounter: hpCount,
     meanTurns: n === 0 ? 0 : results.reduce((a, r) => a + r.turns, 0) / n,
     totalScrambles: results.reduce((a, r) => a + r.scrambles, 0),
+    totalShuffles: results.reduce((a, r) => a + r.shuffles, 0),
   };
 }
 

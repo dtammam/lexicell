@@ -67,6 +67,58 @@ persist refuses every other version (tracker #3 closed).
 
 ## Shipped
 
+### Effects wave, content batch 2 and harness fixes (PR #45, 2026-09-08)
+
+Forty-five items in synergy pairs (22 common, 13 uncommon, 8 rare, 2
+mythic) for 157: venom you make yourself and then feed on (Venom
+Reservoir, Antivenin, Venom Loop, Venom Crown, with Scavenger from
+batch 1), missing-HP scaling (Crust, Adrenaline, Frenzy), turn cadence
+(Circadian Clock, Overclock, Hourglass, Metronome, Lantern), consonant
+or vowel sides, first-turn bursts (Sprint, Ambush), finishers (Reaper),
+and two mythics (Singularity: +1 per letter per organelle; Eternal
+Return). Harness, as the gate disclosed: the sim table gains a
+`shuffles` column and no longer counts shuffles as scrambles; the bots'
+free-shuffle rule fires (greedy and solver below six letters, mediocre
+when it has no 4-5 letter word); `scripts/item-impact.ts` is in the
+repo with `--runs` and `--bot`. No curve change.
+
+The first per-item table (3000 runs per bot) caught three more
+degenerate items and four traps. Numbing Barb (stun on every 6+ word)
+and Neurotoxin (stun on every 5+ word) were permanent locks for the
+greedy bot at 98% each, the same shape as Paralytic: Numbing Barb now
+poisons, Neurotoxin's stun fires every second turn. Zooxanthellae at
+half lifesteal was a full heal every word (100% greedy): now 35%.
+Endospore (pre-existing, 92% greedy) 7 to 5 reduction. Traps, all well
+under base for both bots: Venom Loop (venom 2 and heal 3 lost to its
+own bites) now venom 1 and heal 4; Vowel Magnet 1.8 to 1.4; Chemotaxis
+2.0 to 1.5; Bait 1.5 to 1.3 plus +3 damage. A heavy draw bias narrows
+the grid more than it helps.
+
+`npx tsx scripts/sim.ts` before those edits: greedy 57.0%, mediocre
+22.4%, solver 79.4%. After (shipped):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    53.4% |           9 |       20.2 |         2 |       10 |   100 |   100 |    97 |    90 |    90 |    89 |    63 |    66 |    68 |
+| mediocre |  500 |    22.0% |           6 |       32.0 |         8 |        1 |   101 |    94 |    79 |    58 |    57 |    59 |    38 |    45 |    55 |
+|   solver |  500 |    79.6% |           9 |       15.4 |         0 |       10 |   100 |   101 |   100 |    97 |    97 |    97 |    82 |    81 |    80 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+All three pass, but both rates fell with the bigger pool and the lock
+removals (mediocre 30.8 to 22.0, greedy 66.0 to 53.4): a larger pool
+dilutes the strong picks, several new items are trades, and the greedy
+bot had been leaning on the locks. Curve D is left alone until batch 3
+completes the pool, when one tuning pass covers the final 200 and
+brings greedy back toward the sixties; if act 3 feels like a wall in
+Dean's runs before then, that is the lever. Per-item table at 3000 runs per bot: `docs/sim/batch-2-impact.md`.
+
 ### Effects wave, UI and content batch 1 (PR #41, 2026-09-08)
 
 Stacked on PR #39 as PR #40, which GitHub closed when the stacked base
