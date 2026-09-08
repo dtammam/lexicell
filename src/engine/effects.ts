@@ -29,7 +29,11 @@ export type Effect =
   | { readonly type: 'reduceDamage'; readonly value: number }
   | { readonly type: 'vowelWeight'; readonly value: number }
   | { readonly type: 'lockTiles'; readonly count: number; readonly turns: number }
-  /** Venom `count` clean, unlocked, unselected tiles at `value`; each bites at turn start and grows by one until spent (Dean, 2026-09-08). */
+  /**
+   * Venom `count` clean, unlocked, unselected tiles at `value`; each bites at turn start and grows by one
+   * until spent (Dean, 2026-09-08). Do not give one enemy both lockTiles and venomTiles: a locked venomed
+   * tile has no cure (shuffle skips locked tiles), and lockTiles clears the selection while venomTiles does not.
+   */
   | { readonly type: 'venomTiles'; readonly count: number; readonly value: number }
   | { readonly type: 'scramble' }
   | { readonly type: 'condition'; readonly when: Condition; readonly then: readonly Effect[] };

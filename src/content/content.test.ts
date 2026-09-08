@@ -33,6 +33,10 @@ describe('content bundle', () => {
     // newRun floors and clamps, but NaN/Infinity would still leave pendingPicks non-JSON. Content must never carry them.
     expect(Number.isInteger(CONTENT.tuning.startingPicks)).toBe(true);
     expect(CONTENT.tuning.venomMax).toBeGreaterThanOrEqual(1);
+    // A special's starting venom must not exceed the cap, or the first bite would be the biggest.
+    for (const e of [...CONTENT.enemies, ...CONTENT.bosses]) {
+      for (const eff of e.special?.effects ?? []) if (eff.type === 'venomTiles') expect(eff.value, e.id).toBeLessThanOrEqual(CONTENT.tuning.venomMax);
+    }
     expect(CONTENT.tuning.startingPicks).toBeGreaterThanOrEqual(0);
     for (const b of CONTENT.tuning.lengthBonus) expect(Number.isFinite(b)).toBe(true);
   });

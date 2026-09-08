@@ -326,6 +326,7 @@ describe('venom: a tile that bites until you spend it', () => {
     const s2 = play(s1, avoiding.word);
     expect(s2.phase).toBe('fight');
     expect(s2.lastTurn?.venom).toBe(2);
+    expect(s2.stats.damageTaken).toBe(s1.stats.damageTaken + 2 + (s2.lastTurn?.enemyDamage ?? 0));
     const g2 = (s2.encounter as Encounter).grid;
     expect(g2.filter((t) => t.venom > 0).map((t) => t.venom)).toEqual([3]);
     // Now spend it: settle may have moved it; find it and play a word through it.
@@ -338,11 +339,14 @@ describe('venom: a tile that bites until you spend it', () => {
       // Spent before the bite: the refill removes it ahead of the next turn start, so no venom this turn.
       expect(s3.lastTurn?.venom).toBe(0);
     }
-    // Lethal: 1 HP against a 2 bite.
-    const dying: RunState = { ...s1, player: { ...s1.player, hp: 1 } };
+    // Lethal: 1 HP against a 2 bite, with an enemy that cannot attack, so the venom is what kills.
+    const dying: RunState = { ...s1, player: { ...s1.player, hp: 1 }, encounter: { ...(s1.encounter as Encounter), enemy: { ...(s1.encounter as Encounter).enemy, damage: 0 } } };
     const dead = play(dying, avoiding.word);
     expect(dead.phase).toBe('summary');
     expect(dead.outcome).toBe('lost');
+    expect(dead.player.hp).toBe(0);
+    expect(dead.lastTurn?.venom).toBe(1);
+    expect(dead.stats.damageTaken).toBe(dying.stats.damageTaken + 1);
   });
 
   it('venom grows to tuning.venomMax and no further', () => {
@@ -370,6 +374,38 @@ describe('venom: a tile that bites until you spend it', () => {
     expect(a).toEqual(b);
     expect(JSON.parse(JSON.stringify(a))).toEqual(a);
     if (a.phase === 'fight') expect((a.encounter as Encounter).grid.every((t) => t.venom === 0)).toBe(true);
+  });
+
+  it('the enemy-dead check comes before the bite: a killing turn-start item ends the fight, venom does not bite a dead enemy\'s victim', () => {
+    // Gate W3. Player at 2 HP with a venomed tile at 2 and Spores (4 damage at turn start); the enemy is
+    // left at 3 HP after the word. Spores kills it at turn start, so the fight ends and no bite lands.
+    const s0 = polypTurn(45, 1);
+    const enc0 = s0.encounter as Encounter;
+    const grid = enc0.grid.map((t, i) => (i === 11 ? { ...t, venom: 2 } : t));
+    const withSpores: RunState = { ...s0, player: { ...s0.player, hp: 2, items: ['spores'] }, encounter: { ...enc0, grid } };
+    const cands = candidateWords(withSpores, ctx).sort((a, b) => a.damage - b.damage);
+    const avoiding = cands.find((c) => !(candidateIndices(withSpores, c.word) ?? []).includes(11));
+    if (!avoiding) throw new Error('no word avoiding tile 11');
+    // Enemy HP set so the word leaves it at 3: it survives the word and dies to Spores at turn start.
+    const enemyHp = avoiding.damage + 3;
+    const staged: RunState = { ...withSpores, encounter: { ...(withSpores.encounter as Encounter), enemy: { ...enc0.enemy, hp: enemyHp, maxHp: enemyHp, damage: 0 } } };
+    const after = play(staged, avoiding.word);
+    expect(after.phase).toBe('pick');
+    expect(after.player.hp).toBe(2);
+    expect(after.lastTurn?.venom).toBe(0);
+  });
+
+  it('venomTiles threads its RNG draw back into state', () => {
+    const s = polypTurn(46, 3);
+    const idx = candidateIndices(s, candidateWords(s, ctx).sort((a, b) => b.damage - a.damage)[0]?.word ?? '');
+    if (!idx) throw new Error('no word');
+    const s1 = playBest(s);
+    if (s1.phase !== 'fight') return;
+    // Same seed, same word, but on a turn where the special does not fire: one fewer draw.
+    const quiet = { ...s, encounter: { ...(s.encounter as Encounter), turn: 2 } };
+    const q1 = playBest(quiet);
+    if (q1.phase !== 'fight') return;
+    expect(s1.rng.counter - s.rng.counter).toBeGreaterThan(q1.rng.counter - quiet.rng.counter);
   });
 
   it('venomTiles never picks a locked or already venomous tile', () => {
