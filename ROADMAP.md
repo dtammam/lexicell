@@ -40,8 +40,6 @@ cells).
   intent); cells should look more cellular; a visual indicator for
   organelles that fire; a stats HUD later (best and worst word).
   Proposed as one UI PR after run history, before starting cells.
-- **Logo, round two** (Dean, 2026-09-08): none of the first three
-  landed; B (the amoeba) was closest. Second page of directions.
 - **Starting cells** (Dean, 2026-09-08): plan
   `docs/exec-plans/active/starting-cells.md` (PR #48), five questions
   for Dean. Engine and save schema: reviewer round. Builds after run
@@ -312,6 +310,10 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #52 (2026-09-08): the mark. The Bookends wordmark and square mark
+  from scripts/logo.py; favicon, apple-touch and PWA icons regenerated;
+  title screen shows the wordmark; manifest and theme colour on the
+  Plasma ground.
 - PR #50 (2026-09-08): the missed-word reveal names only words that are
   gone from the new grid, never one still spellable (Dean: it read as
   a cheat).
