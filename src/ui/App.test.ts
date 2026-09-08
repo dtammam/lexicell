@@ -539,7 +539,7 @@ describe('App', () => {
     expect(runs[0]).toMatchObject({ outcome: 'abandoned', seed: started.seed, startedAt: started.startedAt, encounterReached: 1 });
   }, 30000);
 
-  it('History opened from the summary goes back to the summary, and a render error off the run screen returns to the title without touching the save', async () => {
+  it('History opened from the summary goes back to the summary', async () => {
     await startRun();
     cleanup();
     const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
