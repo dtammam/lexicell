@@ -583,7 +583,9 @@ describe('shuffle (costs the turn)', () => {
     const s1: RunState = { ...s0, player: { ...s0.player, items: ['vowel-magnet'] } };
     const enc = s1.encounter as Encounter;
     const all = enc.grid.map((_, i) => i);
-    const [expected] = refill(s1.rng, enc.grid, all, 1.5);
+    const magnet = CONTENT.items.find((i) => i.id === 'vowel-magnet')?.hooks.onTileDraw?.[0];
+    const weight = magnet?.type === 'vowelWeight' ? magnet.value : 1.5;
+    const [expected] = refill(s1.rng, enc.grid, all, weight);
     const [unweighted] = refill(s1.rng, enc.grid, all, 1);
     const s2 = reduce(s1, { type: 'shuffle' }, ctx);
     if (s2.phase !== 'fight') return;

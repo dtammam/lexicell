@@ -6,7 +6,7 @@
 import { candidateIndices, candidateWords, type Candidate } from '../../src/engine/candidates';
 import type { Action, EngineContext } from '../../src/engine/reducer';
 import { createRng, nextInt, type Rng } from '../../src/engine/rng';
-import type { RunState } from '../../src/engine/types';
+import type { ItemDef, RunState } from '../../src/engine/types';
 
 export type BotName = 'greedy' | 'mediocre' | 'solver';
 export const BOT_NAMES: readonly BotName[] = ['greedy', 'mediocre', 'solver'];
@@ -25,7 +25,7 @@ export interface Bot {
   /** Choose the word to play. Returns null if there are no candidates (should never happen). */
   chooseWord(state: RunState, candidates: readonly Candidate[]): Candidate | null;
   /** Index into state.offer. */
-  choosePick(state: RunState): number;
+  choosePick(state: RunState, ctx: EngineContext): number;
 }
 
 /**
@@ -80,6 +80,29 @@ export function solverBot(seed: number): Bot {
 }
 
 /** Plays a random 4-5 letter word if one exists, else the best available. */
+/**
+ * A casual human reads the offer. The mediocre bot models that (2026-09-08, after the pool
+ * grew to 24): it scores each offered item by how often its effects will apply to the 4-5
+ * letter words it plays, and takes the best; ties break by its RNG. Unconditional effects
+ * count double, conditions it can meet count once, conditions it never meets (6+ letters)
+ * count nothing.
+ */
+export function offerScore(item: ItemDef): number {
+  let score = 0;
+  for (const effects of Object.values(item.hooks)) {
+    for (const e of effects ?? []) {
+      if (e.type !== 'condition') {
+        score += e.type === 'damagePlayer' ? -2 : 2;
+        continue;
+      }
+      const w = e.when;
+      const usable = w.kind === 'minLength' ? w.value <= 5 : w.kind === 'containsLetter' ? w.letters.length >= 3 || 'aeioulnrst'.includes(w.letters) : true;
+      if (usable) score += 1;
+    }
+  }
+  return score;
+}
+
 export function mediocreBot(seed: number): Bot {
   let rng: Rng = createRng(seed ^ 0x9e3779b9);
   return {
@@ -92,10 +115,14 @@ export function mediocreBot(seed: number): Bot {
       [i, rng] = nextInt(rng, mid.length);
       return mid[i] ?? null;
     },
-    choosePick: (state) => {
-      let i: number;
-      [i, rng] = nextInt(rng, state.offer?.length ?? 1);
-      return i;
+    choosePick: (state, ctx) => {
+      const offer = state.offer ?? [];
+      const scores = offer.map((id) => offerScore(ctx.content.items.find((it) => it.id === id) as ItemDef));
+      const best = Math.max(...scores);
+      const tied = scores.map((sc, i) => (sc === best ? i : -1)).filter((i) => i >= 0);
+      let k: number;
+      [k, rng] = nextInt(rng, tied.length);
+      return tied[k] ?? 0;
     },
   };
 }
@@ -114,7 +141,7 @@ export function makeBot(name: BotName, seed: number): Bot {
 /** Next action for the bot given the current state, or null when the run is over. */
 export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Action[] | null {
   if (state.phase === 'summary') return null;
-  if (state.phase === 'pick') return [{ type: 'pickItem', index: bot.choosePick(state) }];
+  if (state.phase === 'pick') return [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];
   const choice = bot.chooseWord(state, candidateWords(state, ctx));
   if (!choice) throw new Error('bot has no playable word: dead grid reached the player');
   const indices = candidateIndices(state, choice.word);

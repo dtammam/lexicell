@@ -50,3 +50,4 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Font, colours, design feel slop-coded; wants a design language | implemented (PR #20: three directions on a canvas, Dean chose Plasma; tokens in src/ui/theme.css, rules in docs/design-language.md, every component refactored onto them, fonts vendored under OFL) |
 | 2026-09-08 | Legibility: nobody should burn cycles on U versus V | implemented (PR #21: letters, words and names in Atkinson Hyperlegible, built for exactly this; the pixel face is numbers and labels only) |
 | 2026-09-08 | Images for the items | implemented (PR #22: ten hand-drawn 16px glyphs as ASCII maps in scripts/sprites.py, toned by rarity; shown on offers, the items panel and the strip) |
+| 2026-09-08 | Item pool feels shallow; the same items every first offer | implemented (PR #24: 24 items, glyphs for all, two auto-win rares trimmed, bots read offers); rule-bending effects proposed as the next engine wave |

@@ -16,23 +16,23 @@ describe('hooks', () => {
   it('gathers in acquisition order and only for the requested hook', () => {
     const raw = gatherEffects('onWordScored', ['lens', 'sharp-pen', 'bandage'], content);
     expect(raw).toEqual([
-      { type: 'addMult', value: 0.5 },
-      { type: 'addFlat', value: 5 },
+      { type: 'addMult', value: 0.7 },
+      { type: 'addFlat', value: 8 },
     ]);
-    expect(gatherEffects('onEncounterEnd', ['lens', 'sharp-pen', 'bandage'], content)).toEqual([{ type: 'heal', value: 15 }]);
+    expect(gatherEffects('onEncounterEnd', ['lens', 'sharp-pen', 'bandage'], content)).toEqual([{ type: 'heal', value: 20 }]);
   });
 
   it('collect resolves conditions and applies the fixed order', () => {
     const items = ['lens', 'long-fuse', 'sharp-pen', 'leech'];
     expect(collectEffects('onWordScored', items, content, ctx)).toEqual([
-      { type: 'addFlat', value: 5 },
-      { type: 'addMult', value: 0.5 },
+      { type: 'addFlat', value: 8 },
+      { type: 'addMult', value: 0.7 },
       { type: 'addMult', value: 1 },
-      { type: 'heal', value: 3 },
+      { type: 'heal', value: 4 },
     ]);
     expect(collectEffects('onWordScored', items, content, { ...ctx, word: 'cat' })).toEqual([
-      { type: 'addFlat', value: 5 },
-      { type: 'addMult', value: 0.5 },
+      { type: 'addFlat', value: 8 },
+      { type: 'addMult', value: 0.7 },
     ]);
   });
 

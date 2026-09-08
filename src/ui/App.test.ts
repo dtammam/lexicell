@@ -254,9 +254,9 @@ describe('App', () => {
     expect(mainHtml()).toBe(snapshot);
   });
 
-  it('tapping the third offer picks the third item, and a turn-start item reports "Turn start" (seed 20260918)', async () => {
-    // Gate W2 and S1 for Phase 1. At this seed the offer is long-fuse, sharp-pen, spores; spores deals
-    // 4 at turn start, so the fight opens on the turn-start report with no word played yet.
+  it('tapping a later offer picks that item, and a turn-start item reports "Turn start"', async () => {
+    // Gate W2 and S1 for Phase 1. Spores deals 6 at turn start (raised 2026-09-08), so the fight opens
+    // on the turn-start report with no word played yet.
     // The pool grew on 2026-09-08, so the seed is searched for: the first from 20260918 whose
     // starting offer holds Spores somewhere other than slot 0, and that slot is tapped.
     let seed = 20260918;
@@ -275,7 +275,7 @@ describe('App', () => {
     await findByText('Encounter 1 / 9');
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { player: { items: string[] } };
     expect(saved.player.items).toEqual(['spores']);
-    expect(getByText('Turn start: 4 damage')).toBeTruthy();
+    expect(getByText('Turn start: 6 damage')).toBeTruthy();
     expect(queryByText(/hit for/)).toBeNull();
   });
 
