@@ -170,6 +170,9 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #42 (2026-09-08): keyboard play on desktop: letters select tiles
+  (venomed first), Backspace undoes, Enter attacks, Escape clears; hint
+  on fine-pointer devices only. Dean's ask, queued behind the wave.
 - PR #38 (2026-09-08): Dean's type-lab readout shipped: Press Start 2P
   for tiles, the word line, HUD and buttons; Pixelify Sans for
   headings, names and prose. Silkscreen and DotGothic16 removed; two
