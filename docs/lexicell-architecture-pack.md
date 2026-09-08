@@ -123,7 +123,7 @@ Captured without filtering, from the first conversation:
 - **This is NOT a progression game.** Nothing carries between runs. If run 50 feels like run 1 with different items, that is the design working.
 - **This is NOT a story.** Evolution and eras are art direction and naming, nothing more. If a mechanic "needs" an era to justify it, the mechanic is wrong.
 - **This is NOT a multiplayer or social product.** No accounts, no server, no leaderboard, no sharing. "Publish online" means "put the static bundle on a domain," nothing else.
-- **This does NOT have a large item library in v1.** Twenty to thirty items, each tuned. The architecture makes the library large later; the content work does not happen now.
+- **This DOES have a large item library in v1** (scope change, Dean, 2026-09-08: "v1 changes to 200 item pool"). The original line said twenty to thirty, each tuned, with the library growing later. The library grows now: a 200-item pool built on a widened effect vocabulary (`docs/exec-plans/active/effects-wave.md`), in batches of forty, each batch measured against the sim exit criteria before merge. "Each tuned" still holds: the per-item win-rate table is the tuning instrument, and an item that does not move a bot's win rate is a reskin and gets cut.
 - **This is NOT endless in v1.** Nine encounters, then a win screen.
 - **This is NOT a game-engine project.** No Phaser, no Godot, no canvas rendering. DOM and CSS.
 

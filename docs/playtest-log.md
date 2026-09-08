@@ -64,4 +64,5 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Graft picked items onto the organism so it visibly evolves with the build | implemented (PR #29: every carried organelle sits on a ring around your body in the arena, bobbing) |
 | 2026-09-08 | A ton more items | implemented (PR #30: 50 items, 26 new from the existing vocabulary with real identities and trade-offs; procedural glyphs; all three sim criteria pass) |
 | 2026-09-08 | Even more items, and a mythic pool, explicitly powered | implemented (PR #31: 72 items, 8 mythic at weight 0.35, glowing gold) |
-| 2026-09-08 | A 200-item pool | to do: needs the effects wave first, or 200 becomes reskins of twelve effects; pack scoped v1 at 20-30, so this is a scope change for Dean to confirm |
+| 2026-09-08 | A 200-item pool | to do: Dean confirmed the scope change (v1 is a 200-item pool); pack updated; effects wave exec plan opened (PR #33), then four content batches of forty |
+| 2026-09-08 | The pixel font is hard to read, notably the numbers; keep a pixel typeface but legibility matters | to do: seven pixel faces rendered on the fight-screen numbers at https://claude.ai/code/artifact/1f6c6502-28a7-4eb9-8ff9-14d837570999 for Dean to pick; either way no digit under 16 px and tabular digits |
