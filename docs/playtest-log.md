@@ -39,3 +39,7 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | The amoeba should evolve into other things as the run progresses, not always the same path | implemented in part (PR #11: your sprite changes per act); to do: the act-2 and act-3 form chosen by the items carried, once the item set is bigger |
 | 2026-09-08 | Is it fun enough? Stuck with four-letter words; is it the word pool, the letter distribution, too easy or too hard; no outer story like Bookworm | to do: measured answer first (letter distribution and word-length histogram from real grids), then the tuning wave; see the reply of 2026-09-08 for the reasoning |
 | 2026-09-08 | Cookie or token per device so several people on the same network can play separately | no longer needed: the save is localStorage, which is already per browser per device; nothing is shared through the server |
+| 2026-09-08 | Damage preview before Attack, missed-word reveal after (to fix the four-letter-word feeling) | implemented (PR #12 preview, PR #13 missed word) |
+| 2026-09-08 | Backdrop should be more Earthbound: brighter, cycling palette, wavy | to do (PR #14) |
+| 2026-09-08 | Backdrop loop visibly resets; must be seamless | to do (PR #14: drift by exactly one pattern period, no rotation) |
+| 2026-09-08 | Enemies should float too, each with a different motion | to do (PR #14) |

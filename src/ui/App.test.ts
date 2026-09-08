@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
+import { candidateWords } from '../engine/candidates';
+import type { RunState } from '../engine/types';
 import { LETTER_VALUE } from '../engine/scoring';
 import { tilesForWord } from '../engine/solver';
 import App from './App.svelte';
@@ -35,6 +37,13 @@ function nonWordTriple(): number[] {
   throw new Error('every triple is a word; impossible grid');
 }
 
+/** The Attack button, whatever its label says (it carries the damage preview when a word is valid). */
+function attackButton(): HTMLButtonElement {
+  const b = document.querySelector<HTMLButtonElement>('button.primary');
+  if (!b) throw new Error('no Attack button');
+  return b;
+}
+
 function mainHtml(): string {
   return document.querySelector('main')?.innerHTML ?? '';
 }
@@ -53,7 +62,7 @@ async function attackOnce(prefer: 'long' | 'short' = 'long'): Promise<string> {
   if (!idx) throw new Error(`cannot place ${word}`);
   for (const i of idx) await click(tiles()[i] ?? null);
   expect(getByText(word.toUpperCase())).toBeTruthy();
-  await click(getButton('Attack'));
+  await click(attackButton());
   return word;
 }
 
@@ -96,7 +105,7 @@ describe('App', () => {
     await findByText('Encounter 1 / 9');
     expect(tiles()).toHaveLength(16);
     expect(getByText('Turn 1')).toBeTruthy();
-    expect(getButton('Attack').disabled).toBe(true);
+    expect(attackButton().disabled).toBe(true);
     expect(getButton('Clear').disabled).toBe(true);
   });
 
@@ -133,7 +142,7 @@ describe('App', () => {
       const green = prefix.length >= 3 && ctx.dictionary.has(prefix);
       expect(document.querySelectorAll('button.tile.selected')).toHaveLength(n + 1);
       expect(document.querySelectorAll('button.tile.selected.valid').length, prefix).toBe(green ? n + 1 : 0);
-      expect(getButton('Attack').classList.contains('ready'), prefix).toBe(green);
+      expect(attackButton().classList.contains('ready'), prefix).toBe(green);
     }
     expect(document.querySelector('.word')?.classList.contains('valid')).toBe(true);
     expect(document.querySelectorAll('button.tile .order')).toHaveLength(idx.length);
@@ -143,7 +152,7 @@ describe('App', () => {
     for (const i of nonWordTriple()) await click(tiles()[i] ?? null);
     expect(document.querySelectorAll('button.tile.selected')).toHaveLength(3);
     expect(document.querySelectorAll('button.tile.selected.valid')).toHaveLength(0);
-    expect(getButton('Attack').classList.contains('ready')).toBe(false);
+    expect(attackButton().classList.contains('ready')).toBe(false);
     expect(document.querySelector('.word')?.classList.contains('valid')).toBe(false);
   });
 
@@ -158,11 +167,33 @@ describe('App', () => {
     expect(el.textContent).toContain(expected);
   });
 
+  it('a valid selection previews its damage on the word line and the Attack button, matching the engine', async () => {
+    await startRun();
+    const state = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const all = gridLetters();
+    const available = tiles()
+      .map((b, i) => (b.disabled ? -1 : i))
+      .filter((i) => i >= 0);
+    const word = ctx.solver.solve(available.map((i) => all[i] ?? '')).sort((a, b) => b.length - a.length)[0];
+    if (!word) throw new Error('no word');
+    const expected = candidateWords(state, ctx).find((c) => c.word === word)?.damage;
+    expect(expected).toBeGreaterThan(0);
+    expect(document.querySelector('.preview')).toBeNull();
+    const idx = tilesForWord(word, all, available);
+    if (!idx) throw new Error('cannot place');
+    for (const i of idx) await click(tiles()[i] ?? null);
+    expect(document.querySelector('.preview')?.textContent).toBe(String(expected));
+    expect(getButton(`Attack for ${expected}`)).toBeTruthy();
+    await click(getButton(`Attack for ${expected}`));
+    if (queryByText('Choose an item')) return;
+    expect(getByText(new RegExp(`^${word.toUpperCase()} hit for ${expected}$`))).toBeTruthy();
+  });
+
   it('rejects a non-word without spending the turn, and Clear empties the selection', async () => {
     await startRun();
     for (const i of nonWordTriple()) await click(tiles()[i] ?? null);
     expect(document.querySelectorAll('button.tile.selected')).toHaveLength(3);
-    await click(getButton('Attack'));
+    await click(attackButton());
     expect(document.querySelector('.rejected')?.textContent).toMatch(/word/i);
     expect(getByText('Turn 1')).toBeTruthy();
     await click(getButton('Clear'));
@@ -261,7 +292,7 @@ describe('App', () => {
     for (const i of nonWordTriple()) await click(tiles()[i] ?? null);
     await click(getButton('Shuffle'));
     expect(getButton('Shuffle? Costs a turn')).toBeTruthy();
-    await click(getButton('Attack'));
+    await click(attackButton());
     expect(document.querySelector('.rejected')).not.toBeNull();
     expect(getButton('Shuffle')).toBeTruthy();
   });

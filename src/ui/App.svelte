@@ -105,7 +105,7 @@
     {:else if screen === 'title' || !run}
       <Title {hasSave} {onPlay} {onContinue} />
     {:else if run.phase === 'fight'}
-      <Fight {run} {dispatch} {isWord} />
+      <Fight {run} {dispatch} {isWord} {ctx} />
     {:else if run.phase === 'pick'}
       <Pick {run} {dispatch} />
     {:else}

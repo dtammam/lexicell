@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { selectedWord, type Action } from '../engine/reducer';
+  import { candidateWords, type Candidate } from '../engine/candidates';
+  import { selectedWord, type Action, type EngineContext } from '../engine/reducer';
   import { LETTER_VALUE } from '../engine/scoring';
   import type { RunState } from '../engine/types';
   import Arena from './Arena.svelte';
@@ -10,7 +11,8 @@
     run,
     dispatch,
     isWord,
-  }: { run: RunState; dispatch: (action: Action) => void; isWord: (word: string) => boolean } = $props();
+    ctx,
+  }: { run: RunState; dispatch: (action: Action) => void; isWord: (word: string) => boolean; ctx: EngineContext } = $props();
 
   const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
   /**
@@ -29,6 +31,20 @@
   // The same dictionary the reducer validates against, so green always means Attack will land.
   const valid = $derived(word.length >= 3 && isWord(word));
   const canAttack = $derived(word.length >= 3);
+
+  // Every word on this grid with its damage under the current items, from the engine's own
+  // scorer, so the preview matches what Attack will do. Memoised on the grid: a tap changes
+  // the selection, not the grid, and solving ~1000 words per tap would be wasteful.
+  let candCache: { grid: readonly unknown[] | null; hp: number; items: number; list: Candidate[] } = { grid: null, hp: 0, items: 0, list: [] };
+  const candidates = $derived.by(() => {
+    const grid = enc?.grid ?? null;
+    if (candCache.grid === grid && candCache.hp === run.player.hp && candCache.items === run.player.items.length) return candCache.list;
+    const list = grid ? candidateWords(run, ctx) : [];
+    candCache = { grid, hp: run.player.hp, items: run.player.items.length, list };
+    return list;
+  });
+  /** Damage the selected word would deal, shown before Attack (Dean, 2026-09-08: make me want to hunt). */
+  const preview = $derived(valid ? (candidates.find((c) => c.word === word)?.damage ?? null) : null);
 
   // Shuffle costs the turn (Dean, 2026-09-08). The first tap arms it, the second fires;
   // the arm drops on any other action so a stray tap never spends a turn.
@@ -99,7 +115,9 @@
       <Definition word={run.lastTurn.word} />
     {/if}
 
-    <div class="word" class:valid>{word.toUpperCase() || ' '}</div>
+    <div class="word" class:valid>
+      <span class="word-text">{word.toUpperCase() || ' '}</span>{#if preview !== null}<span class="preview">{preview}</span>{/if}
+    </div>
 
     <div class="grid-box">
     <div class="grid">
@@ -131,7 +149,9 @@
     <div class="actions">
       <button class="secondary" disabled={enc.selection.length === 0} onclick={() => { dispatch({ type: 'clearSelection' }); }}>Clear</button>
       <button class="secondary shuffle" class:armed={shuffleArmed} onclick={onShuffle}>{shuffleArmed ? 'Shuffle? Costs a turn' : 'Shuffle'}</button>
-      <button class="primary" class:ready={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>Attack</button>
+      <button class="primary" class:ready={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>
+        {preview !== null ? `Attack for ${preview}` : 'Attack'}
+      </button>
     </div>
 
     <ItemsPanel items={run.player.items} />
@@ -185,6 +205,14 @@
   }
   .word.valid {
     color: #5ac98a;
+  }
+  .preview {
+    margin-left: 0.6rem;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0;
+    color: #ffd166;
+    vertical-align: middle;
   }
   /* The grid is a square no larger than the space left between the word line and the
      buttons, and no wider than the screen: min(width, height) of its box, read through
