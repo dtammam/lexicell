@@ -45,6 +45,10 @@ cells).
 - **Starting cells**: built (PR #53), reviewer round pending; five cells
   within the band. Next for cells: their own sprites (with the sprite
   pass the tester asked for).
+- **Starting cells** (Dean, 2026-09-08): plan
+  `docs/exec-plans/active/starting-cells.md` (PR #48), five questions
+  for Dean. Engine and save schema: reviewer round. Builds after run
+  history.
 - **Daily seed** as the return hook (Phase 3 in the pack; no
   achievements). **Sound and graphics direction**: deliberately not
   yet (Dean).
@@ -394,6 +398,10 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #52 (2026-09-08): the mark. The Bookends wordmark and square mark
+  from scripts/logo.py; favicon, apple-touch and PWA icons regenerated;
+  title screen shows the wordmark; manifest and theme colour on the
+  Plasma ground.
 - PR #50 (2026-09-08): the missed-word reveal names only words that are
   gone from the new grid, never one still spellable (Dean: it read as
   a cheat).

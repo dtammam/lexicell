@@ -36,6 +36,24 @@ one that is not here, add the token here first, with a role.
 Act palettes for the arena backdrop are the one place hue varies by
 context; they are defined on the arena and stay inside it.
 
+## The mark
+
+The Bookends (Dean, 2026-09-08, after four pages of directions: a
+tile, an amoeba, a chromosome, a seal, a monogram; his brief was
+emblem, pixel is fine, gold leads). The name starts and ends with L:
+the first L is the top-left corner of a cell wall, the last L is
+flipped into the bottom-right corner, EXICEL sits inside the membrane
+the two Ls imply, and the dot of the I is the magenta nucleus. Nothing
+is drawn that is not a letter. Gold `--score` on the ground, nucleus
+`--rare`, the I in a darker gold so the nucleus reads.
+
+`scripts/logo.py` is the single source: it writes the wordmark and
+square-mark SVGs to `public/logo/`, the PWA icons (192, 512, maskable
+512 with ground padding, apple-touch 180) and `favicon.ico` (16
+hand-pixelled, 32). The title shows the wordmark; the manifest and
+theme colour are the Plasma ground. Never redraw an icon by hand: edit
+the script and re-run it.
+
 ## Type
 
 - Two faces, chosen by Dean role by role in the type lab (2026-09-08,

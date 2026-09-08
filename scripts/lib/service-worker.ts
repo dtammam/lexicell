@@ -111,8 +111,8 @@ export function manifestFor(base = '/'): string {
     scope: base,
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#1a1a2e',
-    theme_color: '#1a1a2e',
+    background_color: '#1b0f3a',
+    theme_color: '#1b0f3a',
     lang: 'en',
     icons: [
       { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
