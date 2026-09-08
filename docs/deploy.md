@@ -62,15 +62,26 @@ hot-reload. `localhost` is a secure context, so even the service
 worker registers here after `npm run build && npm run preview` on
 port 4173, which is the closest thing to the shipped bundle.
 
-**Phone on the LAN (plain HTTP, no install, no offline).** Two ways;
-pick whichever matches how BIGPAIL runs this container:
+**Phone on the LAN (plain HTTP, no install, no offline).** The dev
+box is a code-server container, and code-server proxies any container
+port under its own URL, so nothing needs publishing:
 
-1. VS Code forward, opened to the LAN. On your desktop set the VS Code
-   setting `remote.localPortHost` to `allInterfaces`, forward 5173,
-   then browse to `http://<desktop LAN IP>:5173` from the phone.
-2. Publish the container port on BIGPAIL: add `5173:5173` to the
-   container's port mappings, restart it, run `npm run dev`, browse to
-   `http://<BIGPAIL LAN IP>:5173`.
+```
+npm run dev:lan
+```
+
+Then on the phone open the code-server address you already use, with
+`/absproxy/5173/` appended, for example
+`http://bigpail:8080/absproxy/5173/`. Log in with the code-server
+password once; the session cookie covers the game. `dev:lan` starts
+Vite with `--base /absproxy/5173/` so its asset paths and hot-reload
+socket survive the proxy prefix. Plain `npm run dev` stays on `/` for
+VS Code's own port forward.
+
+Alternatives if code-server's port is not on the LAN: set the VS Code
+setting `remote.localPortHost` to `allInterfaces`, forward 5173, and
+browse to `http://<desktop LAN IP>:5173`; or publish `5173:5173` on
+the container and use `npm run dev` at `http://<BIGPAIL LAN IP>:5173`.
 
 Over LAN HTTP the game plays and saves, but "Add to Home Screen" is a
 bookmark and airplane mode fails; that needs the HTTPS deploy above.
