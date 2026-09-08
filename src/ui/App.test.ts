@@ -363,6 +363,35 @@ describe('App', () => {
     expect(getButton('Shuffle')).toBeTruthy();
   });
 
+  it('effects wave: the shield rides the HP bar, poison and stun badge the enemy, and a free shuffle costs nothing', async () => {
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = blob.encounter as NonNullable<RunState['encounter']>;
+    const seeded: RunState = {
+      ...blob,
+      player: { ...blob.player, shield: 12, freeShuffles: 1 },
+      encounter: { ...enc, enemy: { ...enc.enemy, poison: 4, stunned: 1 } },
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    expect(await findByText('Encounter 1 / 9')).toBeTruthy();
+    expect(getByText('+12')).toBeTruthy();
+    expect(document.querySelector('.fill.shield')).not.toBeNull();
+    expect(getByText('\u26234')).toBeTruthy();
+    expect(getByText('\u27491')).toBeTruthy();
+    const before = seeded.encounter as NonNullable<RunState['encounter']>;
+    await click(getButton('Free x1'));
+    const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    expect(after.player.freeShuffles).toBe(0);
+    expect(after.encounter?.turn).toBe(before.turn);
+    expect(after.player.hp).toBe(seeded.player.hp);
+    expect(after.stats.turns).toBe(seeded.stats.turns);
+    expect(getButton('Shuffle')).toBeTruthy();
+    expect(queryButton('Free x1')).toBeNull();
+  });
+
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
     for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {

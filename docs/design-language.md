@@ -30,6 +30,7 @@ one that is not here, add the token here first, with a role.
 | `--venom` | venom, only venom | any other hazard |
 | `--rare` | K J X Q Z tiles, rare items | selection |
 | `--mythic` | mythic items, with a glow | anything else |
+| `--shield` | the shield segment on your HP bar, the shield report line | any other buffer |
 | `--select` | a selected tile that is not yet a word | valid words |
 
 Act palettes for the arena backdrop are the one place hue varies by
@@ -91,8 +92,13 @@ context; they are defined on the arena and stay inside it.
   primary action is `life` when it will succeed and `harm` when it
   costs something.
 - Panels: `.panel`. Text on the arena backdrop sits on a scrim.
-- Report lines: damage dealt in `--score`, taken in `--harm`, venom in
-  `--venom`, praise in `--life`.
+- Report lines: damage dealt in `--score` (poison on the enemy too:
+  it is your damage), taken in `--harm`, venom in `--venom`, absorbed
+  in `--shield`, praise in `--life`. The enemy's poison and stun badges
+  sit on its sprite in `--score` and `--select`.
+- The shuffle button is `life` with a count while a free shuffle is
+  held and needs no arming; it goes back to arming (then `harm`) at
+  zero.
 
 ## What "slop" looks like, so it stays out
 

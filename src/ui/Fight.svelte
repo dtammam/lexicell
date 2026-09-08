@@ -80,7 +80,14 @@
   $effect(() => {
     if (armedAt !== null && armedAt !== armKey) armedAt = null;
   });
+  // A free shuffle (effects wave) costs nothing, so it needs no arming.
+  const freeShuffles = $derived(run.player.freeShuffles ?? 0);
   function onShuffle() {
+    if (freeShuffles > 0) {
+      armedAt = null;
+      dispatch({ type: 'shuffle' });
+      return;
+    }
     if (!shuffleArmed) {
       armedAt = armKey;
       return;
@@ -93,6 +100,8 @@
   // it each tile's start offset in rows is derived: survivors slide down from where they were,
   // fresh tiles rise in from below the grid. Older saves lack `used`; then nothing animates.
   const used = $derived(new Set(run.lastTurn?.used ?? []));
+  /** Tiles redrawn in place mid-turn (redrawTiles): they blink in where they stand. */
+  const redrawn = $derived(new Set(run.lastTurn?.redrawn ?? []));
   function entry(index: number): { dy: number; fresh: boolean } | null {
     if (used.size === 0) return null;
     const col = index % 4;
@@ -132,9 +141,13 @@
           {:else}
             <span class="hit">Turn start: {run.lastTurn.damage} damage</span>
           {/if}
+          {#if run.lastTurn.poison > 0}<span class="hit">poison ate {run.lastTurn.poison}</span>{/if}
+          {#if run.lastTurn.stunned}<span class="note">it was stunned and missed</span>{/if}
+          {#if run.lastTurn.shielded > 0}<span class="shielded">shield took {run.lastTurn.shielded}</span>{/if}
           {#if run.lastTurn.enemyDamage > 0}<span class="taken">you took {run.lastTurn.enemyDamage}</span>{/if}
           {#if run.lastTurn.venom > 0}<span class="taken">venom bit for {run.lastTurn.venom}</span>{/if}
           {#if run.lastTurn.healed > 0}<span class="healed">healed {run.lastTurn.healed}</span>{/if}
+          {#if run.lastTurn.redrawn.length > 0}<span class="note">{run.lastTurn.redrawn.length} tiles redrawn</span>{/if}
         {:else}
           <span class="note">Spell a word of 3+ letters</span>
         {/if}
@@ -164,6 +177,7 @@
           class="tile"
           class:moved={move !== null}
           class:fresh={move?.fresh ?? false}
+          class:redrawn={redrawn.has(i)}
           style={move ? `--dy: ${move.dy}; --i: ${i}` : `--i: ${i}`}
           class:selected={order > 0}
           class:valid={order > 0 && valid}
@@ -185,7 +199,7 @@
 
     <div class="actions">
       <button class="btn" disabled={enc.selection.length === 0} onclick={() => { dispatch({ type: 'clearSelection' }); }}>Clear</button>
-      <button class="btn shuffle" class:armed={shuffleArmed} onclick={onShuffle}>{shuffleArmed ? 'Costs a turn' : 'Shuffle'}</button>
+      <button class="btn shuffle" class:armed={shuffleArmed} class:life={freeShuffles > 0} onclick={onShuffle}>{freeShuffles > 0 ? `Free x${freeShuffles}` : shuffleArmed ? 'Costs a turn' : 'Shuffle'}</button>
       <button class="btn primary harm" class:ready={valid} class:life={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>
         {preview !== null ? `Attack for ${preview}` : 'Attack'}
       </button>
@@ -223,6 +237,9 @@
   }
   .healed {
     color: var(--life);
+  }
+  .shielded {
+    color: var(--shield);
   }
   .note {
     color: var(--muted);
@@ -401,6 +418,9 @@
   }
   .tile.fresh {
     animation: settle var(--dur-settle) var(--ease-settle) both, appear var(--dur-settle) var(--ease-step) both;
+  }
+  .tile.redrawn {
+    animation: appear var(--dur-settle) var(--ease-step) both;
   }
   @keyframes settle {
     from {
