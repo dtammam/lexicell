@@ -28,8 +28,6 @@ Ordered as Dean set it on 2026-09-08 ("design wave" bookkeeping, then
 the landscape fit, the effects wave in full, run history, starting
 cells).
 
-- **Landscape still scrolls on a phone** (Dean, 2026-09-08, after the
-  viewport fix): the two-column fight is taller than the viewport.
 - **Effects wave, batches 2 to 4**: 88 more items to 200 (target 90 /
   60 / 38 / 12 by rarity; now 46 / 35 / 22 / 9), each merged on its
   pasted sim table and per-item table. Batch 2 carries the harness
@@ -193,6 +191,11 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #44 (2026-09-08): landscape fight bounded to the viewport (side
+  and board columns; the report absorbs the squeeze). Dean: "landscape
+  requires scrolling". Not verified on a device.
+- PR #43 (2026-09-08): bookkeeping; Open list in Dean's order; the
+  three design pillars written into the pack.
 - PR #42 (2026-09-08): keyboard play on desktop: letters select tiles
   (venomed first), Backspace undoes, Enter attacks, Escape clears; hint
   on fine-pointer devices only. Dean's ask, queued behind the wave.
