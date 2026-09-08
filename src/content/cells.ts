@@ -22,12 +22,12 @@ export const CELLS: readonly CellDef[] = [
   {
     id: 'aggro',
     name: 'Predator',
-    description: '80 HP. +25% damage, but every hit you take hurts 2 more.',
+    description: '85 HP. +25% damage, but every hit you take hurts 1 more.',
     flavor: 'Kill it before it kills you.',
-    maxHp: 80,
+    maxHp: 85,
     startingItems: [],
     extraPicks: 0,
-    traits: { onWordScored: [{ type: 'addMult', value: 0.25 }], onDamageTaken: [{ type: 'reduceDamage', value: -2 }] },
+    traits: { onWordScored: [{ type: 'addMult', value: 0.25 }], onDamageTaken: [{ type: 'reduceDamage', value: -1 }] },
   },
   {
     id: 'defensive',
@@ -42,26 +42,26 @@ export const CELLS: readonly CellDef[] = [
   {
     id: 'gambler',
     name: 'Spore',
-    description: '90 HP. Words of 6+ letters deal double; words of 4 or fewer deal half.',
+    description: '90 HP. Words of 6+ letters deal +60%; words of 3 letters deal half.',
     flavor: 'Long words or nothing.',
     maxHp: 90,
     startingItems: [],
     extraPicks: 0,
     traits: {
       onWordScored: [
-        { type: 'condition', when: { kind: 'minLength', value: 6 }, then: [{ type: 'addMult', value: 1 }] },
-        { type: 'condition', when: { kind: 'maxLength', value: 4 }, then: [{ type: 'addMult', value: -0.5 }] },
+        { type: 'condition', when: { kind: 'minLength', value: 6 }, then: [{ type: 'addMult', value: 0.6 }] },
+        { type: 'condition', when: { kind: 'maxLength', value: 3 }, then: [{ type: 'addMult', value: -0.5 }] },
       ],
     },
   },
   {
     id: 'tinkerer',
     name: 'Mycelium',
-    description: '100 HP. One extra starting pick, and 5 shield after each fight.',
+    description: '90 HP. One extra starting pick, but -15% damage.',
     flavor: 'Build first. Fight with what you built.',
-    maxHp: 100,
+    maxHp: 90,
     startingItems: [],
     extraPicks: 1,
-    traits: { onEncounterEnd: [{ type: 'shield', value: 5 }] },
+    traits: { onWordScored: [{ type: 'addMult', value: -0.15 }] },
   },
 ];
