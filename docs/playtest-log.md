@@ -14,7 +14,7 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Tile hazards that hurt you and get worse (blood cell) | implemented (PR #19: venom, from the Polyp; bites every turn and grows to 4 until you spend the tile) |
 | 2026-09-08 | Selected tiles should turn green when the word is valid, before Attack | implemented (PR #1) |
 | 2026-09-08 | Eras and locations affecting backgrounds, items, letter pools, thematic words | no longer needed for v1: pack rules eras cosmetic; backgrounds and palettes per act shipped (PR #7), the rest is Phase 3 art, not mechanics |
-| 2026-09-08 | Items should have flavor, some absurdly strong, some weak | to do: Phase 2 item set (20 to 30, rule-benders, designed in synergy pairs); rename shipped (PR #8) |
+| 2026-09-08 | Items should have flavor, some absurdly strong, some weak | implemented over PRs #24, #30, #31, #41: 112 items with flavor lines, a mythic tier that is absurdly strong, weak commons; rename shipped (PR #8); the pool keeps growing under the effects wave |
 | 2026-09-08 | 8-bit look that sharpens as you evolve; Isaac vibe | to do: art direction, decide sprite size and palette when real art starts; not before |
 | 2026-09-08 | Something to come back for: daily challenge | to do: daily seed (Phase 3), no achievements per pack |
 | 2026-09-08 | Main menu | implemented (PR #1 title screen) |
@@ -28,11 +28,11 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Font: serif, I versus L obvious, Wordle-like not cartoony | implemented (PR #6 ui-serif) |
 | 2026-09-08 | Earthbound-style battle backgrounds behind the fighters | implemented (PR #7) |
 | 2026-09-08 | Bookworm's Qu tile; different tile types per level | no longer needed: gem tiles from long words (Phase 3) are the tile variety; no Qu tile, no per-level tiles |
-| 2026-09-08 | What to borrow from Isaac | to do: rule-bending items, synergy pairs, run summary as a story; no unlocks |
+| 2026-09-08 | What to borrow from Isaac | in progress: rule-bending verbs shipped in the effects wave (PR #39); synergy pairs are a batch 2-4 design rule; run summary as a story waits on run history; no unlocks |
 | 2026-09-08 | Item names more word or evolution themed | implemented (PR #8) |
 | 2026-09-08 | Run history with export | to do, deferred behind more features (Dean, same day) |
 | 2026-09-08 | Graphics and sound direction | to do, deliberately not yet (Dean) |
-| 2026-09-08 | Design pillars | to do: write the three into the pack once Dean confirms them (long word = event; attrition is the tension; vocabulary is the character) |
+| 2026-09-08 | Design pillars | implemented (PR #43: Dean's "do everything you said with that list" taken as the confirmation; the three pillars are in the pack under Design pillars) |
 | 2026-09-08 | Boss lock mostly lost (found by the gate, not by Dean) | implemented (PR #19) |
 | 2026-09-08 | Log everything I say as perception / request with a next step | implemented (this file; CLAUDE.md intake rule) |
 | 2026-09-08 | Build sha is hard to read at a glance; is this normal? | implemented (PR #10: `build 42 · a1b0b52`, run number plus sha; sha-stamped builds are standard, the counter is the readable part) |
@@ -59,8 +59,8 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | The intro grid reads LONG WORD SHIT HARD: the 4-wide rows split WORDS HIT in the wrong place | implemented (PR #32: LONG WORD HITS HARD, four rows of four words; test asserts every row is a word) |
 | 2026-09-08 | Normal text is too normal next to the pixel headings; a pixel-ish, legible body face | implemented (PR #28: Pixelify Sans at 16px for all running text, vendored under OFL) |
 | 2026-09-08 | A single line of flavor text for each item | implemented (PR #27: `flavor` on every item, shown in its own voice under the mechanic on offers, the panel and the compendium) |
-| 2026-09-08 | Occasional tiles should shake or shiver, subtly, as if biologically unstable | to do (PR #28) |
-| 2026-09-08 | Intro's third beat: fill all sixteen tiles with the phrase, and make the closing line say that the longest words are how you evolve and deal damage | to do (PR #28) |
+| 2026-09-08 | Occasional tiles should shake or shiver, subtly, as if biologically unstable | implemented (PR #28) |
+| 2026-09-08 | Intro's third beat: fill all sixteen tiles with the phrase, and make the closing line say that the longest words are how you evolve and deal damage | implemented (PR #28) |
 | 2026-09-08 | Graft picked items onto the organism so it visibly evolves with the build | implemented (PR #29: every carried organelle sits on a ring around your body in the arena, bobbing) |
 | 2026-09-08 | A ton more items | implemented (PR #30: 50 items, 26 new from the existing vocabulary with real identities and trade-offs; procedural glyphs; all three sim criteria pass) |
 | 2026-09-08 | Even more items, and a mythic pool, explicitly powered | implemented (PR #31: 72 items, 8 mythic at weight 0.35, glowing gold) |
@@ -69,3 +69,5 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Playtester on an iPhone 17: portrait cannot scroll up to see the full game UI; landscape cannot scroll down to see the actions | implemented (PR #34: the screen scrolls, scrollbar hidden, when a viewport cannot fit it; landscape lays the fight out in two columns; the grid never collapses below 160 px; the items sheet is capped and scrolls; double-tap zoom disabled). Cause of the portrait clip not confirmed on the device: ask the tester for a screenshot if it persists |
 | 2026-09-08 | Silkscreen is meh; DotGothic16 is right where it is, the tile face is not; wants an artifact to toggle fonts per component | implemented (PR #38: Dean's readout from the type lab, then "yes let's do that" to my tweak of moving the word line too: Press Start 2P for tiles, word line, HUD and buttons; Pixelify Sans for headings, names and prose; Silkscreen and DotGothic16 removed; two vendored faces) |
 | 2026-09-08 | Keyboard play on desktop: typing a letter that is on the grid selects a matching tile (optional feature, for keyboard players); do it only after the effects wave is merged | implemented (PR #42, after #39 and #41 merged as asked): a letter key selects the first unselected, unlocked tile with that letter, a venomed one first; Backspace deselects the last tile; Enter attacks when the Attack button would; Escape clears; modifier chords and typing into controls are ignored; the hint line shows only on fine-pointer devices and not in the landscape layout) |
+| 2026-09-08 | Mobile portrait works better now; landscape still requires scrolling, it does not fit | to do: PR #44, the two-column fight bounded to the viewport height |
+| 2026-09-08 | Effects wave in full, then run history, then a set of starting cells (balanced, aggressive, defensive) | to do, in that order; starting cells get numbered questions before the engine change |

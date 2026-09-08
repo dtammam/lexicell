@@ -24,25 +24,48 @@ and what is still open ships disclosed here.
 
 ## Open
 
-- **Act 2 and E9 tuning wave, deferred behind Phase 1 (Dean,
-  2026-09-08).** Content only. Targets in the closed Phase 0 plan's
-  Handoff section: E9 costs mediocre 50-60 HP with a full kit (now
-  ~92), greedy 25-35 (now ~54); more than 147 of 300 mediocre runs
-  reach E6. Act 1 is not touched again.
+Ordered as Dean set it on 2026-09-08 ("design wave" bookkeeping, then
+the landscape fit, the effects wave in full, run history, starting
+cells).
+
+- **Landscape still scrolls on a phone** (Dean, 2026-09-08, after the
+  viewport fix): the two-column fight is taller than the viewport.
+- **Effects wave, batches 2 to 4**: 88 more items to 200 (target 90 /
+  60 / 38 / 12 by rarity; now 46 / 35 / 22 / 9), each merged on its
+  pasted sim table and per-item table. Batch 2 carries the harness
+  fixes the gate disclosed: bots that spend free shuffles, a sim column
+  that separates shuffles from dead-grid scrambles, `scripts/item-impact.ts`
+  in the repo with a 10,000-run mode so the reskin rule is measurable.
+  Plan: `docs/exec-plans/active/effects-wave.md`.
+- **Run history with export** (Dean, deferred behind features, now
+  queued after the wave): a per-device list of finished runs, exported
+  as a file. Touches persistence: plan and reviewer round.
+- **Starting cells** (Dean, 2026-09-08): a few playable cells to start
+  a run as (balanced, aggressive, defensive, ...). Engine: numbered
+  questions first, then a plan and a reviewer round.
+- **Daily seed** as the return hook (Phase 3 in the pack; no
+  achievements). **Sound and graphics direction**: deliberately not
+  yet (Dean).
+- **"Is it fun enough?"**: a measured answer on word length and the
+  letter pool, then whatever it points at.
 - The enforcement layer of the harness (PreToolUse staging block,
   session-start hook, `.claude/settings.json`, pre-commit sim smoke,
   pre-push hook, the Node built-ins lint ban) sits on branch
   `harness/enforcement` awaiting Dean's own review. Dean's rule: the
   agent does not merge changes to its own constraints. Until it merges,
   CLAUDE.md and CONTRIBUTING describe hooks that are not yet installed.
-- Save schema stays `v: 1` although `RunState` gained `pendingPicks` in
-  the act-1 wave. No persistence layer exists and no save has ever been
-  written, so there is nothing to migrate; `v: 1` is the shape at the
-  moment `persist.ts` lands. Tech-debt #3 holds the revisit trigger.
+  Trackers #1 and #2 close with it.
+- **Dean's own checks**: the Phase 1 exit (HTTPS on the homelab,
+  home-screen install, airplane-mode load); the iPhone playtester's
+  portrait clipping after PR #34; greedy's fall to 66% under curve D.
 - Sim harness suspicion (adversarial round, not a finding): a scramble
   on an encounter's final turn could be counted twice because the
   `pickItem` batch inherits the previous `lastTurn`. Measured 0
   occurrences over 1500 runs. Pre-dates the act-1 wave.
+
+Settled since this list was first written: the act 2 and E9 tuning
+wave (curve C in PR #19, curve D in PR #41); the save schema is v3 and
+persist refuses every other version (tracker #3 closed).
 
 ## Shipped
 
