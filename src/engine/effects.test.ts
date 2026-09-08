@@ -74,7 +74,8 @@ describe('resolveEffects', () => {
       { type: 'damagePlayer', value: 0 },
       { type: 'reduceDamage', value: 0 },
       { type: 'vowelWeight', value: 1 },
-      { type: 'lockTiles', count: 0, turns: 0 },
+      { type: 'venomTiles', count: 0, value: 0 },
+    { type: 'lockTiles', count: 0, turns: 0 },
       { type: 'scramble' },
       { type: 'condition', when: { kind: 'minLength', value: 0 }, then: [] },
     ];

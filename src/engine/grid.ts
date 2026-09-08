@@ -38,7 +38,7 @@ export function drawLetter(rng: Rng, vowelWeight = 1): [string, Rng] {
 }
 
 export function plainTile(letter: string): Tile {
-  return { letter, lockedTurns: 0 };
+  return { letter, lockedTurns: 0, venom: 0 };
 }
 
 /** Letters of tiles that can currently be played. */
@@ -69,7 +69,9 @@ export function enforceVowelFloor(rng: Rng, grid: readonly Tile[]): [Tile[], Rng
     let v: string;
     [k, r] = nextInt(r, consonants.length);
     [v, r] = weightedPick(r, VOWEL_WEIGHTS);
-    out[consonants[k] as number] = plainTile(v);
+    // Only the letter changes: a venomed or otherwise marked tile keeps its marks (gate W1).
+    const at = consonants[k] as number;
+    out[at] = { ...(out[at] as Tile), letter: v };
     vowels++;
   }
   return [out, r];

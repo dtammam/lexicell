@@ -4,7 +4,7 @@ import type { Effect } from './effects';
 import { collectEffects, gatherEffects, itemDef } from './hooks';
 import type { Content, Hook } from './types';
 
-const content: Content = { items: ITEMS, enemies: [], bosses: [], encounters: [], playerMaxHp: 100, tuning: { lengthBonus: [1], startingPicks: 0 } };
+const content: Content = { items: ITEMS, enemies: [], bosses: [], encounters: [], playerMaxHp: 100, tuning: { lengthBonus: [1], startingPicks: 0, venomMax: 4 } };
 const ctx = { word: 'quartz', hp: 100, maxHp: 100, turn: 1 };
 
 describe('hooks', () => {

@@ -128,6 +128,7 @@
             <span class="hit">Turn start: {run.lastTurn.damage} damage</span>
           {/if}
           {#if run.lastTurn.enemyDamage > 0}<span class="taken">you took {run.lastTurn.enemyDamage}</span>{/if}
+          {#if run.lastTurn.venom > 0}<span class="taken">venom bit for {run.lastTurn.venom}</span>{/if}
           {#if run.lastTurn.healed > 0}<span class="healed">healed {run.lastTurn.healed}</span>{/if}
         {:else}
           <span class="note">Spell a word of 3+ letters</span>
@@ -163,11 +164,12 @@
           class:valid={order > 0 && valid}
           data-tier={tier(tile.letter)}
           class:locked={tile.lockedTurns > 0}
+          class:venomous={tile.venom > 0}
           disabled={tile.lockedTurns > 0}
           onclick={() => { dispatch({ type: 'toggleTile', index: i }); }}
         >
           <span class="letter">{tile.letter.toUpperCase()}</span>
-          {#if tile.lockedTurns > 0}<span class="value">{`\u{1F512}${tile.lockedTurns}`}</span>{/if}
+          {#if tile.lockedTurns > 0}<span class="value">{`\u{1F512}${tile.lockedTurns}`}</span>{:else if tile.venom > 0}<span class="value venom">{`\u2623${tile.venom}`}</span>{/if}
           {#if order > 0}<span class="order">{order}</span>{/if}
         </button>
       {/each}
@@ -376,6 +378,15 @@
     background: #1a1a2e;
     color: #55556f;
     border-style: dashed;
+  }
+  /* Venom: it bites every turn until you spend the tile. Loud on purpose. */
+  .tile.venomous {
+    border-color: #7dff5a;
+    box-shadow: 0 0 10px rgba(125, 255, 90, 0.5), inset 0 0 8px rgba(125, 255, 90, 0.3);
+  }
+  .tile .value.venom {
+    color: #7dff5a;
+    font-weight: 700;
   }
   .actions {
     flex: none;

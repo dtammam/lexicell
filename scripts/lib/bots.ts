@@ -28,6 +28,20 @@ export interface Bot {
   choosePick(state: RunState): number;
 }
 
+/**
+ * Venom (2026-09-08): any human spends a venomed tile as soon as a word allows it, so the bots
+ * do too. When the grid holds venom, the candidate pool narrows to words that use at least one
+ * venomed tile, if any exist; otherwise it is unchanged. Only computed when venom is present,
+ * since mapping every candidate to tiles is the sim's hot spot.
+ */
+export function spendingVenom(state: RunState, candidates: readonly Candidate[]): readonly Candidate[] {
+  const enc = state.encounter;
+  if (!enc || !enc.grid.some((t) => t.venom > 0)) return candidates;
+  const venomed = new Set(enc.grid.map((t, i) => (t.venom > 0 ? i : -1)).filter((i) => i >= 0));
+  const through = candidates.filter((c) => (candidateIndices(state, c.word) ?? []).some((i) => venomed.has(i)));
+  return through.length > 0 ? through : candidates;
+}
+
 function best(candidates: readonly Candidate[]): Candidate | null {
   let top: Candidate | null = null;
   for (const c of candidates) if (!top || c.damage > top.damage) top = c;
@@ -39,7 +53,10 @@ export function greedyBot(seed: number): Bot {
   let rng = createRng(seed ^ 0x9e3779b9);
   return {
     name: 'greedy',
-    chooseWord: (_s, candidates) => best(candidates.filter((c) => c.word.length <= GREEDY_MAX_LENGTH)) ?? best(candidates),
+    chooseWord: (s, candidates) => {
+      const pool = spendingVenom(s, candidates);
+      return best(pool.filter((c) => c.word.length <= GREEDY_MAX_LENGTH)) ?? best(pool);
+    },
     choosePick: (state) => {
       let i: number;
       [i, rng] = nextInt(rng, state.offer?.length ?? 1);
@@ -53,7 +70,7 @@ export function solverBot(seed: number): Bot {
   let rng = createRng(seed ^ 0x9e3779b9);
   return {
     name: 'solver',
-    chooseWord: (_s, candidates) => best(candidates),
+    chooseWord: (s, candidates) => best(spendingVenom(s, candidates)),
     choosePick: (state) => {
       let i: number;
       [i, rng] = nextInt(rng, state.offer?.length ?? 1);
@@ -67,9 +84,10 @@ export function mediocreBot(seed: number): Bot {
   let rng: Rng = createRng(seed ^ 0x9e3779b9);
   return {
     name: 'mediocre',
-    chooseWord: (_s, candidates) => {
-      const mid = candidates.filter((c) => c.word.length >= 4 && c.word.length <= 5);
-      if (mid.length === 0) return best(candidates);
+    chooseWord: (s, candidates) => {
+      const pool = spendingVenom(s, candidates);
+      const mid = pool.filter((c) => c.word.length >= 4 && c.word.length <= 5);
+      if (mid.length === 0) return best(pool);
       let i: number;
       [i, rng] = nextInt(rng, mid.length);
       return mid[i] ?? null;

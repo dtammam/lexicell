@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { candidateWords } from '../src/engine/candidates';
+import { candidateIndices, candidateWords } from '../src/engine/candidates';
 import { newRun } from '../src/engine/reducer';
-import { GREEDY_MAX_LENGTH, makeBot, nextAction } from './lib/bots';
+import { GREEDY_MAX_LENGTH, makeBot, nextAction, spendingVenom } from './lib/bots';
 import { nodeContext } from './lib/context';
 import { simulate, simulateRun, summarise } from './lib/simulate';
 import { contentFor, exitCriteria, parseArgs, renderTable } from './sim';
@@ -38,6 +38,20 @@ describe('bots', () => {
     const longOnly = candidateWords(s, ctx).filter((c) => c.word.length > GREEDY_MAX_LENGTH);
     expect(longOnly.length).toBeGreaterThan(0);
     expect(makeBot('greedy', 1).chooseWord(s, longOnly)?.damage).toBe(Math.max(...longOnly.map((c) => c.damage)));
+  });
+
+  it('spendingVenom narrows to words through a venomed tile when one exists, and is a no-op otherwise', () => {
+    const s = newRun(2, ctx);
+    const enc = s.encounter;
+    if (!enc) throw new Error('no encounter');
+    const cands = candidateWords(s, ctx);
+    expect(spendingVenom(s, cands)).toBe(cands);
+    const grid = enc.grid.map((t, i) => (i === 4 ? { ...t, venom: 2 } : t));
+    const venomed = { ...s, encounter: { ...enc, grid } };
+    const pool = spendingVenom(venomed, cands);
+    expect(pool.length).toBeGreaterThan(0);
+    expect(pool.length).toBeLessThan(cands.length);
+    for (const c of pool) expect(candidateIndices(venomed, c.word) ?? []).toContain(4);
   });
 
   it('a run is reproducible from its seed', () => {

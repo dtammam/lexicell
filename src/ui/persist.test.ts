@@ -36,11 +36,15 @@ describe('persist', () => {
     expect(createPersist(fakeStorage()).load()).toBeNull();
   });
 
-  it('drops a blob with the wrong version', () => {
+  it('drops a blob with the wrong version, including a v1 save from before venom', () => {
     const s = newRun(3, ctx);
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: SAVE_VERSION + 1 }) });
     expect(createPersist(storage).load()).toBeNull();
     expect(storage.data.has(SAVE_KEY)).toBe(false);
+    expect(SAVE_VERSION).toBe(2);
+    const v1 = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 1 }) });
+    expect(createPersist(v1).load()).toBeNull();
+    expect(v1.data.has(SAVE_KEY)).toBe(false);
   });
 
   it('drops a blob whose shape is not the current one (a missing field, an extra field)', () => {

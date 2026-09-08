@@ -32,12 +32,18 @@ describe('content bundle', () => {
   it('tuning knobs are finite: startingPicks is a non-negative integer', () => {
     // newRun floors and clamps, but NaN/Infinity would still leave pendingPicks non-JSON. Content must never carry them.
     expect(Number.isInteger(CONTENT.tuning.startingPicks)).toBe(true);
+    expect(CONTENT.tuning.venomMax).toBeGreaterThanOrEqual(1);
+    // A special's starting venom must not exceed the cap, or the first bite would be the biggest.
+    for (const e of [...CONTENT.enemies, ...CONTENT.bosses]) {
+      for (const eff of e.special?.effects ?? []) if (eff.type === 'venomTiles') expect(eff.value, e.id).toBeLessThanOrEqual(CONTENT.tuning.venomMax);
+    }
     expect(CONTENT.tuning.startingPicks).toBeGreaterThanOrEqual(0);
     for (const b of CONTENT.tuning.lengthBonus) expect(Number.isFinite(b)).toBe(true);
   });
 
   it('the boss has a distinct mechanic', () => {
     expect(CONTENT.bosses[0]?.special?.effects.some((e) => e.type === 'lockTiles')).toBe(true);
-    for (const e of CONTENT.enemies) expect(e.special).toBeUndefined();
+    expect(CONTENT.enemies.find((e) => e.id === 'polyp')?.special?.effects.some((e) => e.type === 'venomTiles')).toBe(true);
+    for (const e of CONTENT.enemies) if (e.id !== 'polyp') expect(e.special).toBeUndefined();
   });
 });
