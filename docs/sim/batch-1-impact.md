@@ -1,4 +1,4 @@
-# Per-item impact, effects wave batch 1 (PR #40, 2026-09-08)
+# Per-item impact, effects wave batch 1 (PR #41, 2026-09-08)
 
 Pasted from `RUNS=1500 npx tsx scripts/item-impact.ts` (the script lives in the session scratchpad; it runs every seed once per bot and buckets runs by the items held at the end). Base rates are the whole population. An item held in ~100 runs carries about plus or minus 10 points of noise, so read this for degenerate items and never-picked items, not for two-point differences.
 

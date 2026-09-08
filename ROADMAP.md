@@ -46,9 +46,10 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
-### Effects wave, UI and content batch 1 (PR #40, 2026-09-08)
+### Effects wave, UI and content batch 1 (PR #41, 2026-09-08)
 
-Stacked on PR #39. UI: the shield rides the HP bar as a second segment
+Stacked on PR #39 as PR #40, which GitHub closed when the stacked base
+branch was deleted at #39's merge; #41 is the same branch against main. UI: the shield rides the HP bar as a second segment
 with a "+n" label, poison and stun badge the enemy sprite, the shuffle
 button reads "Free xN" in the life colour while a charge is held and
 needs no arming, report lines for poison, stun, shield and redraws,

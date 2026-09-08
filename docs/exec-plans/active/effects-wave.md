@@ -156,7 +156,7 @@ pick screen; new report lines in the report colours.
   offer rule lifts mediocre ~3.5 points, the bot's rarity tiebreak ~8.
   Acceptance line 1 is therefore not met at the engine PR and moves
   to batch 1 (tracker #7).
-- Task 2 `feat/effects-ui` + content batch 1 (PR #40, stacked on
+- Task 2 `feat/effects-ui` + content batch 1 (PR #41, stacked on
   #39): shipped together. Forty items (20/12/7/1) to 112; curve D
   (act 2 damage +0.1/+0.1/+0.2, act 3 hp and damage raised) brings
   mediocre to 35.2%; the per-item table then caught Paralytic as a
