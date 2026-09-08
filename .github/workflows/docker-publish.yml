@@ -69,6 +69,8 @@ jobs:
           context: .
           load: true
           tags: lexicell-candidate:local
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

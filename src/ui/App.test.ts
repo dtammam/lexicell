@@ -81,6 +81,7 @@ describe('App', () => {
     expect(getByText('Loading words...')).toBeTruthy();
     const play = await findByText('New run', 15000);
     expect(queryButton('Continue')).toBeNull();
+    expect(getByText('build test')).toBeTruthy();
     const wotd = await findByText('Word of the day');
     expect(wotd).toBeTruthy();
     const word = document.querySelector('.wotd .word')?.textContent ?? '';

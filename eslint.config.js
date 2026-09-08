@@ -73,7 +73,7 @@ export default tseslint.config(
     files: ['**/*.svelte', '**/*.svelte.ts'],
     languageOptions: {
       // The browser globals the UI actually uses; listed by hand rather than pulling the `globals` package.
-      globals: Object.fromEntries(['window', 'document', 'navigator', 'localStorage', 'console', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'URL', 'fetch', 'Date', 'Math', 'JSON', 'Error', 'String', 'Number', 'Array', 'Object', 'Set', 'Map', 'Promise'].map((g) => [g, 'readonly'])),
+      globals: Object.fromEntries(['window', 'document', 'navigator', 'localStorage', 'console', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'URL', 'fetch', 'Date', 'Math', 'JSON', 'Error', 'String', 'Number', 'Array', 'Object', 'Set', 'Map', 'Promise', '__BUILD_SHA__'].map((g) => [g, 'readonly'])),
       parserOptions: { parser: tseslint.parser },
     },
   },

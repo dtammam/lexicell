@@ -2,6 +2,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  define: { __BUILD_SHA__: JSON.stringify('test') },
   plugins: [svelte()],
   // Svelte's package resolves to its client build under the browser condition; the
   // component tests under jsdom need that build. Nothing else in the tree has a
