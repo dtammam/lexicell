@@ -67,6 +67,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--s2);
+    /* Opens upward; a long build must not run past the top of the screen. */
+    max-height: min(60dvh, 420px);
+    overflow-y: auto;
+    scrollbar-width: none;
   }
   li {
     display: flex;

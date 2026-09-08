@@ -99,6 +99,8 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
+  /* No double-tap zoom anywhere: a zoomed page with overflow hidden has no way back. */
+  touch-action: manipulation;
 }
 body {
   margin: 0;
