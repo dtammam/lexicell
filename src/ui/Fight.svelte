@@ -208,8 +208,8 @@
   .hit {
     color: var(--score);
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 15px;
+    font-weight: 400;
+    font-size: var(--hud-m);
     animation: pop var(--dur-settle) var(--ease-settle);
   }
   .taken {
@@ -233,8 +233,8 @@
   .missed strong {
     color: var(--score);
     font-family: var(--font-letter);
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-weight: 400;
+    font-size: var(--hud-m);
   }
   .missed.best {
     color: var(--life);
@@ -246,9 +246,9 @@
     align-items: baseline;
     gap: var(--s3);
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 28px;
-    letter-spacing: 0.14em;
+    font-weight: 400;
+    font-size: var(--hud-l);
+    letter-spacing: 0.1em;
     min-height: 2rem;
     line-height: 2rem;
     color: var(--ink);
@@ -294,9 +294,10 @@
     align-items: center;
     justify-content: center;
     font-family: var(--font-letter);
-    /* The letter is the thing: half the tile's side, bold, in the legible face. */
-    font-size: calc(min(100cqw, 100cqh) / 4 * 0.52);
-    font-weight: 700;
+    /* The letter is the thing: about half the tile's side, rounded down to the pixel grid. */
+    font-size: 24px;
+    font-size: round(down, calc(min(100cqw, 100cqh) / 4 * 0.5), 8px);
+    font-weight: 400;
     line-height: 1;
     touch-action: manipulation;
     user-select: none;

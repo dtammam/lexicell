@@ -94,9 +94,8 @@
   h2 {
     margin: 0;
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 28px;
-    letter-spacing: 0.05em;
+    font-weight: 400;
+    font-size: var(--hud-l);
   }
   .tag {
     margin: 0;
@@ -133,9 +132,8 @@
   }
   .word {
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 24px;
-    letter-spacing: 0.06em;
+    font-weight: 400;
+    font-size: var(--hud-l);
     color: var(--score);
   }
   .gloss {
