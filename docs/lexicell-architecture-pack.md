@@ -207,7 +207,7 @@ One screen, a few panels (grid, enemy, items, pick screen). No routing, no SSR, 
 - Effort: Low
 
 ### Option B: Vite + Svelte 5 (no Kit)
-- Same compiler, same dev server, no framework surface beyond components and runes. `vite-plugin-pwa` handles manifest and service worker.
+- Same compiler, same dev server, no framework surface beyond components and runes. Manifest is a static file; the service worker is generated at build time by a script in the repo (no PWA plugin, Dean's dependency ruling of 2026-09-08).
 - Cons: if the project ever needs routes (settings page, run history), they get hand-rolled or Kit is added later — a small migration.
 - Effort: Low
 
@@ -538,7 +538,7 @@ If those can't be reached by tuning the formula and HP curve, stop and rethink t
 
 Thinnest slice through the real stack.
 
-- Vite + Svelte 5 + TypeScript scaffold. `vite-plugin-pwa`. ESLint with the engine import restriction.
+- Vite + Svelte 5 + TypeScript scaffold. Hand-written service worker. ESLint with the engine import restriction.
 - One screen: 16 tiles, tap to select, tap Attack, damage number, enemy HP bar, used tiles refill. One enemy, no items, no pick screen.
 - `persist.ts` saving reducer state to localStorage; reload resumes.
 - Deployed to the NUC over HTTPS; installed to the iPhone home screen; opened in airplane mode.
@@ -614,7 +614,7 @@ Read "What This Is Not" in the pack. Do not add: era-specific dictionaries, era-
 
 ## Stack
 
-Vite + Svelte 5 + TypeScript, `vite-plugin-pwa`, vitest, ESLint. Static build → nginx container on the homelab via GitHub Actions. localStorage for the single saved run.
+Vite + Svelte 5 + TypeScript, hand-written service worker, vitest, ESLint. Static build -> nginx container on the homelab via GitHub Actions. localStorage for the single saved run.
 
 ## Phase gate
 

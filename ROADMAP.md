@@ -46,6 +46,28 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Feel wave (PR #1, merged 2026-09-08)
+
+Dean played the skeleton and asked for clarity and feel. Shipped:
+green-means-valid tiles with values and selection order; WordNet
+definitions for played words (61.5% of ENABLE, 1.4 MB gzip lazy chunk)
+and a word of the day; title screen with Continue and a two-step
+abandon (tracker #4 closed); items panel; an arena with generated
+pixel sprites, act backgrounds, hit flash, shake and floating damage;
+shuffle that costs the turn (the one engine change); rotation-proof
+tile sizing; a dependency diet (no Workbox or PWA plugin, no testing
+library, 557 to 233 packages, hand-written service worker).
+
+What the gate caught (one adversarial round): the green-word test
+could not tell isWord from a length check; abandoning from a fresh
+load did not clear the save; the service worker would have cached a
+502 page as the offline index; sprite paths ignored Vite's base on
+the LAN route; two shuffle mutants unbound. All fixed in the PR.
+Replay against main's reducer: 40,276 steps, 0 mismatches; both sim
+tables reproduced cell for cell (unchanged from the entry below).
+Measured at merge: 142 tests, lint clean. Iteration mode (CLAUDE.md)
+starts after this wave: reviewer only for engine and persistence.
+
 ### Phase 1 walking skeleton (`feat/phase-1-skeleton`, merged 2026-09-08)
 
 Vite 7 + Svelte 5 + TypeScript scaffold with the engine import wall

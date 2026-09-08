@@ -1,6 +1,8 @@
 # Exec plan: the feel wave
 
-Status: ACTIVE (started 2026-09-08). Branch `feat/feel-wave`.
+Status: CLOSED 2026-09-08 (PR #1). Branch `feat/feel-wave`. Gate: one
+adversarial round, REQUEST CHANGES on five test-binding and robustness
+warnings, all fixed in the same PR; see ROADMAP.
 Spec of record: `docs/lexicell-architecture-pack.md` (Phase 2 "basic
 juice", MoSCoW Could "scramble charges", Won't "narrative screens").
 
@@ -80,15 +82,16 @@ game readable and gives the fight a face, before any more tuning.
   and pasted (bots never shuffle, so the tables should not move; that
   is the check). Shuffle button on the fight screen with a
   confirmation on the first use per run.
-- T6 Docs: ROADMAP entry, CONTRIBUTING (definitions build command),
-  plan to completed.
+- T6 Docs: CONTRIBUTING (definitions build command). The ROADMAP entry
+  and the move to completed happen at merge.
 
 ### Decisions inside the design
 
 - Validity check in the UI is `dictionary.has(word)` on the current
   selection. Cheap, synchronous, and the same set the reducer uses.
-- Definitions are a separate chunk so a device that never opens the
-  panel never downloads it beyond the service worker's precache.
+- Definitions are a separate lazy chunk. The title screen's word of the
+  day loads it on every open, so in practice it is fetched at startup;
+  the split still keeps the first paint off the 6 MB.
 - Sprites live in `public/sprites/` and are addressed by enemy id;
   a missing sprite falls back to a generic blob so new enemies never
   break the screen.

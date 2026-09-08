@@ -18,7 +18,7 @@ Read "What This Is Not" in the pack. Do not add: era-specific dictionaries, era-
 
 ## Stack
 
-Vite + Svelte 5 + TypeScript, `vite-plugin-pwa`, vitest, ESLint. Static build → nginx container on the homelab via GitHub Actions. localStorage for the single saved run.
+Vite + Svelte 5 + TypeScript, a hand-written service worker (`scripts/lib/service-worker.ts`), vitest, ESLint. Static build -> nginx container on the homelab via GitHub Actions, published to Docker Hub on every merge to main. localStorage for the single saved run. Dependencies are a cost (Dean, 2026-09-08): nothing third-party ships on the device except Svelte's runtime; a new runtime dependency needs Dean's go.
 
 ## Phase gate
 
@@ -38,13 +38,46 @@ Ported from github.com/dtammam/filetube (`docs/references/lean-mode-methodology.
 6. **Merge.** `git merge --no-ff` into main. Move the exec plan to `completed/` when the wave closes. ROADMAP.md gets an honest entry: what shipped, what the gate caught, what is still open.
 7. **Memory + report.** Update persistent memory, then report: outcome first, then what the gate caught, then what Dean should check himself.
 
+### Iteration mode (Dean, 2026-09-08, in force until anchored back)
+
+Dean's ruling after playing the first build: "I want to iterate way
+more quickly now than the ceremony will allow. This game is not
+critical; it will not hold mission-critical data. It does not warrant
+such thorough review for every change." The full lifecycle above
+stays the reference; while iteration mode is in force it is applied as
+follows. Anchor back (return to the full rules) when the game is live
+with real users, or when Dean says so; at that point test quality and
+review depth change, not before.
+
+1. **Reviewer only for engine and persistence.** Spawn the
+   `adversarial-reviewer` only when a change touches `src/engine/`,
+   the save schema, or `src/ui/persist.ts`. One round, at the end.
+   The `quality-assurance` seat is benched. UI, content, docs, scripts
+   and tooling ship on `npm test`, `npm run lint`, CI green, and your
+   own review.
+2. **Full sim reruns only when the engine or content changes.** CI's
+   ten-run smoke runs on everything. When a rerun happens, tables are
+   still pasted, never typed.
+3. **One task per PR, merged as soon as CI is green.** Small PRs,
+   merged through GitHub (`gh pr merge --merge` keeps the merge
+   commit), so Dean's container gets something new every hour rather
+   than at the end of a wave. Direct pushes to main stay forbidden.
+4. **Exec plans only for waves that touch the engine or the save.**
+   Everything else gets a one-line ROADMAP entry at merge.
+5. **Short commit messages.** Decision and measured result in a few
+   lines; no essays.
+
+Unchanged: failures reported verbatim, known gaps disclosed, explicit
+staging, no `--no-verify`, no force-push, no em dashes, every engine
+module tests in the same commit, `scripts/sim.ts` still runs.
+
 ### The two-reviewer gate
 
 Spawn the seats by agent type, never as ad-hoc prompts: `quality-assurance` (correctness, regressions, engine contract, standards, comment accuracy; has Bash, runs the instruments) and `adversarial-reviewer` (assumes both you and QA missed something; measures every claim, mutation-tests bindings, leaves the tree byte-identical). Your task prompt carries the wave brief: branch, commit range, exec plan, and the named attack surfaces. Both report CRITICAL/WARNING/SUGGESTION with a concrete failure scenario each, then APPROVE or REQUEST CHANGES. Both must APPROVE before merge. If an agent type does not resolve yet (registry refresh lag), brief the discipline inline from the agent file.
 
 ### Standing norms (non-negotiable)
 
-- Every change goes branch -> gate -> `merge --no-ff` -> main. No direct-to-main commits, no exceptions for size.
+- Every change goes branch -> gate (as iteration mode defines it) -> pull request -> merge commit on main. No direct-to-main commits, no exceptions for size.
 - Test failures and sim results are reported verbatim, with counts and the command, before any framing. A regression is a regression even when inconvenient.
 - Known gaps ship DISCLOSED in ROADMAP.md and the report. Accepted residuals go in `docs/exec-plans/tech-debt-tracker.md` with a revisit trigger.
 - Stage explicit paths only. A PreToolUse hook refuses the common blanket spellings (`git add -A`, `.`, `-u`, `*`, `$(...)`, `xargs`, `git commit -a`, through prefixes or `sh -c`); its measured blind spots are in tracker #2. The hook is a backstop, the discipline is yours. Confirm the branch before every commit. Verify every commit landed with `git log`; the pre-commit hook refuses red.
