@@ -37,8 +37,8 @@
   h2 {
     margin: 0;
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 20px;
+    font-weight: 400;
+    font-size: var(--hud-m);
   }
   .hint {
     margin: 0;
@@ -73,8 +73,8 @@
   }
   .name {
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 17px;
+    font-weight: 400;
+    font-size: var(--hud-m);
     display: flex;
     gap: var(--s2);
     align-items: baseline;

@@ -92,8 +92,8 @@
   }
   .name {
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 16px;
+    font-weight: 400;
+    font-size: var(--hud-m);
     display: flex;
     gap: var(--s2);
     align-items: baseline;

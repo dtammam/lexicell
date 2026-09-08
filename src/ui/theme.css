@@ -18,18 +18,6 @@
   font-display: swap;
   src: url('/fonts/silkscreen-700.woff2') format('woff2');
 }
-@font-face {
-  font-family: 'Atkinson Hyperlegible';
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/atkinson-hyperlegible-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Atkinson Hyperlegible';
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/atkinson-hyperlegible-700.woff2') format('woff2');
-}
 
 :root {
   /* Surfaces and text */
@@ -62,13 +50,14 @@
   --tile-valid-ink: var(--ground);
   --tile-locked-ink: #6a5599;
 
-  /* Type. Legibility first (Dean, 2026-09-08: nobody burns a cycle on U versus V). Letters,
-     words, names and text are Atkinson Hyperlegible, built so U/V, I/l/1, O/0 and C/G cannot
-     be confused. The pixel face is for NUMBERS and short labels only, never for a word a
-     player must read; Silkscreen sits on an 8px grid: 8, 16, 24, 32 px sizes only. */
+  /* Type (Dean, 2026-09-08, second ruling): the pixel face in its REGULAR weight is the voice
+     of the game: tile letters, words, names, headings, numbers. Legibility is kept by size,
+     not by face: Silkscreen sits on an 8px grid, so letters use 16, 24 or 32 px and never
+     bold. Running text (descriptions, definitions, the intro) is the system sans, since a
+     paragraph in a pixel face is unreadable. Two faces: one vendored, one the device's. */
   --font-hud: 'Silkscreen', ui-monospace, monospace;
-  --font-ui: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
-  --font-letter: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
+  --font-letter: 'Silkscreen', ui-monospace, monospace;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --hud-s: 8px;
   --hud-m: 16px;
   --hud-l: 24px;
@@ -111,9 +100,9 @@ body {
 
 /* Shared control shapes. Components add role colours; the shape is the same everywhere. */
 .btn {
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 15px;
+  font-family: var(--font-letter);
+  font-weight: 400;
+  font-size: var(--hud-m);
   padding: var(--s3) var(--s2);
   border: 2px solid var(--shade);
   border-radius: var(--radius);
