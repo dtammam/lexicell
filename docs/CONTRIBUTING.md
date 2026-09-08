@@ -26,13 +26,15 @@ file is the mechanics.
 | Test | `npm test` (`npm run test:watch` for the loop) |
 | Sim | `npm run sim -- [--runs N] [--bot greedy\|mediocre\|solver] [--items none\|a,b] [--seed S] [--variant base\|pre-act1] [--json]` |
 | Rebuild dictionary | `npm run dict:build` |
+| Rebuild definitions | `npm run defs:build -- --wordnet <WordNet 3.1 dict/ dir>` (WordNet is not committed; see `scripts/build-definitions.ts`) |
+| Regenerate placeholder sprites | `python3 scripts/sprites.py` (Pillow; deterministic per id) |
 
 ## Layout
 
 | Path | Owns |
 |------|------|
 | `src/engine/` | Pure rules. Reducer, RNG, solver, scoring, hooks, effects, grid, candidates. No framework, no DOM, no Node built-ins. |
-| `src/content/` | Data only: items, enemies, bosses, acts (the encounter curve and tuning), the word list. |
+| `src/content/` | Data only: items, enemies, bosses, acts (the encounter curve and tuning), the word list, the definitions table (WordNet-derived, licence alongside). |
 | `src/ui/` | Svelte 5 screens and their plumbing: `store.ts` (the only caller of `reduce`), `persist.ts` (versioned localStorage), `context.ts` (dictionary via `?raw`), `lookup.ts` (ids to names). Components render state and call `dispatch`; nothing else changes state. |
 | `public/` | Static assets copied into `dist/` as-is: PWA icons. |
 | `.github/workflows/` | `ci.yml` on branches and PRs; `docker-publish.yml` builds, smokes and pushes the nginx image from main. See `docs/deploy.md`. |
@@ -113,6 +115,6 @@ you edit loses its em dashes as part of the edit.
 - [ ] `npm run lint` clean
 - [ ] `npm test` green, new behaviour covered, sim still runs
 - [ ] Engine contract intact (see CLAUDE.md non-negotiables)
-- [ ] Two-reviewer gate APPROVE x2 (slim gate for docs/hotfixes)
+- [ ] Gate APPROVE: one adversarial round per wave until the Phase 2 exit (Dean, 2026-09-08), then two-reviewer APPROVE x2
 - [ ] Exec plan updated; residuals filed in the tech-debt tracker
 - [ ] No TODO/FIXME without a tracker row
