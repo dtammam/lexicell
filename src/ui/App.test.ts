@@ -116,10 +116,11 @@ describe('App', () => {
     expect(getByText(/a portal made of letters/)).toBeTruthy();
     expect(document.querySelector('.portal .ring')).not.toBeNull();
     await click(document.querySelector('.scene'));
-    expect(getByText('In here, words are teeth.')).toBeTruthy();
-    expect(document.querySelectorAll('.arrival .tile')).toHaveLength(16);
+    expect(getByText('Long words hit hard.')).toBeTruthy();
+    const arrival = Array.from(document.querySelectorAll('.arrival .tile')).map((t) => t.textContent).join('');
+    expect(arrival).toBe('LONGWORDSHITHARD');
     await click(document.querySelector('.scene'));
-    expect(getByText('In here, words are teeth.')).toBeTruthy();
+    expect(getByText('Long words hit hard.')).toBeTruthy();
     await click(getButton('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
     expect(getByText(/Tap one\. You keep it/)).toBeTruthy();
@@ -436,6 +437,10 @@ describe('App', () => {
     await startRun();
     expect(document.querySelectorAll('button.tile .value')).toHaveLength(0);
     expect(document.querySelectorAll('button.tile.fresh')).toHaveLength(0);
+    // A few tiles shiver each turn, never all of them.
+    const shivering = document.querySelectorAll('button.tile.shiver').length;
+    expect(shivering).toBeGreaterThan(0);
+    expect(shivering).toBeLessThan(6);
     const word = await attackOnce('short');
     if (queryByText('Choose an item')) return;
     expect(document.querySelectorAll('button.tile.fresh')).toHaveLength(word.length);

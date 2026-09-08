@@ -105,6 +105,11 @@
     return { dy: 4 - row, fresh: true };
   }
 
+  /** A few tiles per turn shiver, as if biologically unstable (Dean, 2026-09-08). Which ones moves with the turn. */
+  function shivers(index: number): boolean {
+    return (index * 7 + run.stats.turns * 5) % 6 === 0;
+  }
+
   function orderOf(index: number): number {
     return (enc?.selection.indexOf(index) ?? -1) + 1;
   }
@@ -159,12 +164,13 @@
           class="tile"
           class:moved={move !== null}
           class:fresh={move?.fresh ?? false}
-          style={move ? `--dy: ${move.dy}` : undefined}
+          style={move ? `--dy: ${move.dy}; --i: ${i}` : `--i: ${i}`}
           class:selected={order > 0}
           class:valid={order > 0 && valid}
           data-tier={tier(tile.letter)}
           class:locked={tile.lockedTurns > 0}
           class:venomous={tile.venom > 0}
+          class:shiver={shivers(i)}
           disabled={tile.lockedTurns > 0}
           onclick={() => { dispatch({ type: 'toggleTile', index: i }); }}
         >
@@ -204,7 +210,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--s2) var(--s3);
-    font-size: 14px;
+    font-size: var(--text);
     line-height: 1.3;
   }
   .hit {
@@ -229,7 +235,7 @@
   .missed {
     flex: none;
     margin: 0;
-    font-size: 13px;
+    font-size: var(--text);
     color: var(--muted);
   }
   .missed strong {
@@ -310,6 +316,34 @@
   .tile:active {
     transform: translate(2px, 2px);
     box-shadow: var(--shadow-press);
+  }
+  .tile.shiver:not(.moved):not(.fresh):not(.selected) {
+    animation: shiver 2.8s steps(2, end) infinite;
+    animation-delay: calc(var(--i, 0) * 180ms);
+  }
+  @keyframes shiver {
+    0%,
+    88%,
+    100% {
+      transform: none;
+    }
+    90% {
+      transform: translate(1px, 0);
+    }
+    92% {
+      transform: translate(-1px, 1px);
+    }
+    94% {
+      transform: translate(1px, -1px);
+    }
+    96% {
+      transform: translate(0, 1px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tile.shiver {
+      animation: none;
+    }
   }
   .tile.moved {
     animation: settle var(--dur-settle) var(--ease-settle) both;

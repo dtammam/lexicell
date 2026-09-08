@@ -102,7 +102,7 @@
   .tag {
     margin: 0;
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text);
   }
   .buttons {
     display: flex;
@@ -140,7 +140,7 @@
   }
   .gloss {
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text);
     line-height: 1.35;
   }
 </style>

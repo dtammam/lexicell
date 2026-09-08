@@ -46,7 +46,7 @@
     border: none;
     padding: var(--s1) 0;
     font-family: var(--font-ui);
-    font-size: 13px;
+    font-size: var(--text);
     color: var(--muted);
     touch-action: manipulation;
     text-decoration: underline dotted;
@@ -101,12 +101,11 @@
   }
   .flavor {
     color: var(--score);
-    font-style: italic;
-    font-size: 12px;
+    font-size: var(--text);
   }
   .desc {
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text);
     line-height: 1.35;
   }
   small {

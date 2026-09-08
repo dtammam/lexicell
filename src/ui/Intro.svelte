@@ -5,9 +5,10 @@
   let { onBegin }: { onBegin: () => void } = $props();
 
   const base = import.meta.env.BASE_URL;
-  const BEATS = ['Something ate your pond.', 'You escaped through the only door left: a portal made of letters.', 'In here, words are teeth.'];
+  const BEATS = ['Something ate your pond.', 'You escaped through the only door left: a portal made of letters.', 'Long words hit hard.'];
   const RING = 'LEXICELL·WORDS·';
-  const GRID = 'WORDSAREATEETHXX';
+  // Sixteen letters, one per tile, the whole lesson in a grid.
+  const GRID = 'LONGWORDSHITHARD';
 
   let beat = $state.raw(0);
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -64,8 +65,8 @@
   <h2>You are a cell.</h2>
   <ol>
     <li>Pick <strong>one</strong> organelle to start with. It changes how you fight.</li>
-    <li>Tap tiles to spell a word, then <strong>Attack</strong>. Longer words bite harder.</li>
-    <li>Win nine fights and you evolve. Lose your HP and you are soup.</li>
+    <li>Tap tiles to spell a word, then <strong>Attack</strong>.</li>
+    <li>The <strong>longest word you can find</strong> is how you deal damage, and how you evolve. Win nine fights; lose your HP and you are soup.</li>
   </ol>
   <button class="btn life" onclick={onBegin}>Divide and conquer</button>
 </section>
@@ -106,7 +107,7 @@
     margin: 0;
     font-family: var(--font-ui);
     font-weight: 500;
-    font-size: 15px;
+    font-size: var(--text);
     color: var(--ink);
     text-shadow: 1px 1px 0 var(--shade), 0 0 6px var(--shade);
     animation: caption var(--dur-settle) var(--ease-settle) both;
@@ -274,7 +275,7 @@
   li {
     margin: 0;
     color: var(--ink);
-    font-size: 15px;
+    font-size: var(--text);
     line-height: 1.4;
   }
   ol {

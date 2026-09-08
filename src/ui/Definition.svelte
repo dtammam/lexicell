@@ -28,7 +28,7 @@
 <style>
   .definition {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--text);
     color: var(--muted);
     line-height: 1.35;
   }

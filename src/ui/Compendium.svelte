@@ -59,7 +59,7 @@
     flex: none;
     margin: 0;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text);
   }
   /* The one screen allowed to scroll: it is a list, not the game. */
   .list {
@@ -107,12 +107,11 @@
   }
   .flavor {
     color: var(--score);
-    font-style: italic;
-    font-size: 12px;
+    font-size: var(--text);
   }
   .desc {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--text);
     line-height: 1.35;
   }
 </style>
