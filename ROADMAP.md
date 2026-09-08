@@ -68,9 +68,12 @@ Exit criteria:
   ----  win rate moves with items: compare against --items none
 ```
 
-Shifts from the feel-wave tables are one run in five hundred here and
-there (boss locks and vowel-floor swaps land on different letters);
-criteria unchanged.
+Shifts from the act-1 tables, measured by the gate: base mediocre win
+rate +1.0 points (5 runs), mean turns +0.6, HP columns up to +2;
+pre-act1 solver -0.6 points, greedy -0.4, HP up to -2. Boss locks and
+vowel-floor swaps land on different letters now that positions move.
+Criteria unchanged. The gate also found that the boss's lock is lost on
+most specials, on main as well; tracker #5, fixed with the tuning wave.
 
 ### Feel wave (PR #1, merged 2026-09-08)
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
 import { candidateIndices, candidateWords } from './candidates';
-import { isDead, refill } from './grid';
+import { isDead, refill, settle } from './grid';
 import { newRun, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
 import type { Encounter, RunState } from './types';
@@ -282,28 +282,34 @@ describe('starting kit (tuning.startingPicks)', () => {
 });
 
 describe('gravity: refilled columns settle', () => {
-  it('after a word the report names the used tiles, survivors rise in their column, fresh tiles land below', () => {
+  it('after a word the grid is exactly refill then settle: survivors rise, fresh tiles land below', () => {
+    // An unkillable enemy so the encounter never ends, and no items (ctx has no starting kit), so the
+    // only RNG between submit and the refill is the refill itself: the result must equal
+    // settle(refill(rng, grid, selection)) with no lock to tick. This binds the order (M6) and the
+    // presence (M7) of settle in endTurn exactly.
     const s0 = newRun(21, ctx);
     if (s0.phase !== 'fight') throw new Error('expected a fight');
-    const before = (s0.encounter as Encounter).grid;
-    const best = candidateWords(s0, ctx).sort((a, b) => b.damage - a.damage)[0];
+    const enc0 = s0.encounter as Encounter;
+    const tank: RunState = { ...s0, encounter: { ...enc0, enemy: { ...enc0.enemy, hp: 100000, maxHp: 100000 } } };
+    const best = candidateWords(tank, ctx).sort((a, b) => b.damage - a.damage)[0];
     if (!best) throw new Error('no word');
-    const idx = candidateIndices(s0, best.word);
+    const idx = candidateIndices(tank, best.word);
     if (!idx) throw new Error('cannot place');
-    let s = s0;
+    let s = tank;
     for (const i of idx) s = reduce(s, { type: 'toggleTile', index: i }, ctx);
     const used = [...(s.encounter as Encounter).selection];
     const s1 = reduce(s, { type: 'submitWord' }, ctx);
+    expect(s1.phase).toBe('fight');
     expect(s1.lastTurn?.used).toEqual(used);
-    if (s1.phase !== 'fight') return; // a kill ends the encounter; the grid is gone
-    const after = (s1.encounter as Encounter).grid;
+    const [refilled] = refill(s.rng, enc0.grid, used, 1);
+    const expected = settle(refilled, used);
+    expect((s1.encounter as Encounter).grid).toEqual(expected);
+    expect(expected).not.toEqual(refilled); // the word was not a full column, so settling moved something
+    // Survivors kept their letters in column order; fresh tiles are the bottom of each column.
     const usedSet = new Set(used);
     for (let c = 0; c < 4; c++) {
-      const survivors = [0, 1, 2, 3].filter((r) => !usedSet.has(r * 4 + c)).map((r) => before[r * 4 + c]?.letter);
-      const top = survivors.map((_, r) => after[r * 4 + c]?.letter);
-      // The vowel floor may swap one consonant for a vowel anywhere; allow at most one mismatch per column.
-      const mismatches = survivors.filter((l, r) => l !== top[r]).length;
-      expect(mismatches, `column ${c}`).toBeLessThanOrEqual(1);
+      const survivors = [0, 1, 2, 3].filter((r) => !usedSet.has(r * 4 + c)).map((r) => refilled[r * 4 + c]);
+      expect([0, 1, 2, 3].map((r) => expected[r * 4 + c]).slice(0, survivors.length)).toEqual(survivors);
     }
   });
 
@@ -385,6 +391,8 @@ describe('shuffle (costs the turn)', () => {
     if (s2.phase !== 'fight') return; // the enemy's turn can kill at low HP; not this seed's concern
     expect(isDead((s2.encounter as Encounter).grid, ctx.solver)).toBe(false);
     expect(s2.lastTurn?.scrambled).toBe(true);
+    // A dead-grid scramble replaces every tile, so the report says so and the UI animates all 16.
+    expect(s2.lastTurn?.used).toEqual(Array.from({ length: 16 }, (_, i) => i));
   });
 
   it('a shuffle draws with the onTileDraw vowel weight, exactly as refill would', () => {

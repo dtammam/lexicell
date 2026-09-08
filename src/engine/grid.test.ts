@@ -108,7 +108,8 @@ describe('settle (gravity)', () => {
 
   it('does not mutate its input', () => {
     const copy = grid.map((x) => ({ ...x }));
-    settle(grid, [0, 4, 8, 12]);
+    const out = settle(grid, [0, 8]);
+    expect(out).not.toEqual(grid);
     expect(grid).toEqual(copy);
   });
 });

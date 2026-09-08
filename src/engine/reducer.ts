@@ -392,7 +392,8 @@ function endTurn(state: RunState, ctx: EngineContext, report: TurnReport, used: 
   s = { ...s, rng, encounter: { ...enc3, grid, selection: [], turn: enc3.turn + 1 } };
   if (isDead(grid, ctx.solver)) {
     s = scramble(s, ctx);
-    report = { ...report, scrambled: true };
+    // freshGrid replaced every tile, locks included; tell the UI so it animates the whole grid.
+    report = { ...report, scrambled: true, used: Array.from({ length: GRID_SIZE }, (_, i) => i) };
   }
   return turnStart(s, ctx, report);
 }
