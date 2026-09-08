@@ -36,19 +36,20 @@ context; they are defined on the arena and stay inside it.
 
 ## Type
 
-- Legibility comes first (Dean, 2026-09-08): nobody burns a mental
-  cycle on U versus V. Anything a player must READ as a word is set in
-  `--font-letter`, Atkinson Hyperlegible, designed so U/V, I/l/1, O/0
-  and C/G cannot be confused: tile letters, the word line, the missed
-  word, item names, headings.
-- `--font-ui` (also Atkinson Hyperlegible): sentences, buttons,
-  descriptions, definitions. 13 to 16 px for reading.
-- `--font-hud` (Silkscreen): numbers and short labels only: HP, turn,
-  act, damage floats, the build stamp, tile badges. Never a word.
-  Sizes are multiples of 8 px only (`--hud-s` 8, `--hud-m` 16,
-  `--hud-l` 24, `--hud-xl` 32); at other sizes it aliases.
-- Two faces, no third. Both vendored under `public/fonts` with their
-  Open Font License texts; nothing loads from a third party.
+- The pixel face in its regular weight is the voice of the game
+  (Dean, 2026-09-08, after trying a hyperlegible face and finding it
+  off-vibe): `--font-letter` and `--font-hud` are both Silkscreen 400:
+  tile letters, the word line, the missed word, names, headings,
+  numbers, buttons. Never bold. Legibility comes from size: Silkscreen
+  sits on an 8 px grid, so letters use 16, 24 or 32 px and tile
+  letters round down to the grid; at other sizes it aliases and U
+  starts to look like V.
+- `--font-ui` is the system sans: descriptions, definitions, the
+  intro lines, hints. 13 to 16 px. A paragraph in a pixel face is
+  unreadable, so running text never uses it.
+- Two faces, no third: one vendored under `public/fonts` with its Open
+  Font License text, one the device's own. Nothing loads from a third
+  party.
 
 ## Shape
 
@@ -71,8 +72,8 @@ context; they are defined on the arena and stay inside it.
 
 ## Component rules
 
-- Tiles: `--tile` fill, letter in `--font-letter` bold at half the
-  tile's side, tier by border colour (vowel fill `--score`, mid edge
+- Tiles: `--tile` fill, letter in `--font-letter` at half the tile's
+  side rounded to the pixel grid, tier by border colour (vowel fill `--score`, mid edge
   `--mid`, rare edge `--rare` with a glow), selection overrides tier
   (`--select` fill, then `--life` fill when the word is valid), locked
   tiles dashed and dimmed, venom edge `--venom` with a glow and a
@@ -86,7 +87,8 @@ context; they are defined on the arena and stay inside it.
 
 ## What "slop" looks like, so it stays out
 
-A component with its own hex values. A third font. A word set in the
-pixel face. A pill button. A
+A component with its own hex values. A third font. The pixel face in
+bold, or at a size off its grid. A paragraph in the pixel face. A pill
+button. A
 soft drop shadow. A gradient on a card. An easing curve on a state
 change. Text under 13 px in the UI face. Emoji as icons.

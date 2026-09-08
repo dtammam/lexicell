@@ -189,8 +189,8 @@
     background: var(--score);
     color: var(--ground);
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 16px;
+    font-weight: 400;
+    font-size: var(--hud-m);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -268,8 +268,8 @@
   h2 {
     margin: 0;
     font-family: var(--font-letter);
-    font-weight: 700;
-    font-size: 26px;
+    font-weight: 400;
+    font-size: var(--hud-l);
   }
   li {
     margin: 0;
