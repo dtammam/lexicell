@@ -3,6 +3,7 @@ import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
 import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { candidateIndices, candidateWords } from './candidates';
+import { gatherEffects } from './hooks';
 import { isDead, refill, settle } from './grid';
 import { MAX_COMMONS_PER_OFFER, newRun, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
@@ -1122,7 +1123,193 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(3);
+      expect(a.final.v).toBe(4);
+    }
+  });
+});
+
+describe('starting cells (save v4)', () => {
+  const cells = CONTENT.cells;
+  function byId(id: string) {
+    const c = cells.find((x) => x.id === id);
+    if (!c) throw new Error(id);
+    return c;
+  }
+  function anyWordIn(s: RunState, c: EngineContext): string {
+    const w = candidateWords(s, c)[0];
+    if (!w) throw new Error('no word');
+    return w.word;
+  }
+  function inFightAs(seed: number, cell: string, c: EngineContext = ctx): RunState {
+    let s = newRun(seed, c, cell);
+    while (s.phase === 'pick') s = reduce(s, { type: 'pickItem', index: 0 }, c);
+    if (s.phase !== 'fight') throw new Error('expected a fight');
+    return s;
+  }
+
+  it('the default cell is balanced and a run without a cell is exactly the run before cells existed', () => {
+    const a = newRun(9, ctx);
+    const b = newRun(9, ctx, 'balanced');
+    expect(a).toEqual(b);
+    expect(a.cell).toBe('balanced');
+    expect(a.player.maxHp).toBe(100);
+    expect(byId('balanced').traits).toEqual({});
+    expect(reduce(a, { type: 'newRun', seed: 9 }, ctx)).toEqual(a);
+    expect(reduce(a, { type: 'newRun', seed: 9, cell: 'balanced' }, ctx)).toEqual(a);
+  });
+
+  it('the cell chosen through the action reaches the run (gate W1)', () => {
+    const a = reduce(newRun(9, ctx), { type: 'newRun', seed: 9, cell: 'aggro' }, ctx);
+    expect(a.cell).toBe('aggro');
+    expect(a.player.maxHp).toBe(85);
+    expect(a).toEqual(newRun(9, ctx, 'aggro'));
+    for (const c of cells) expect(reduce(a, { type: 'newRun', seed: 3, cell: c.id }, ctx).player.maxHp).toBe(c.maxHp);
+  });
+
+  it('the cell gathers before the items, and that order is load-bearing (gate W2)', () => {
+    // Predator's "1 more per hit" and Hardshell's "3 less" against a 2-damage hit: cell-first clamps
+    // 2 + 1 - 3 to 0; items-first would clamp 2 - 3 to 0 and then add 1.
+    const s = inFightAs(3, 'aggro');
+    const enc = s.encounter as Encounter;
+    const armed: RunState = { ...s, player: { ...s.player, items: ['hardshell'] }, encounter: { ...enc, enemy: { ...enc.enemy, hp: 100000, maxHp: 100000, damage: 2 } } };
+    const after = reduce(armed, { type: 'shuffle' }, ctx);
+    expect(after.lastTurn?.enemyDamage).toBe(0);
+    const reductions = gatherEffects('onDamageTaken', ['hardshell'], CONTENT, 'aggro').flatMap((e) => (e.type === 'reduceDamage' ? [e.value] : []));
+    expect(reductions).toEqual([-1, 3]);
+  });
+
+  it('a cell trait fires in every hook it names: draw, turn start, encounter end (gate W3)', () => {
+    const traited = nodeContext({
+      ...CONTENT,
+      tuning: { ...CONTENT.tuning, startingPicks: 0 },
+      cells: [
+        ...CONTENT.cells,
+        { id: 't-cell', name: 'T', description: 'x', flavor: 'y', maxHp: 100, startingItems: [], extraPicks: 0, traits: { onTileDraw: [{ type: 'letterWeight', letters: 'qz', value: 40 }], onTurnStart: [{ type: 'heal', value: 7 }], onEncounterEnd: [{ type: 'heal', value: 11 }] } },
+      ],
+    });
+    const s0 = newRun(19, traited, 't-cell');
+    if (s0.phase !== 'fight') throw new Error('fight');
+    const enc = s0.encounter as Encounter;
+    // onTileDraw: a shuffle draws with the cell's bias, exactly as refill would.
+    const all = enc.grid.map((_, i) => i);
+    const [expected] = refill(s0.rng, enc.grid, all, { q: 40, z: 40 });
+    const hurt: RunState = { ...s0, player: { ...s0.player, hp: 50 }, encounter: { ...enc, enemy: { ...enc.enemy, hp: 100000, maxHp: 100000 } } };
+    const s1 = reduce(hurt, { type: 'shuffle' }, traited);
+    expect((s1.encounter as Encounter).grid).toEqual(expected);
+    // onTurnStart: healed 7 at the new turn's start (minus nothing: the enemy hit is separate).
+    expect(s1.lastTurn?.healed).toBe(7);
+    // onEncounterEnd: heal 11 when the enemy dies.
+    const weak: RunState = { ...hurt, encounter: { ...(hurt.encounter as Encounter), enemy: { ...(hurt.encounter as Encounter).enemy, hp: 1 } } };
+    const won = play(weak, anyWordIn(weak, traited), traited);
+    expect(won.phase).toBe('pick');
+    expect(won.lastTurn?.healed).toBeGreaterThanOrEqual(11);
+  });
+
+  it('starting items fire their onPick once, in order (gate W4)', () => {
+    const gifted = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 }, cells: [{ ...byId('balanced'), id: 'gifted', startingItems: ['growth-factor', 'kinesin'] }] });
+    const g = newRun(4, gifted, 'gifted');
+    expect(g.player.items).toEqual(['growth-factor', 'kinesin']);
+    expect(g.player.maxHp).toBe(115); // Growth Factor: +15 max HP when taken
+    expect(g.player.hp).toBe(115);
+    expect(g.player.freeShuffles).toBe(2); // Kinesin: two free shuffles when taken
+  });
+
+  it('an unknown cell, or a cell naming an unknown starting item, throws', () => {
+    expect(() => newRun(1, ctx, 'nope')).toThrow(/unknown cell/);
+    const bad = nodeContext({ ...CONTENT, cells: [{ ...byId('balanced'), id: 'bad', startingItems: ['no-such-item'] }] });
+    expect(() => newRun(1, bad, 'bad')).toThrow(/unknown item/);
+  });
+
+  it('max HP and starting HP come from the cell', () => {
+    for (const c of cells) {
+      const s = newRun(2, ctx, c.id);
+      expect(s.player.maxHp).toBe(c.maxHp);
+      expect(s.player.hp).toBe(c.maxHp);
+      expect(s.cell).toBe(c.id);
+    }
+  });
+
+  it('the tinkerer gets its extra starting pick; starting items are granted before the kit', () => {
+    const t = newRun(4, ctx, 'tinkerer');
+    expect(t.pendingPicks).toBe(ctx.content.tuning.startingPicks + 1);
+    expect(newRun(4, nodeContext(CONTENT), 'tinkerer').pendingPicks).toBe(CONTENT.tuning.startingPicks + 1);
+    const gifted = nodeContext({ ...CONTENT, cells: [{ ...byId('balanced'), id: 'gifted', startingItems: ['sharp-pen', 'lens'] }] });
+    const g = newRun(4, gifted, 'gifted');
+    expect(g.player.items).toEqual(['sharp-pen', 'lens']);
+    for (const id of g.offer ?? []) expect(['sharp-pen', 'lens']).not.toContain(id);
+  });
+
+  it('traits apply as an item held before every other: Predator +25% and 1 more per hit, Diatom 3 less and -15%', () => {
+    const base = inFightAs(5, 'balanced');
+    const word = candidateWords(base, ctx).find((c) => c.word.length >= 4)?.word ?? '';
+    const grid = (base.encounter as Encounter).grid;
+    const enemy = { id: 'amoeba', hp: 100000, maxHp: 100000, damage: 10, poison: 0, stunned: 0 };
+    const as = (cell: string): RunState => {
+      const s = inFightAs(5, cell);
+      // Same grid, same items, same enemy, so the only difference is the cell.
+      return { ...s, player: { ...s.player, items: base.player.items, hp: s.player.maxHp }, encounter: { ...(s.encounter as Encounter), grid, selection: [], enemy } };
+    };
+    const b = play({ ...base, encounter: { ...(base.encounter as Encounter), enemy } }, word, ctx);
+    const p = play(as('aggro'), word, ctx);
+    const d = play(as('defensive'), word, ctx);
+    expect(p.lastTurn?.mult).toBeCloseTo((b.lastTurn?.mult ?? 0) + 0.25, 5);
+    expect(d.lastTurn?.mult).toBeCloseTo((b.lastTurn?.mult ?? 0) - 0.15, 5);
+    expect(b.lastTurn?.enemyDamage).toBe(10);
+    expect(p.lastTurn?.enemyDamage).toBe(11);
+    expect(d.lastTurn?.enemyDamage).toBe(7);
+  });
+
+  it('the gambler adds 60% on 6+ letter words and halves 3-letter words; the preview agrees with the hit', () => {
+    const s = inFightAs(6, 'gambler');
+    const cands = candidateWords(s, ctx);
+    const long = cands.find((c) => c.word.length >= 6);
+    const short = cands.find((c) => c.word.length <= 3);
+    const mid = cands.find((c) => c.word.length === 5);
+    const bare = candidateWords({ ...s, cell: 'balanced' }, ctx);
+    const bareOf = (w: string) => bare.find((c) => c.word === w)?.damage ?? 0;
+    expect(long || short).toBeTruthy();
+    if (long) expect(long.damage).toBe(Math.floor(bareOf(long.word) * 1.6));
+    if (short) expect(short.damage).toBe(Math.floor(bareOf(short.word) * 0.5));
+    if (mid) expect(mid.damage).toBe(bareOf(mid.word));
+    const pick = long ?? short;
+    if (!pick) return;
+    const played = play(s, pick.word, ctx);
+    expect(played.lastTurn?.damage).toBe(Math.min(pick.damage, (s.encounter as Encounter).enemy.hp));
+  });
+
+  it('the tinkerer pays -15% damage for its extra pick', () => {
+    const s = inFightAs(7, 'tinkerer');
+    const word = candidateWords(s, ctx).find((c) => c.word.length >= 4)?.word ?? '';
+    const bare = candidateWords({ ...s, cell: 'balanced' }, ctx).find((c) => c.word === word)?.damage ?? 0;
+    const played = play({ ...s, encounter: { ...(s.encounter as Encounter), enemy: { ...(s.encounter as Encounter).enemy, hp: 100000, maxHp: 100000 } } }, word, ctx);
+    expect(played.lastTurn?.mult).toBeCloseTo(0.85, 5);
+    expect(played.lastTurn?.damage).toBe(Math.floor((played.lastTurn?.base ?? 0) * 0.85));
+    expect(bare).toBeGreaterThan(played.lastTurn?.damage ?? 0);
+  });
+
+  it('every cell replays byte-identical and stays JSON-plain through a greedy run', () => {
+    for (const c of cells) {
+      const cc = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+      const run = (seed: number) => {
+        let s = newRun(seed, cc, c.id);
+        for (let guard = 0; guard < 2000 && s.phase !== 'summary'; guard++) {
+          if (s.phase === 'pick') {
+            s = reduce(s, { type: 'pickItem', index: 0 }, cc);
+            continue;
+          }
+          const best = candidateWords(s, cc).sort((a, b) => b.damage - a.damage)[0];
+          if (!best) throw new Error('dead grid');
+          for (const i of candidateIndices(s, best.word) ?? []) s = reduce(s, { type: 'toggleTile', index: i }, cc);
+          s = reduce(s, { type: 'submitWord' }, cc);
+        }
+        return s;
+      };
+      const a = run(11);
+      const b = run(11);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+      expect(JSON.parse(JSON.stringify(a))).toEqual(a);
+      expect(a.cell).toBe(c.id);
+      expect(a.phase).toBe('summary');
     }
   });
 });

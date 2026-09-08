@@ -89,3 +89,4 @@ is the intake for waves; nothing Dean says gets lost in a chat scroll.
 | 2026-09-08 | Tester batch: make the cells look more cellular | to do: sprite pass in scripts/sprites.py, with the logo work |
 | 2026-09-08 | Tester batch: a visual indicator for organelles that interact with the current word | to do: clarity PR; grafts light up when their hooks would fire for the selected word (resolveEffects per item, UI only) |
 | 2026-09-08 | Tester batch: an extra HUD later with highest and lowest word score | to do: after starting cells; stats already exist in RunStats for the best word, the worst needs a field |
+| 2026-09-08 | Starting cells: balanced, aggressive, defensive, etc. (Dean: agree with all five questions) | implemented (PR #53: Amoeba, Predator, Diatom, Spore, Mycelium; a picker after New run; v3 saves load as Amoeba; each cell within 10 points of Amoeba for the mediocre bot after one tuning pass) |

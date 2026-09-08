@@ -18,9 +18,9 @@ export interface RunResult {
   readonly items: readonly string[];
 }
 
-export function simulateRun(botName: BotName, seed: number, ctx: EngineContext): RunResult {
+export function simulateRun(botName: BotName, seed: number, ctx: EngineContext, cell?: string): RunResult {
   const bot = makeBot(botName, seed);
-  let state: RunState = newRun(seed, ctx);
+  let state: RunState = newRun(seed, ctx, cell);
   let scrambles = 0;
   let shuffles = 0;
   for (let guard = 0; guard < 5000; guard++) {
@@ -86,8 +86,8 @@ export function summarise(bot: BotName, results: readonly RunResult[]): Summary 
   };
 }
 
-export function simulate(bot: BotName, ctx: EngineContext, runs: number, seedBase = 0): Summary {
+export function simulate(bot: BotName, ctx: EngineContext, runs: number, seedBase = 0, cell?: string): Summary {
   const results: RunResult[] = [];
-  for (let i = 0; i < runs; i++) results.push(simulateRun(bot, seedBase + i, ctx));
+  for (let i = 0; i < runs; i++) results.push(simulateRun(bot, seedBase + i, ctx, cell));
   return summarise(bot, results);
 }

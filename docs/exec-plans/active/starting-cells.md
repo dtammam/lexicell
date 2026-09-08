@@ -1,7 +1,8 @@
 # Exec plan: starting cells
 
-Status: DRAFT 2026-09-08 (PR #48), awaiting Dean's answers to the five
-numbered questions. Builds after run history (Dean's order).
+Status: BUILT 2026-09-08 (PR #53), one adversarial round pending. Dean
+answered the five questions "agree with all" the same day. Built after
+run history, per his order.
 Engine and save schema: numbered questions first, then a plan and an
 adversarial round.
 
@@ -37,13 +38,20 @@ runs. That is inside scope; an unlock path for them would not be.
 
 ## First cells (Dean names them; these are the starting proposal)
 
-| id | name | max HP | traits | fantasy |
+| id | name | max HP | traits (as shipped) | fantasy |
 |---|---|---|---|---|
 | balanced | Amoeba | 100 | none | the current game |
-| aggro | Predator | 80 | +25% damage; take 2 more damage from every hit | kill it before it kills you |
+| aggro | Predator | 85 | +25% damage; take 1 more damage from every hit | kill it before it kills you |
 | defensive | Diatom | 120 | take 3 less damage from every hit; -15% damage | outlast |
-| gambler | Spore | 90 | words of 6+ letters deal double; words of 4 or fewer deal half | long words or nothing |
-| tinkerer | Mycelium | 100 | starts with one extra kit pick; shield 5 after each fight | build-first |
+| gambler | Spore | 90 | words of 6+ letters deal +60%; 3-letter words deal half | long words or nothing |
+| tinkerer | Mycelium | 90 | one extra kit pick; -15% damage | build-first |
+
+The first draft (Predator 80 HP and +2 per hit; Spore double on 6+ and
+half on 4 or fewer; Mycelium 100 HP with 5 shield per fight) measured
+against the balanced cell's 25.2%: Predator 14.8%, Spore 13.6% with
+greedy at 89.2% (the cap), Mycelium 52.0%: an extra pick is worth 27
+points to a bot that reads offers. Tuned to the table above; the
+shipped numbers are in the ROADMAP.
 
 ## Questions for Dean
 
@@ -64,4 +72,5 @@ runs. That is inside scope; an unlock path for them would not be.
   within 10 points of balanced for the mediocre bot, none above 90%
   for greedy.
 - Determinism replay with each cell.
-- A run's cell is visible on the arena, the summary and in history.
+- A run's cell is visible on the summary and in history (the arena's
+  sprite stays per act until the sprite pass gives each cell its own).

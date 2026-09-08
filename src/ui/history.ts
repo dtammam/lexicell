@@ -32,6 +32,8 @@ export interface HistoryEntry {
   /** Item ids in acquisition order. */
   readonly items: readonly string[];
   readonly build: string;
+  /** Starting cell id; absent on entries written before cells existed. */
+  readonly cell?: string;
 }
 
 interface HistoryFile {
@@ -62,7 +64,8 @@ export function looksLikeEntry(v: unknown): v is HistoryEntry {
     isNum(v.bestWordDamage) &&
     Array.isArray(v.items) &&
     v.items.every((i) => typeof i === 'string') &&
-    typeof v.build === 'string'
+    typeof v.build === 'string' &&
+    (v.cell === undefined || typeof v.cell === 'string')
   );
 }
 
@@ -143,6 +146,7 @@ export function entryFrom(state: RunState, outcome: HistoryOutcome, endedAt: str
     bestWordDamage: state.stats.bestWordDamage,
     items: [...state.player.items],
     build,
+    cell: state.cell,
   };
 }
 
@@ -150,7 +154,7 @@ export function exportJson(runs: readonly HistoryEntry[]): string {
   return JSON.stringify({ v: HISTORY_VERSION, exportedAt: new Date().toISOString(), runs }, null, 2);
 }
 
-const CSV_HEAD = ['seed', 'startedAt', 'endedAt', 'outcome', 'encounterReached', 'turns', 'damageDealt', 'damageTaken', 'bestWord', 'bestWordDamage', 'items', 'build'];
+const CSV_HEAD = ['seed', 'startedAt', 'endedAt', 'outcome', 'encounterReached', 'turns', 'damageDealt', 'damageTaken', 'bestWord', 'bestWordDamage', 'items', 'build', 'cell'];
 
 function csvCell(v: string | number | null): string {
   const s = v === null ? '' : String(v);
@@ -162,7 +166,7 @@ export function exportCsv(runs: readonly HistoryEntry[]): string {
   const lines = [CSV_HEAD.join(',')];
   for (const r of runs) {
     lines.push(
-      [r.seed, r.startedAt, r.endedAt, r.outcome, r.encounterReached, r.turns, r.damageDealt, r.damageTaken, r.bestWord, r.bestWordDamage, r.items.join(';'), r.build]
+      [r.seed, r.startedAt, r.endedAt, r.outcome, r.encounterReached, r.turns, r.damageDealt, r.damageTaken, r.bestWord, r.bestWordDamage, r.items.join(';'), r.build, r.cell ?? '']
         .map(csvCell)
         .join(','),
     );

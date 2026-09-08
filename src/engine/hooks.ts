@@ -13,7 +13,7 @@
  * Applying the effects is the reducer's job. This module only decides *what*.
  */
 import { resolveEffects, type ConditionContext, type Effect } from './effects';
-import type { Content, Hook, ItemDef } from './types';
+import type { CellDef, Content, Hook, ItemDef } from './types';
 
 export function itemDef(content: Content, id: string): ItemDef {
   const def = content.items.find((i) => i.id === id);
@@ -21,9 +21,22 @@ export function itemDef(content: Content, id: string): ItemDef {
   return def;
 }
 
-/** Raw (unresolved) effects for a hook, in acquisition order. */
-export function gatherEffects(hook: Hook, itemIds: readonly string[], content: Content): Effect[] {
+export function cellDef(content: Content, id: string): CellDef {
+  const def = content.cells.find((c) => c.id === id);
+  if (!def) throw new Error(`unknown cell id ${JSON.stringify(id)}`);
+  return def;
+}
+
+/**
+ * Raw (unresolved) effects for a hook: the starting cell's traits first (it is the item held
+ * before every other), then the items in acquisition order.
+ */
+export function gatherEffects(hook: Hook, itemIds: readonly string[], content: Content, cellId?: string): Effect[] {
   const out: Effect[] = [];
+  if (cellId !== undefined) {
+    const traits = cellDef(content, cellId).traits[hook];
+    if (traits) out.push(...traits);
+  }
   for (const id of itemIds) {
     const contributed = itemDef(content, id).hooks[hook];
     if (contributed) out.push(...contributed);
@@ -32,6 +45,6 @@ export function gatherEffects(hook: Hook, itemIds: readonly string[], content: C
 }
 
 /** Resolved effects for a hook: conditions evaluated, EFFECT_ORDER applied. */
-export function collectEffects(hook: Hook, itemIds: readonly string[], content: Content, ctx: ConditionContext): Effect[] {
-  return resolveEffects(gatherEffects(hook, itemIds, content), ctx);
+export function collectEffects(hook: Hook, itemIds: readonly string[], content: Content, ctx: ConditionContext, cellId?: string): Effect[] {
+  return resolveEffects(gatherEffects(hook, itemIds, content, cellId), ctx);
 }

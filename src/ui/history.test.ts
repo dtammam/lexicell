@@ -75,6 +75,7 @@ describe('run history', () => {
       { ...good, items: 'lens' },
       { ...good, items: ['lens', 4] },
       { ...good, build: 118 },
+      { ...good, cell: 7 },
     ];
     for (const b of broken) {
       const s = fake({ [HISTORY_KEY]: JSON.stringify({ v: 1, runs: [b] }) });
@@ -119,7 +120,8 @@ describe('run history', () => {
     const csv = exportCsv(runs);
     const lines = csv.trimEnd().split('\r\n');
     expect(lines).toHaveLength(3);
-    expect(lines[0]).toBe('seed,startedAt,endedAt,outcome,encounterReached,turns,damageDealt,damageTaken,bestWord,bestWordDamage,items,build');
+    expect(lines[0]).toBe('seed,startedAt,endedAt,outcome,encounterReached,turns,damageDealt,damageTaken,bestWord,bestWordDamage,items,build,cell');
+    expect(lines[1]).toMatch(/,balanced$/);
     expect(lines[2]).toContain('"a""b,c"');
     expect(lines[2]).toContain('"x;y;z"');
     expect(csv).toContain('"line one\nline two"');

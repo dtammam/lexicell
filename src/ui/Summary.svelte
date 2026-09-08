@@ -2,11 +2,13 @@
   import type { RunState } from '../engine/types';
   import Definition from './Definition.svelte';
   import { itemDef } from './lookup';
+  import { CONTENT } from '../content/index';
 
   let { run, onNewRun, onHistory }: { run: RunState; onNewRun: () => void; onHistory: () => void } = $props();
 
   const won = $derived(run.outcome === 'won');
   const reached = $derived(run.stats.hpAtEncounterStart.length);
+  const cellName = $derived(CONTENT.cells.find((c) => c.id === run.cell)?.name ?? run.cell);
 </script>
 
 <section class="summary">
@@ -22,6 +24,8 @@
     <dd>{run.stats.damageDealt} / {run.stats.damageTaken}</dd>
     <dt>Items</dt>
     <dd>{run.player.items.length > 0 ? run.player.items.map((id) => itemDef(id).name).join(', ') : 'none'}</dd>
+    <dt>Cell</dt>
+    <dd>{cellName}</dd>
     <dt>Seed</dt>
     <dd><code>{run.rng.seed}</code></dd>
   </dl>

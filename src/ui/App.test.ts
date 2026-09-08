@@ -72,9 +72,16 @@ async function attackOnce(prefer: 'long' | 'short' = 'long'): Promise<string> {
 }
 
 /** From a fresh render: title screen, New run, the intro, starting pick, then the first fight. */
+/** Title: New run opens the cell picker; the first cell is the balanced Amoeba. */
+async function pickCell() {
+  await findByText('Choose your cell', 15000);
+  await click(document.querySelector('button.cell'));
+}
+
 async function startRun() {
   render(App);
   await click(await findByText('New run', 15000));
+  await pickCell();
   await click(await findByText('Divide and conquer'));
   await findByText('Choose a starting item', 15000);
   const offers = document.querySelectorAll('button.offer');
@@ -109,6 +116,11 @@ describe('App', () => {
     expect(ctx.dictionary.has(word)).toBe(true);
     expect((document.querySelector('.wotd .gloss')?.textContent ?? '').length).toBeGreaterThan(0);
     await click(play);
+    // New run opens the cell picker first: five cells, all available, the balanced Amoeba first.
+    await findByText('Choose your cell', 15000);
+    expect(document.querySelectorAll('button.cell')).toHaveLength(5);
+    expect(document.querySelector('button.cell .name')?.textContent).toContain('Amoeba');
+    await click(document.querySelector('button.cell'));
     expect(await findByText('You are a cell.')).toBeTruthy();
     // Three beats: auto-play, and a tap on the scene skips ahead; the button never waits for them.
     expect(getByText('Something ate your pond.')).toBeTruthy();
@@ -133,7 +145,7 @@ describe('App', () => {
     expect(getByText('Turn 1')).toBeTruthy();
     expect(attackButton().disabled).toBe(true);
     expect(getButton('Clear').disabled).toBe(true);
-  });
+  }, 20000);
 
   it('Organelles on the title lists every item with its icon, grouped by rarity, and Back returns', async () => {
     render(App);
@@ -288,6 +300,7 @@ describe('App', () => {
     vi.spyOn(Date, 'now').mockReturnValue(seed);
     render(App);
     await click(await findByText('New run', 15000));
+    await pickCell();
     await click(await findByText('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
     const offered = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { offer: string[] }).offer;
@@ -336,6 +349,7 @@ describe('App', () => {
     await click(getButton('New run'));
     vi.spyOn(Date, 'now').mockReturnValue(SEED + 1);
     await click(getButton('Yes, start over'));
+    await pickCell();
     await click(await findByText('Divide and conquer'));
     expect(await findByText('Choose a starting item')).toBeTruthy();
     const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { rng: { seed: number }; player: { items: string[] } };
@@ -354,6 +368,7 @@ describe('App', () => {
     await click(getButton('New run'));
     vi.spyOn(Date, 'now').mockReturnValue(SEED + 7);
     await click(getButton('Yes, start over'));
+    await pickCell();
     await click(await findByText('Divide and conquer'));
     expect(await findByText('Choose a starting item')).toBeTruthy();
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { stats: { turns: number }; rng: { seed: number } };
@@ -493,6 +508,7 @@ describe('App', () => {
     await click(getButton('Menu'));
     // New run from the title after a finished run records nothing extra (it was recorded at the win).
     await click(await findByText('New run', 15000));
+    await pickCell();
     await click(await findByText('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
     expect((JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { runs: unknown[] }).runs).toHaveLength(1);
@@ -502,6 +518,7 @@ describe('App', () => {
     await click(getButton('Menu'));
     await click(getButton('New run'));
     await click(getButton('Yes, start over'));
+    await pickCell();
     await click(await findByText('Divide and conquer'));
     const after = JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { runs: { outcome: string }[] };
     expect(after.runs.map((r) => r.outcome)).toEqual(['won', 'abandoned']);
@@ -533,6 +550,7 @@ describe('App', () => {
     render(App);
     await click(await findByText('New run', 15000));
     await click(getButton('Yes, start over'));
+    await pickCell();
     await click(await findByText('Divide and conquer'));
     const runs = (JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { runs: { outcome: string; seed: number; startedAt: string | null; encounterReached: number }[] }).runs;
     expect(runs).toHaveLength(1);

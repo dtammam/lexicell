@@ -13,6 +13,7 @@
   import Compendium from './Compendium.svelte';
   import Help from './Help.svelte';
   import History from './History.svelte';
+  import CellPick from './CellPick.svelte';
   import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
 
@@ -33,7 +34,7 @@
   // The state before the latest action; Fight uses it to say what the grid held before a word was played.
   let prev: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
-  let screen: 'title' | 'intro' | 'run' | 'items' | 'help' | 'history' = $state.raw('title');
+  let screen: 'title' | 'cells' | 'intro' | 'run' | 'items' | 'help' | 'history' = $state.raw('title');
   // Run history (Dean, 2026-09-08): finished and abandoned runs, per device, under their own key.
   let history: readonly HistoryEntry[] = $state.raw(loadHistory(storage));
   const BUILD = `${__BUILD_NUMBER__} · ${__BUILD_SHA__}`;
@@ -82,15 +83,20 @@
     else openStore(ctx);
   }
 
-  /** Title: New run. Replaces whatever run existed (Title asks first when one does), then the intro. */
+  /** Title: New run. Pick a starting cell first (Dean, 2026-09-08); nothing is abandoned until a cell is chosen. */
   function onPlay() {
+    if (!ctx) return;
+    screen = 'cells';
+  }
+  /** Cell chosen: replace whatever run existed (Title asked first when one did), then the intro. */
+  function onCellPick(cellId: string) {
     if (!ctx) return;
     // Abandoning a live run records it as such (Dean, question 1); a run that already ended was recorded then.
     const live = store?.state ?? persist.load();
     if (live && live.phase !== 'summary') record(live, 'abandoned');
     persist.clear();
-    if (store) store.dispatch({ type: 'newRun', seed: seed() });
-    else openStore(ctx);
+    if (!store) openStore(ctx);
+    store?.dispatch({ type: 'newRun', seed: seed(), cell: cellId });
     screen = 'intro';
   }
   function onBegin() {
@@ -100,8 +106,9 @@
   function dispatch(action: Action) {
     store?.dispatch(action);
   }
+  /** Summary: New run keeps the same cell for a quick retry; the title's New run goes through the picker. */
   function newRun() {
-    dispatch({ type: 'newRun', seed: seed() });
+    dispatch(run ? { type: 'newRun', seed: seed(), cell: run.cell } : { type: 'newRun', seed: seed() });
   }
   function toTitle() {
     screen = 'title';
@@ -170,6 +177,8 @@
       <Help onBack={toTitle} readable={settings.readable} onToggleReadable={toggleReadable} />
     {:else if screen === 'history'}
       <History runs={history} onBack={fromHistory} onClear={onClearHistory} />
+    {:else if screen === 'cells'}
+      <CellPick onPick={onCellPick} onBack={toTitle} />
     {:else if screen === 'title' || !run}
       <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} onHistory={toHistory} />
     {:else if screen === 'intro'}

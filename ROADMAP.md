@@ -40,6 +40,11 @@ cells).
   intent); cells should look more cellular; a visual indicator for
   organelles that fire; a stats HUD later (best and worst word).
   Proposed as one UI PR after run history, before starting cells.
+- **Logo, round two** (Dean, 2026-09-08): none of the first three
+  landed; B (the amoeba) was closest. Second page of directions.
+- **Starting cells**: built (PR #53), reviewer round pending; five cells
+  within the band. Next for cells: their own sprites (with the sprite
+  pass the tester asked for).
 - **Starting cells** (Dean, 2026-09-08): plan
   `docs/exec-plans/active/starting-cells.md` (PR #48), five questions
   for Dean. Engine and save schema: reviewer round. Builds after run
@@ -69,6 +74,89 @@ wave (curve C in PR #19, curve D in PR #41); the save schema is v3 and
 persist refuses every other version (tracker #3 closed).
 
 ## Shipped
+
+### Starting cells (PR #53, 2026-09-08)
+
+Dean's five answers: agree with all. Five cells in `src/content/cells.ts`,
+each stats plus always-on hooks in the item vocabulary, gathered before
+the items in every hook: Amoeba (100 HP, no traits: the game as it was),
+Predator (85 HP, +25% damage, every hit hurts 1 more), Diatom (120 HP,
+3 less per hit, -15% damage), Spore (90 HP, 6+ letters +60%, 3-letter
+words half), Mycelium (90 HP, one extra kit pick, -15% damage). Picker
+after New run, before the intro; the summary's New run keeps the cell;
+the cell shows on the summary and in history. `RunState.cell`,
+`SAVE_VERSION` 4; a v3 save loads as Amoeba (question 3: a migration,
+the first on record). `--cell` on the sim. 229 tests.
+
+Tuning pass against the acceptance (every cell within 10 points of
+Amoeba's 25.2% for the mediocre bot, none above 90% greedy). First
+draft: Predator (80 HP, +2 per hit) 14.8%, Spore (double on 6+, half on
+4 or fewer) 13.6% with greedy at 89.2%, Mycelium (100 HP, 5 shield per
+fight) 52.0%: an extra pick is worth 27 points to a bot that reads
+offers. Shipped numbers, all PASS:
+
+`npx tsx scripts/sim.ts --cell balanced`, Amoeba (balanced, the default):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    57.6% |           9 |       20.7 |         0 |       15 |   100 |   100 |    97 |    90 |    90 |    89 |    62 |    66 |    69 |
+| mediocre |  500 |    25.2% |           6 |       30.3 |         0 |        1 |   101 |    94 |    79 |    58 |    55 |    56 |    37 |    46 |    54 |
+|   solver |  500 |    80.0% |           9 |       15.9 |         1 |        8 |   100 |   100 |    99 |    96 |    96 |    96 |    80 |    80 |    79 |
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell aggro`, Predator (aggro):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    61.2% |           9 |       17.9 |         0 |        8 |    85 |    85 |    83 |    78 |    78 |    78 |    56 |    59 |    61 |
+| mediocre |  500 |    20.8% |           6 |       25.2 |         2 |        0 |    86 |    80 |    65 |    46 |    45 |    47 |    32 |    43 |    54 |
+|   solver |  500 |    82.2% |           9 |       13.9 |         0 |       11 |    85 |    85 |    85 |    83 |    83 |    83 |    71 |    72 |    71 |
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell defensive`, Diatom (defensive):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    66.6% |           9 |       24.1 |         3 |       18 |   120 |   120 |   118 |   113 |   113 |   112 |    82 |    82 |    84 |
+| mediocre |  500 |    30.8% |           7 |       41.2 |         1 |        0 |   121 |   119 |   110 |    91 |    87 |    84 |    50 |    61 |    69 |
+|   solver |  500 |    87.6% |           9 |       17.7 |         0 |       13 |   120 |   120 |   120 |   117 |   117 |   117 |   102 |   101 |    99 |
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell gambler`, Spore (gambler):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    79.2% |           9 |       16.0 |         0 |        7 |    90 |    90 |    89 |    86 |    86 |    86 |    70 |    70 |    71 |
+| mediocre |  500 |    23.4% |           6 |       29.2 |         1 |        0 |    91 |    84 |    69 |    49 |    48 |    50 |    35 |    43 |    50 |
+|   solver |  500 |    95.0% |           9 |       12.5 |         1 |        1 |    90 |    90 |    91 |    90 |    90 |    91 |    83 |    84 |    83 |
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium (tinkerer):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    56.0% |           9 |       21.0 |         0 |       39 |    91 |    90 |    88 |    82 |    82 |    80 |    57 |    60 |    62 |
+| mediocre |  500 |    34.2% |           7 |       33.9 |         5 |        1 |    92 |    88 |    76 |    60 |    60 |    62 |    41 |    51 |    58 |
+|   solver |  500 |    76.4% |           9 |       16.4 |         2 |       11 |    91 |    91 |    90 |    88 |    88 |    88 |    73 |    73 |    74 |
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+Gate: adversarial round on the engine, the save migration and persist
+(below, once it reports).
 
 ### Run history with export (PR #51, 2026-09-08)
 

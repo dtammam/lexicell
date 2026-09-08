@@ -24,7 +24,7 @@ export function candidateWords(state: RunState, ctx: EngineContext): Candidate[]
   const enc = state.encounter;
   if (!enc) return [];
   const base = conditionCtx(state, ctx);
-  const raw = gatherEffects('onWordScored', state.player.items, ctx.content);
+  const raw = gatherEffects('onWordScored', state.player.items, ctx.content, state.cell);
   // Anything that reads the word (a condition or a perUnit) must be resolved per word.
   const conditional = raw.some((e) => e.type === 'condition' || e.type === 'perUnit');
   const fixed = conditional ? null : resolveEffects(raw, base);
