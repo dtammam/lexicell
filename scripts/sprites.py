@@ -530,6 +530,19 @@ TEMPLATED = {
     "opsonin": ("rare", "cluster"), "cortex": ("rare", "shield"), "paralytic": ("rare", "spike"), "zooxanthellae": ("rare", "star"),
     "reflex-arc": ("rare", "wave"), "blastula": ("rare", "blob"), "chrysalis": ("rare", "ring"),
     "ouroboros": ("mythic", "ring"),
+    # Effects wave, batch 2.
+    "venom-reservoir": ("common", "drop"), "antivenin": ("common", "drop"), "lockpick": ("common", "rod"), "crust": ("common", "shield"),
+    "adrenaline": ("common", "spike"), "circadian-clock": ("common", "ring"), "consonant-coat": ("common", "shield"), "vowel-sac": ("common", "blob"),
+    "rare-earth": ("common", "cluster"), "spit": ("common", "drop"), "opener": ("common", "wave"), "sprint": ("common", "wave"),
+    "patience": ("common", "ring"), "relay": ("common", "rod"), "gill": ("common", "wave"), "mantle": ("common", "shield"),
+    "twin": ("common", "cluster"), "singleton": ("common", "star"), "leftover": ("common", "blob"), "bait": ("common", "drop"),
+    "rasp": ("common", "spike"), "jolt": ("common", "star"),
+    "pheromone": ("uncommon", "cluster"), "hardshell": ("uncommon", "shield"), "venom-loop": ("uncommon", "ring"), "metronome": ("uncommon", "rod"),
+    "reaper": ("uncommon", "spike"), "overclock": ("uncommon", "star"), "deep-breath": ("uncommon", "wave"), "chelator": ("uncommon", "star"),
+    "lantern": ("uncommon", "ring"), "buffer": ("uncommon", "shield"), "eater": ("uncommon", "blob"), "frenzy": ("uncommon", "spike"), "tuning-fork": ("uncommon", "rod"),
+    "ambush": ("rare", "spike"), "hive": ("rare", "cluster"), "bastion": ("rare", "shield"), "venom-crown": ("rare", "star"),
+    "hourglass": ("rare", "drop"), "leviathan": ("rare", "wave"), "phage": ("rare", "rod"), "osmoregulator": ("rare", "ring"),
+    "singularity": ("mythic", "star"), "eternal-return": ("mythic", "ring"),
 }
 
 

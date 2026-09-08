@@ -62,9 +62,9 @@ describe('bots', () => {
 describe('summary', () => {
   it('computes win rate, median, and per-encounter HP means over runs that reached each encounter', () => {
     const s = summarise('greedy', [
-      { seed: 0, won: true, encounterReached: 9, hpAtEncounterStart: [100, 80, 60, 50, 40, 30, 20, 10, 5], turns: 30, scrambles: 0, finalHp: 5, items: [] },
-      { seed: 1, won: false, encounterReached: 2, hpAtEncounterStart: [100, 20], turns: 8, scrambles: 1, finalHp: 0, items: [] },
-      { seed: 2, won: false, encounterReached: 4, hpAtEncounterStart: [100, 60, 40, 10], turns: 12, scrambles: 0, finalHp: 0, items: [] },
+      { seed: 0, won: true, encounterReached: 9, hpAtEncounterStart: [100, 80, 60, 50, 40, 30, 20, 10, 5], turns: 30, scrambles: 0, shuffles: 0, finalHp: 5, items: [] },
+      { seed: 1, won: false, encounterReached: 2, hpAtEncounterStart: [100, 20], turns: 8, scrambles: 1, shuffles: 0, finalHp: 0, items: [] },
+      { seed: 2, won: false, encounterReached: 4, hpAtEncounterStart: [100, 60, 40, 10], turns: 12, scrambles: 0, shuffles: 2, finalHp: 0, items: [] },
     ]);
     expect(s.winRate).toBeCloseTo(1 / 3);
     expect(s.medianEncounter).toBe(4);

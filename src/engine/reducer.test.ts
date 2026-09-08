@@ -707,7 +707,7 @@ describe('mythic tier (PR #31 gate)', () => {
   it('mythics can be offered: a pool of only mythics still fills a three-item offer', () => {
     // Binds RARITY_WEIGHT.mythic > 0: at weight 0 weightedPick throws on an all-mythic pool.
     const mythics = CONTENT.items.filter((i) => i.rarity === 'mythic');
-    expect(mythics).toHaveLength(9);
+    expect(mythics).toHaveLength(11);
     const onlyMythic: EngineContext = nodeContext({ ...CONTENT, items: mythics, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
     const s = newRun(3, onlyMythic);
     expect(s.phase).toBe('pick');

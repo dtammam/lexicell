@@ -169,8 +169,12 @@ export function makeBot(name: BotName, seed: number): Bot {
 }
 
 /** Next action for the bot given the current state, or null when the run is over. */
-/** A word this short is not worth a turn when a free shuffle is in hand (greedy and solver only). */
-export const FREE_SHUFFLE_BELOW = 5;
+/**
+ * A best word this short is not worth the turn when a free shuffle is in hand. Five never fired
+ * (the gate measured 0 shuffles in full runs holding 500 charges: sixteen letters nearly always
+ * hold a five); six fires on the grids a strong player would actually reroll.
+ */
+export const FREE_SHUFFLE_BELOW = 6;
 
 export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Action[] | null {
   if (state.phase === 'summary') return null;
@@ -178,8 +182,13 @@ export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Actio
   const candidates = candidateWords(state, ctx);
   const choice = bot.chooseWord(state, candidates);
   if (!choice) throw new Error('bot has no playable word: dead grid reached the player');
-  // Effects wave: the strong bots spend a free shuffle rather than play a short word.
-  if (bot.name !== 'mediocre' && state.player.freeShuffles > 0 && choice.word.length < FREE_SHUFFLE_BELOW) return [{ type: 'shuffle' }];
+  // Effects wave: the strong bots spend a free shuffle rather than play a short word; the mediocre
+  // bot spends one only when its 4-5 letter range is empty (it plays what it sees otherwise).
+  if (state.player.freeShuffles > 0) {
+    const shortBest = bot.name !== 'mediocre' && choice.word.length < FREE_SHUFFLE_BELOW;
+    const noMid = bot.name === 'mediocre' && !candidates.some((c) => c.word.length >= 4 && c.word.length <= 5);
+    if (shortBest || noMid) return [{ type: 'shuffle' }];
+  }
   const indices = candidateIndices(state, choice.word);
   if (!indices) throw new Error(`candidate ${choice.word} cannot be mapped to tiles`);
   return [...indices.map((index): Action => ({ type: 'toggleTile', index })), { type: 'submitWord' }];

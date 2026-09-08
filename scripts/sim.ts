@@ -106,7 +106,7 @@ function pct(x: number): string {
 }
 
 export function renderTable(summaries: readonly Summary[]): string {
-  const head = ['bot', 'runs', 'win rate', 'median enc.', 'mean turns', 'scrambles', ...Array.from({ length: 9 }, (_, i) => `HP@E${i + 1}`)];
+  const head = ['bot', 'runs', 'win rate', 'median enc.', 'mean turns', 'scrambles', 'shuffles', ...Array.from({ length: 9 }, (_, i) => `HP@E${i + 1}`)];
   const rows = summaries.map((s) => [
     s.bot,
     String(s.runs),
@@ -114,6 +114,7 @@ export function renderTable(summaries: readonly Summary[]): string {
     String(s.medianEncounter),
     s.meanTurns.toFixed(1),
     String(s.totalScrambles),
+    String(s.totalShuffles),
     ...s.meanHpPerEncounter.map((hp, i) => ((s.reachedPerEncounter[i] ?? 0) === 0 ? '-' : hp.toFixed(0))),
   ]);
   const widths = head.map((h, i) => Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length)));
