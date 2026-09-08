@@ -46,6 +46,35 @@ and what is still open ships disclosed here.
 
 ## Shipped
 
+### Item pool 24 to 50 (PR #30, 2026-09-08)
+
+Dean: "a ton more items." Twenty-six more from the existing effect
+vocabulary, with identities the first two dozen lacked: thorns
+(Spine, Hydra), self-venom for power (Toxin Sac), chaos for damage
+(Flagellar Motor), a glass cannon that bleeds (Apoptosis), HP and turn
+gates, letter families. Glyphs for the new ones are procedural from a
+few organelle templates in scripts/sprites.py, seeded by id; any can
+be replaced by a hand-drawn map. Three sustain items that made greedy
+unbeatable (Regeneration, Cyst, Membrane Pump at 98 to 100% with) were
+trimmed. Shipped content, `npx tsx scripts/sim.ts`:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    76.4% |           9 |       18.5 |         3 |   100 |    99 |    97 |    91 |    91 |    91 |    71 |    72 |    72 |
+| mediocre |  500 |    25.2% |           6 |       32.2 |         6 |   100 |    94 |    78 |    54 |    52 |    52 |    23 |    28 |    32 |
+|   solver |  500 |    95.0% |           9 |       13.6 |         4 |   100 |   100 |    99 |    97 |    97 |    97 |    87 |    88 |    88 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+With fifty items the mediocre bot, which reads offers, is back inside
+its band; greedy dropped because offense is spread thinner. Both pass.
+
 ### Item pool 10 to 24 (PR #24, 2026-09-08)
 
 Dean: the first offer was always the same commons. Fourteen items from

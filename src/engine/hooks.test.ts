@@ -42,9 +42,9 @@ describe('hooks', () => {
 });
 
 describe('placeholder item set (roadmap deliverable 5)', () => {
-  it('has twenty-four items with unique ids (ten placeholders plus the 2026-09-08 expansion)', () => {
-    expect(ITEMS).toHaveLength(24);
-    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(24);
+  it('has fifty items with unique ids (ten placeholders plus the two 2026-09-08 expansions)', () => {
+    expect(ITEMS).toHaveLength(50);
+    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(50);
   });
 
   it('uses at least three hooks and four effect types', () => {
