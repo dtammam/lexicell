@@ -3,16 +3,36 @@
   import type { RunState } from '../engine/types';
   import ItemIcon from './ItemIcon.svelte';
   import { itemDef } from './lookup';
+  import { CONTENT } from '../content/index';
 
   let { run, dispatch }: { run: RunState; dispatch: (action: Action) => void } = $props();
 
   const offer = $derived(run.offer ?? []);
   const owned = $derived(run.player.items.map((id) => itemDef(id).name));
+  // A rest (variety wave step 2): the same three-offer with a heal beside it; one or the other.
+  const rest = $derived(run.phase === 'rest');
+  const healAmount = $derived(Math.min(run.player.maxHp - run.player.hp, Math.round(run.player.maxHp * CONTENT.tuning.restHeal)));
+  const title = $derived(rest ? 'A quiet pool' : run.pendingPicks > 0 ? 'Choose a starting item' : 'Choose an item');
+  const hint = $derived(
+    rest
+      ? 'Nothing hunts here. Rest and heal, or take one organelle instead. Either way the next fight starts right after.'
+      : run.pendingPicks > 0
+        ? 'Tap one. You keep it for the whole run, and your first fight starts right after.'
+        : 'Tap one to add it to your cell. The next fight starts right after.',
+  );
 </script>
 
 <section class="pick">
-  <h2>{run.pendingPicks > 0 ? 'Choose a starting item' : 'Choose an item'}</h2>
-  <p class="hint">{run.pendingPicks > 0 ? 'Tap one. You keep it for the whole run, and your first fight starts right after.' : 'Tap one to add it to your cell. The next fight starts right after.'}</p>
+  <h2>{title}</h2>
+  <p class="hint">{hint}</p>
+  {#if rest}
+    <button class="offer heal" onclick={() => { dispatch({ type: 'restHeal' }); }}>
+      <span class="text">
+        <span class="name">Rest</span>
+        <span class="desc">Heal {healAmount} HP ({run.player.hp} to {run.player.hp + healAmount} of {run.player.maxHp}). No organelle.</span>
+      </span>
+    </button>
+  {/if}
   {#each offer as id, i (id)}
     {@const item = itemDef(id)}
     <button class="offer" onclick={() => { dispatch({ type: 'pickItem', index: i }); }}>
@@ -61,6 +81,9 @@
     font-family: var(--font-ui);
     touch-action: manipulation;
     transition: transform var(--dur-state) var(--ease-step), box-shadow var(--dur-state) var(--ease-step);
+  }
+  .offer.heal {
+    border-color: var(--life);
   }
   .offer:active {
     transform: translate(3px, 3px);

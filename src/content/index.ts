@@ -3,6 +3,7 @@ import { ENCOUNTERS, PLAYER_MAX_HP, TUNING } from './acts';
 import { BOSSES } from './bosses';
 import { CELLS } from './cells';
 import { ENEMIES } from './enemies';
+import { EVENTS } from './events';
 import { ITEMS } from './items';
 
 export const CONTENT: Content = {
@@ -11,6 +12,7 @@ export const CONTENT: Content = {
   enemies: ENEMIES,
   bosses: BOSSES,
   encounters: ENCOUNTERS,
+  events: EVENTS,
   playerMaxHp: PLAYER_MAX_HP,
   tuning: TUNING,
 };

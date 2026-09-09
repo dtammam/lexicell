@@ -10,6 +10,10 @@ describe('content bundle', () => {
 
   it('has nine encounters in three acts with a boss every third', () => {
     expect(CONTENT.encounters).toHaveLength(9);
+    expect(CONTENT.tuning.restHeal).toBeGreaterThan(0);
+    expect(CONTENT.tuning.restHeal).toBeLessThanOrEqual(1);
+    expect(CONTENT.tuning.eliteHpScale).toBeGreaterThanOrEqual(1);
+    expect(CONTENT.tuning.eliteDamageScale).toBeGreaterThanOrEqual(1);
     CONTENT.encounters.forEach((e, i) => {
       expect(e.boss, `encounter ${i}`).toBe(i % 3 === 2);
       expect(e.act, `encounter ${i}`).toBe(Math.floor(i / 3) + 1);
@@ -37,6 +41,30 @@ describe('content bundle', () => {
       if (e.traits?.armour) expect(e.traits.armour, e.id).toBeLessThanOrEqual(7); // a 7-letter word always lands in full
       expect(existsSync(`public/sprites/${e.id}.png`), e.id).toBe(true);
     }
+  });
+
+  it('events (variety wave step 2): unique ids, short phone-legible text, a trade first and a walk-away last, player-side verbs only, a cost on every trade', () => {
+    expect(CONTENT.events.length).toBeGreaterThanOrEqual(6);
+    expect(new Set(CONTENT.events.map((e) => e.id)).size).toBe(CONTENT.events.length);
+    const playerSide = new Set(['heal', 'damagePlayer', 'maxHp', 'shield', 'freeShuffle']);
+    for (const ev of CONTENT.events) {
+      expect(ev.name.length, ev.id).toBeGreaterThan(0);
+      expect(ev.text.length, ev.id).toBeLessThanOrEqual(120);
+      expect(ev.choices.length, ev.id).toBeGreaterThanOrEqual(2);
+      const trade = ev.choices[0];
+      const pass = ev.choices[ev.choices.length - 1];
+      expect(trade?.effects.length, ev.id).toBeGreaterThan(0);
+      expect(pass?.effects, ev.id).toEqual([]);
+      expect(pass?.rarePick, ev.id).toBeUndefined();
+      // Every trade costs something: HP now, max HP, or both.
+      const cost = trade?.effects.some((e) => e.type === 'damagePlayer' || (e.type === 'maxHp' && e.value < 0));
+      expect(cost, ev.id).toBe(true);
+      for (const c of ev.choices) {
+        expect(c.label.length, ev.id).toBeLessThanOrEqual(48);
+        for (const e of c.effects) expect(playerSide.has(e.type), `${ev.id}: ${e.type}`).toBe(true);
+      }
+    }
+    expect(CONTENT.events.some((e) => e.choices[0]?.rarePick)).toBe(true);
   });
 
   it('every item carries a mechanic and a separate line of flavor, neither empty', () => {

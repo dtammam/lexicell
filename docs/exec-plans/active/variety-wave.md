@@ -51,8 +51,8 @@ act's pool at this act's scale, a rare guaranteed in the offer), `rest`
 (a screen: heal 30% or take an item from a three-offer), `event` (a
 small forced trade from a content list). The seed places one elite,
 one rest and one event among slots 2 to 8, never a boss slot. The
-picker for rest and event is UI; the reducer gets `restChoice` and
-`eventChoice` actions.
+picker for rest and event is UI; the reducer gets `restHeal` and
+`eventChoice` actions (the rest's pick is `pickItem`).
 
 ### 3. Evolution (engine, one round)
 
@@ -97,6 +97,12 @@ daily flag.
   found a stalemate on the pre-retune roster and it is a backstop against the next one. It ends any fight in which
   the enemy attacks; a permanent stun lock is outside it (tracker #8). Gate round: the preview now applies armour
   (engine), seven surviving mutants bound, regen-before-poison pinned. Tables re-pasted after the preview fix.
+- Step 2 (PR #62): built. `RunState.kinds` placed by three draws at newRun (save v6, v5 migrates with
+  empty kinds); elite from the next act's pool (act 3: act-3 at 1.3x/1.15x) with a rare-first offer; rest
+  = heal 30% or a pick; eight events in content, a trade never kills. Actions are `restHeal` and
+  `eventChoice` (the plan said `restChoice`; the rest's pick reuses `pickItem`). Gate round: a dropped
+  event id soft-locked a save (now the walk-away), event effects apply in written order, damage taken
+  ignores max-HP cuts, persist tightened and tested on rest/event saves. Tables re-pasted after.
 
 ## Acceptance per step
 

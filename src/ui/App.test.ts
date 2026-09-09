@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { candidateWords } from '../engine/candidates';
+import { CONTENT } from '../content/index';
 import type { RunState } from '../engine/types';
 import { newRun } from '../engine/reducer';
 import { LETTER_VALUE } from '../engine/scoring';
@@ -198,7 +199,8 @@ describe('App', () => {
     }
     expect(document.querySelector('.word')?.classList.contains('valid')).toBe(true);
     expect(document.querySelectorAll('button.tile .order')).toHaveLength(idx.length);
-    expect(Array.from(document.querySelectorAll('button.tile .order')).map((o) => o.textContent)).toEqual(idx.map((_, n) => String(n + 1)));
+    // Each selected tile carries its position in the word, whatever order the tiles sit in on the grid.
+    idx.forEach((i, n) => { expect(tiles()[i]?.querySelector('.order')?.textContent, `tile ${i}`).toBe(String(n + 1)); });
     // A 3+ letter non-word must stay yellow: this is what separates isWord from a length check.
     await click(getButton('Clear'));
     for (const i of nonWordTriple()) await click(tiles()[i] ?? null);
@@ -620,10 +622,59 @@ describe('App', () => {
     expect(Array.from(document.querySelectorAll('.row.stats .worst')).map((e) => e.textContent).join(' ')).toBe('WORST -');
   }, 30000);
 
+  it('encounter types: a rest offers a heal beside three organelles, an event shows its trade, an elite is labelled (step 2)', async () => {
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const offer = ['sharp-pen', 'flagellum', 'thick-wall'].filter((id) => CONTENT.items.some((i) => i.id === id));
+    const three = offer.length === 3 ? offer : CONTENT.items.slice(0, 3).map((i) => i.id);
+    // A rest at slot 2 with 40 of 100 HP: the heal line says 30.
+    const rest: RunState = { ...blob, phase: 'rest', encounter: null, offer: three, encounterIndex: 1, kinds: ['fight', 'rest', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight'], player: { ...blob.player, hp: 40, maxHp: 100, items: [] } };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(rest));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    expect(await findByText('A quiet pool')).toBeTruthy();
+    expect(document.querySelectorAll('button.offer')).toHaveLength(4);
+    expect(getByText(/Heal 30 HP \(40 to 70 of 100\)/)).toBeTruthy();
+    await click(document.querySelector('button.offer.heal'));
+    expect(await findByText('Enc 3/9')).toBeTruthy();
+    expect(getByText('70 / 100')).toBeTruthy();
+    // An event: the trade's label and the walk-away; the trade lands on the HP bar of the next fight.
+    cleanup();
+    const event: RunState = { ...rest, phase: 'event', offer: null, event: 'thermal-vent', kinds: ['fight', 'event', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight'] };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(event));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    expect(await findByText('Thermal Vent')).toBeTruthy();
+    expect(getByText('You: 40 / 100 HP')).toBeTruthy();
+    expect(getButton('Back away').classList.contains('pass')).toBe(true);
+    await click(getButton('Brave it: max HP +20, take 30'));
+    expect(await findByText('Enc 3/9')).toBeTruthy();
+    expect(getByText('30 / 120')).toBeTruthy();
+    // A save on an event content no longer has (gate W1): one "Move on" button, and it moves on.
+    cleanup();
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...event, event: 'gone-event' }));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    expect(await findByText('Something in the water')).toBeTruthy();
+    expect(document.querySelectorAll('button.choice')).toHaveLength(1);
+    await click(getButton('Move on'));
+    expect(await findByText('Enc 3/9')).toBeTruthy();
+    expect(getByText('40 / 100')).toBeTruthy();
+    // An elite slot labels the enemy.
+    cleanup();
+    const elite: RunState = { ...blob, kinds: ['elite', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight'] };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(elite));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await findByText('Enc 1/9');
+    expect(document.querySelector('.arena .bar-label:nth-of-type(3) strong')?.textContent ?? document.querySelectorAll('.arena .bar-label strong')[1]?.textContent).toMatch(/^Elite /);
+  }, 30000);
+
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
     for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {
-      const offer = document.querySelector('button.offer');
+      const offer = document.querySelector('button.offer, button.choice');
       if (offer) await click(offer);
       else await attackOnce();
     }
@@ -780,7 +831,7 @@ describe('App', () => {
     await startRun();
     for (let guard = 0; guard < 400; guard++) {
       if (queryButton('New run')) break;
-      const offer = document.querySelector('button.offer');
+      const offer = document.querySelector('button.offer, button.choice');
       if (offer) {
         await click(offer);
         continue;

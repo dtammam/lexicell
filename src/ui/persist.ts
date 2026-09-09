@@ -19,9 +19,11 @@ export const SAVE_KEY = 'lexicell.run';
 export const RUN_STATE_KEYS: readonly string[] = [
   'v',
   'cell',
+  'kinds',
   'rng',
   'phase',
   'encounterIndex',
+  'event',
   'player',
   'encounter',
   'offer',
@@ -40,7 +42,8 @@ export interface Persist {
   clear(): void;
 }
 
-const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'summary']);
+const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'rest', 'event', 'summary']);
+const KINDS: ReadonlySet<unknown> = new Set(['fight', 'elite', 'rest', 'event']);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -73,6 +76,10 @@ function looksLikeRunState(value: unknown): value is RunState {
   return (
     isNum(v.v) &&
     typeof v.cell === 'string' &&
+    Array.isArray(v.kinds) &&
+    v.kinds.every((k) => KINDS.has(k)) &&
+    // An event id only while an event is on screen (gate S4): forged pairs are dropped.
+    (v.phase === 'event' ? typeof v.event === 'string' : v.event === null) &&
     isRecord(v.rng) &&
     isNum(v.rng.seed) &&
     isNum(v.rng.counter) &&
@@ -109,6 +116,8 @@ export function migrate(value: unknown): unknown {
   if (isRecord(v) && v.v === 4 && isRecord(v.stats) && !('worstWord' in v.stats)) {
     v = { ...v, v: 5, stats: { ...v.stats, worstWord: '', worstWordDamage: 0 } };
   }
+  // v5 -> v6 (encounter types): no kinds were placed, so the rest of the run is fights; no event on screen.
+  if (isRecord(v) && v.v === 5 && !('kinds' in v)) v = { ...v, v: 6, kinds: [], event: null };
   return v;
 }
 

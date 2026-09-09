@@ -30,6 +30,15 @@
  *
  * pickItem: the item's onPick effects fire once, player-side only (no encounter exists).
  *
+ * Slots (variety wave step 2): newRun places one elite, one rest and one event among the non-boss
+ * slots after the first, drawn from the run RNG (three draws) before the starting kit. An elite
+ * slot is a fight against the next act's pool at this slot's scale (act 3: an act-3 enemy scaled
+ * by tuning.eliteHpScale/eliteDamageScale) whose offer carries a guaranteed rare. A rest slot is a
+ * screen: restHeal (tuning.restHeal of max HP) or pickItem from a normal three-offer. An event slot
+ * draws one of content.events (one draw) and eventChoice applies the chosen trade's player-side
+ * effects, never below 1 HP, then a rare-guaranteed pick if the choice says so. Rest and event
+ * slots count as encounters reached (stats.hpAtEncounterStart gets an entry).
+ *
  * Conditions on onDamageTaken see the player's HP *before* the hit.
  */
 import type { Dictionary } from './dictionary';
@@ -39,7 +48,7 @@ import { cellDef, collectEffects, itemDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { GRID_SIZE, type Content, type Encounter, type EnemyDef, type RunState, type Tile, type TurnReport } from './types';
+import { GRID_SIZE, type Content, type Encounter, type EncounterKind, type EnemyDef, type EventDef, type Rarity, type RunState, type Tile, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -53,14 +62,18 @@ export type Action =
   | { readonly type: 'clearSelection' }
   | { readonly type: 'submitWord' }
   | { readonly type: 'pickItem'; readonly index: number }
-  | { readonly type: 'shuffle' };
+  | { readonly type: 'shuffle' }
+  /* Variety wave step 2: the rest screen's heal (its pick is pickItem), and an event's choice. */
+  | { readonly type: 'restHeal' }
+  | { readonly type: 'eventChoice'; readonly index: number };
 
 /**
- * 5 since the stats HUD (RunStats.worstWord, worstWordDamage); v4 and v3 saves are MIGRATED by
- * persist.ts (worst fields empty; a v3 save also gains the balanced cell). 4 was starting cells,
- * 3 the effects wave (v2 dropped), 2 the tuning wave (v1 dropped).
+ * 6 since encounter types (RunState.kinds, event; variety wave step 2); a v5 save is MIGRATED by
+ * persist.ts with empty kinds (the rest of its run is fights) and no event. 5 was the stats HUD
+ * (worstWord), 4 starting cells, 3 the effects wave (v2 dropped), 2 the tuning wave (v1 dropped);
+ * v3 and v4 migrate forward too.
  */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 /** The cell a run gets when none is named: the game as it was before cells. */
 export const DEFAULT_CELL_ID = 'balanced';
 export const OFFER_SIZE = 3;
@@ -89,12 +102,15 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
   const cell = cellDef(ctx.content, cellId); // throws on an unknown id
   for (const id of cell.startingItems) itemDef(ctx.content, id);
   const maxHp = cell.maxHp;
+  const [kinds, rng] = placeKinds(createRng(seed), ctx.content);
   const state: RunState = {
-    v: 5,
+    v: 6,
     cell: cell.id,
-    rng: createRng(seed),
+    kinds,
+    rng,
     phase: 'fight',
     encounterIndex: 0,
+    event: null,
     player: { hp: maxHp, maxHp, items: [...cell.startingItems], shield: 0, freeShuffles: 0 },
     encounter: null,
     offer: null,
@@ -128,7 +144,35 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return pickItem(state, action.index, ctx);
     case 'shuffle':
       return shuffle(state, ctx);
+    case 'restHeal':
+      return restHeal(state, ctx);
+    case 'eventChoice':
+      return eventChoice(state, action.index, ctx);
   }
+}
+
+/**
+ * One elite, one rest and one event among the non-boss slots after the first (slots 2 to 8 of
+ * nine: indexes 1, 3, 4, 6, 7), in that order, three draws. Fewer than three eligible slots
+ * (a shortened curve in a sim variant) place what fits.
+ */
+export function placeKinds(rng: Rng, content: Content): [EncounterKind[], Rng] {
+  const kinds: EncounterKind[] = content.encounters.map(() => 'fight');
+  let open = content.encounters.map((e, i) => (i > 0 && !e.boss ? i : -1)).filter((i) => i >= 0);
+  for (const kind of ['elite', 'rest', 'event'] as const) {
+    if (open.length === 0) break;
+    let k: number;
+    [k, rng] = nextInt(rng, open.length);
+    const slot = open[k] as number;
+    kinds[slot] = kind;
+    open = open.filter((i) => i !== slot);
+  }
+  return [kinds, rng];
+}
+
+/** The kind of the slot at `index`; past the placed array (a migrated v5 save) it is a fight. */
+export function kindAt(state: RunState, index: number): EncounterKind {
+  return state.kinds[index] ?? 'fight';
 }
 
 // ---------- helpers ----------
@@ -343,13 +387,23 @@ function poolFor(list: readonly EnemyDef[], act: number): readonly EnemyDef[] {
 function startEncounter(state: RunState, ctx: EngineContext): RunState {
   const def = ctx.content.encounters[state.encounterIndex];
   if (!def) throw new Error(`no encounter def at index ${state.encounterIndex}`);
-  const pool = poolFor(def.boss ? ctx.content.bosses : ctx.content.enemies, def.act);
+  const kind = def.boss ? 'fight' : kindAt(state, state.encounterIndex);
+  const arrived: RunState = { ...state, stats: { ...state.stats, hpAtEncounterStart: [...state.stats.hpAtEncounterStart, state.player.hp] } };
+  if (kind === 'rest') return startRest(arrived, ctx);
+  if (kind === 'event') return startEvent(arrived, ctx);
+  // An elite (variety wave step 2) comes from the next act's pool; act 3 has none, so its elite
+  // is an act-3 enemy scaled up instead.
+  const elite = kind === 'elite';
+  const lastAct = def.act >= Math.max(...ctx.content.encounters.map((e) => e.act));
+  const pool = def.boss ? poolFor(ctx.content.bosses, def.act) : poolFor(ctx.content.enemies, elite && !lastAct ? def.act + 1 : def.act);
+  const hpScale = def.hpScale * (elite && lastAct ? ctx.content.tuning.eliteHpScale : 1);
+  const damageScale = def.damageScale * (elite && lastAct ? ctx.content.tuning.eliteDamageScale : 1);
   const [enemyDef, rng1] = pick(state.rng, pool);
-  const maxHp = Math.round(enemyDef.hp * def.hpScale);
-  const s1: RunState = withRng(state, rng1);
+  const maxHp = Math.round(enemyDef.hp * hpScale);
+  const s1: RunState = withRng(arrived, rng1);
   const [grid, rng] = freshGrid(rng1, ctx.solver, letterBias(s1, ctx));
   const encounter: Encounter = {
-    enemy: { id: enemyDef.id, hp: maxHp, maxHp, damage: Math.round(enemyDef.damage * def.damageScale), poison: 0, stunned: 0 },
+    enemy: { id: enemyDef.id, hp: maxHp, maxHp, damage: Math.round(enemyDef.damage * damageScale), poison: 0, stunned: 0 },
     grid,
     selection: [],
     turn: 1,
@@ -362,9 +416,68 @@ function startEncounter(state: RunState, ctx: EngineContext): RunState {
     encounter,
     offer: null,
     rejected: null,
-    stats: { ...state.stats, hpAtEncounterStart: [...state.stats.hpAtEncounterStart, state.player.hp] },
   };
   return turnStart(s2, ctx, EMPTY_REPORT);
+}
+
+/** A rest slot: the heal-or-pick screen. The offer is a normal one; with nothing left to offer, the heal stands alone. */
+function startRest(state: RunState, ctx: EngineContext): RunState {
+  const [offer, rng] = drawOffer(state, ctx);
+  return { ...withRng(state, rng), phase: 'rest', encounter: null, offer: offer.length > 0 ? offer : null, rejected: null };
+}
+
+/** An event slot: one draw picks the event. With no events in content the slot is skipped. */
+function startEvent(state: RunState, ctx: EngineContext): RunState {
+  if (ctx.content.events.length === 0) return advance(state, ctx);
+  const [def, rng] = pick(state.rng, ctx.content.events);
+  return { ...withRng(state, rng), phase: 'event', event: def.id, encounter: null, offer: null, rejected: null };
+}
+
+/** The event by id, or undefined: a save can carry an id that content has since dropped (gate W1). */
+function eventDefOf(ctx: EngineContext, id: string): EventDef | undefined {
+  return ctx.content.events.find((e) => e.id === id);
+}
+
+/** Rest: heal tuning.restHeal of max HP (rounded, capped), forgo the pick, move on. */
+function restHeal(state: RunState, ctx: EngineContext): RunState {
+  if (state.phase !== 'rest') return reject(state, 'not resting');
+  const hp = clampHp(state.player.hp + Math.round(state.player.maxHp * ctx.content.tuning.restHeal), state.player.maxHp);
+  const s: RunState = {
+    ...state,
+    rejected: null,
+    player: { ...state.player, hp },
+    offer: null,
+    lastTurn: { ...EMPTY_REPORT, healed: hp - state.player.hp },
+  };
+  return advance(s, ctx);
+}
+
+/**
+ * Event: apply the choice's player-side effects IN THE ORDER WRITTEN (a trade is a script, not a
+ * hook: "max HP +20, take 30" grows first and then takes 30, so the cost is always the cost; the
+ * item vocabulary's EFFECT_ORDER would land the damage first and make the trade a net heal at
+ * low HP, gate S1). A trade never kills on the spot: HP floors at 1 (the next turn start can
+ * still, gate S2). Then a rare-guaranteed pick if the choice carries one, else the next slot.
+ * An event id that content no longer has (a save across a content change, gate W1) is treated
+ * as the walk-away: the slot is left with nothing applied.
+ */
+function eventChoice(state: RunState, index: number, ctx: EngineContext): RunState {
+  if (state.phase !== 'event' || state.event === null) return reject(state, 'no event');
+  const def = eventDefOf(ctx, state.event);
+  if (!def) return advance({ ...state, rejected: null, event: null }, ctx);
+  const choice = def.choices[index];
+  if (!choice) return reject(state, 'bad event choice');
+  const a = applyEffects({ ...state, rejected: null }, choice.effects, ctx);
+  const hp = Math.max(1, a.state.player.hp);
+  const s: RunState = {
+    ...a.state,
+    player: { ...a.state.player, hp },
+    event: null,
+    lastTurn: { ...EMPTY_REPORT, healed: a.healed },
+    // What the trade hit for, not what a max-HP cut trimmed (gate S3), and not the 1 HP the floor gave back.
+    stats: { ...a.state.stats, damageTaken: a.state.stats.damageTaken + a.playerDamage - (hp - a.state.player.hp) },
+  };
+  return choice.rarePick ? makeOffer(s, ctx, 'rare') : advance(s, ctx);
 }
 
 /**
@@ -452,20 +565,30 @@ function endEncounter(state: RunState, ctx: EngineContext): RunState {
   };
   const last = s.encounterIndex >= ctx.content.encounters.length - 1;
   if (last) return { ...s, phase: 'summary', outcome: 'won', encounter: null, offer: null };
-  return makeOffer(s, ctx);
+  // An elite's offer carries a guaranteed rare (variety wave step 2).
+  return makeOffer(s, ctx, kindAt(s, s.encounterIndex) === 'elite' ? 'rare' : undefined);
 }
 
 /** An offer holds at most this many commons (Dean, 2026-09-08, question 2): a pick always has something in it. */
 export const MAX_COMMONS_PER_OFFER = 2;
 
-function makeOffer(state: RunState, ctx: EngineContext): RunState {
+const RARITY_RANK: Record<Rarity, number> = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
+
+/**
+ * Draw an offer of up to OFFER_SIZE unowned items by rarity weight, at most two commons. With
+ * `guaranteed` (an elite's or an event's offer), the first slot is drawn from items of at least
+ * that rarity when any are left; the rest draw as usual.
+ */
+function drawOffer(state: RunState, ctx: EngineContext, guaranteed?: Rarity): [string[], Rng] {
   const owned = new Set(state.player.items);
   let pool = ctx.content.items.filter((i) => !owned.has(i.id));
   const offer: string[] = [];
   let commons = 0;
   let rng = state.rng;
   while (offer.length < OFFER_SIZE && pool.length > 0) {
-    const eligible = commons >= MAX_COMMONS_PER_OFFER && pool.some((i) => i.rarity !== 'common') ? pool.filter((i) => i.rarity !== 'common') : pool;
+    const floor = guaranteed !== undefined && offer.length === 0 ? pool.filter((i) => RARITY_RANK[i.rarity] >= RARITY_RANK[guaranteed]) : [];
+    const base = floor.length > 0 ? floor : pool;
+    const eligible = commons >= MAX_COMMONS_PER_OFFER && base.some((i) => i.rarity !== 'common') ? base.filter((i) => i.rarity !== 'common') : base;
     let chosen;
     [chosen, rng] = weightedPick(
       rng,
@@ -475,6 +598,11 @@ function makeOffer(state: RunState, ctx: EngineContext): RunState {
     offer.push(chosen.id);
     pool = pool.filter((i) => i.id !== chosen.id);
   }
+  return [offer, rng];
+}
+
+function makeOffer(state: RunState, ctx: EngineContext, guaranteed?: Rarity): RunState {
+  const [offer, rng] = drawOffer(state, ctx, guaranteed);
   const s = withRng(state, rng);
   if (offer.length === 0) return advance({ ...s, encounter: null }, ctx);
   return { ...s, phase: 'pick', offer, encounter: null };
@@ -697,7 +825,8 @@ function shuffle(state: RunState, ctx: EngineContext): RunState {
 }
 
 function pickItem(state: RunState, index: number, ctx: EngineContext): RunState {
-  if (state.phase !== 'pick' || !state.offer) return reject(state, 'not picking');
+  // A rest's offer is picked the same way (variety wave step 2); taking it forgoes the heal.
+  if ((state.phase !== 'pick' && state.phase !== 'rest') || !state.offer) return reject(state, 'not picking');
   const id = state.offer[index];
   if (id === undefined) return reject(state, 'bad offer index');
   const def = itemDef(ctx.content, id); // throws on unknown id

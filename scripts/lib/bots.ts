@@ -7,7 +7,7 @@ import { candidateIndices, candidateWords, type Candidate } from '../../src/engi
 import type { Action, EngineContext } from '../../src/engine/reducer';
 import { createRng, nextInt, type Rng } from '../../src/engine/rng';
 import type { Condition, Effect } from '../../src/engine/effects';
-import type { ItemDef, Rarity, RunState } from '../../src/engine/types';
+import type { EventChoice, ItemDef, Rarity, RunState } from '../../src/engine/types';
 
 export type BotName = 'greedy' | 'mediocre' | 'solver';
 export const BOT_NAMES: readonly BotName[] = ['greedy', 'mediocre', 'solver'];
@@ -176,9 +176,38 @@ export function makeBot(name: BotName, seed: number): Bot {
  */
 export const FREE_SHUFFLE_BELOW = 6;
 
+/**
+ * Encounter types (variety wave step 2): at a rest every bot heals below this fraction of max HP
+ * and picks otherwise; at an event the strong bots take the trade when its HP cost leaves them
+ * above the same fraction, the mediocre bot takes every trade.
+ */
+export const REST_HEAL_BELOW = 0.6;
+
+/** The HP an event choice costs outright: its damagePlayer values plus any max HP it removes. */
+export function tradeCost(choice: EventChoice): number {
+  let cost = 0;
+  for (const e of choice.effects) {
+    if (e.type === 'damagePlayer') cost += e.value;
+    if (e.type === 'maxHp' && e.value < 0) cost += -e.value;
+  }
+  return cost;
+}
+
 export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Action[] | null {
   if (state.phase === 'summary') return null;
   if (state.phase === 'pick') return [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];
+  if (state.phase === 'rest') {
+    const low = state.player.hp < state.player.maxHp * REST_HEAL_BELOW;
+    return low || !state.offer ? [{ type: 'restHeal' }] : [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];
+  }
+  if (state.phase === 'event') {
+    const def = ctx.content.events.find((e) => e.id === state.event);
+    const trade = def?.choices[0];
+    const last = Math.max(0, (def?.choices.length ?? 1) - 1);
+    if (!trade) return [{ type: 'eventChoice', index: last }];
+    const afford = bot.name === 'mediocre' || state.player.hp - tradeCost(trade) >= state.player.maxHp * REST_HEAL_BELOW;
+    return [{ type: 'eventChoice', index: afford ? 0 : last }];
+  }
   const candidates = candidateWords(state, ctx);
   const choice = bot.chooseWord(state, candidates);
   if (!choice) throw new Error('bot has no playable word: dead grid reached the player');

@@ -26,6 +26,11 @@ export const TUNING: Tuning = {
   // that runs twenty turns is already a slog; this makes sure it ends.
   enrageAfter: 20,
   enragePerTurn: 1,
+  // Encounter types (variety wave step 2, 2026-09-09): a rest heals 30% of max HP; an act-3
+  // elite is an act-3 enemy at 1.3x HP and 1.15x damage (acts 1 and 2 draw the next act's pool).
+  restHeal: 0.3,
+  eliteHpScale: 1.3,
+  eliteDamageScale: 1.15,
 };
 
 export const ENCOUNTERS: readonly EncounterDef[] = [
