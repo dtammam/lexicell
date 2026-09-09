@@ -1351,9 +1351,12 @@ describe('variety wave step 3: evolution (save v7)', () => {
       expect(new Set(won.offer).size).toBe(3);
       for (const id of won.offer ?? []) expect(traitIds.has(id), id).toBe(true);
       // Three draws, one per trait, on top of what the win itself spent.
-      const picked = reduce(won, { type: 'pickTrait', index: 1 }, flat);
+      // A bad index first, so the good pick has a stale rejection to clear (gate S2).
+      const refused = reduce(won, { type: 'pickTrait', index: 9 }, flat);
+      expect(refused.rejected).toBe('bad trait index');
+      const picked = reduce(refused, { type: 'pickTrait', index: 1 }, flat);
       expect(picked.player.traits).toEqual([won.offer?.[1]]);
-      expect(picked.rejected).toBeNull(); // a stale rejection does not ride into the pick (gate S2)
+      expect(picked.rejected).toBeNull();
       expect(picked.phase).toBe('pick');
       expect(picked.offer).toHaveLength(3);
       expect(picked.encounterIndex).toBe(2);

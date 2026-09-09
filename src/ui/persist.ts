@@ -111,10 +111,6 @@ function looksLikeRunState(value: unknown): value is RunState {
   );
 }
 
-/**
- * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
- * the empty worst-word stats (stats HUD). Anything else passes through and meets the shape check.
- */
 const KNOWN_ITEMS: ReadonlySet<string> = new Set(CONTENT.items.map((i) => i.id));
 const KNOWN_TRAITS: ReadonlySet<string> = new Set(CONTENT.traits.map((t) => t.id));
 
@@ -132,10 +128,17 @@ export function dropUnknownIds(value: unknown): unknown {
   const traits = Array.isArray(player.traits) ? player.traits.filter((id) => KNOWN_TRAITS.has(id as string)) : player.traits;
   let offer = value.offer;
   if (value.phase === 'evolve' && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_TRAITS.has(id as string));
-  else if (value.phase === 'pick' && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_ITEMS.has(id as string));
+  else if ((value.phase === 'pick' || value.phase === 'rest') && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_ITEMS.has(id as string));
+  // A rest with nothing left to offer is what startRest writes as null (heal alone), not an empty list.
+  if (value.phase === 'rest' && Array.isArray(offer) && offer.length === 0) offer = null;
   return { ...value, player: { ...player, items, traits }, offer };
 }
 
+/**
+ * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
+ * the empty worst-word stats (stats HUD), v5 gains empty kinds and no event (encounter types), v6
+ * gains no traits (evolution). Anything else passes through and meets the shape check.
+ */
 export function migrate(value: unknown): unknown {
   let v: unknown = value;
   if (isRecord(v) && v.v === 3 && !('cell' in v)) v = { ...v, v: 4, cell: DEFAULT_CELL_ID };

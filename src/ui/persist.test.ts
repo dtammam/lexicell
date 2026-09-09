@@ -109,6 +109,10 @@ describe('persist', () => {
     const two = CONTENT.items.slice(0, 2).map((i) => i.id);
     const stalePick = { ...s, phase: 'pick', encounter: null, offer: ['gone-item', ...two] };
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(stalePick) })).load()?.offer).toEqual(two);
+    // A rest offer is filtered too (gate residual): a stale id would make its button throw; all gone becomes the heal alone.
+    const staleRest = { ...s, phase: 'rest', encounter: null, offer: ['gone-item', ...two] };
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(staleRest) })).load()?.offer).toEqual(two);
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...staleRest, offer: ['gone-item'] }) })).load()?.offer).toBeNull();
     expect(dropUnknownIds('x')).toBe('x');
     expect(dropUnknownIds({ v: 7 })).toEqual({ v: 7 });
     expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 7, cell: 'balanced', kinds: [], event: null, player: { ...oldPlayer, traits: [] }, stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
