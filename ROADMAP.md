@@ -409,6 +409,10 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #59 (2026-09-09): phone fit, second pass, for the after-a-word state:
+  one stat per arena row, WORD DAMAGE as the hit line, definition and
+  missed word on one line, shorter stage. Rendered at 390x780 both before
+  and after a word.
 - PR #58 (2026-09-09): phone fit. Short status-row labels and intent
   strings, a shorter first-fight hint, badges hidden on small grids; the
   layout was overflowing a 390px phone and squeezing the grid. Verified

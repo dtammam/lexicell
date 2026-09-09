@@ -184,7 +184,7 @@
         {#if run.lastTurn && (run.lastTurn.word !== '' || run.lastTurn.scrambled || run.lastTurn.damage > 0 || run.lastTurn.enemyDamage > 0)}
           <!-- Empty word + scrambled is a shuffle; empty word alone is the turn-start report (item damage before a word). -->
           {#if run.lastTurn.word !== ''}
-            <span class="hit">{run.lastTurn.word.toUpperCase()} hit for {run.lastTurn.damage}</span>
+            <span class="hit">{run.lastTurn.word.toUpperCase()} {run.lastTurn.damage}</span>
             {#if run.lastTurn.scrambled}<span class="note">grid scrambled</span>{/if}
           {:else if run.lastTurn.scrambled}
             <span class="hit">Shuffled the grid</span>
@@ -207,12 +207,16 @@
       {#if run.rejected}<span class="rejected">{run.rejected}</span>{/if}
     </div>
     {#if run.lastTurn && run.lastTurn.word !== ''}
-      <Definition word={run.lastTurn.word} />
-      {#if beatable && missed}
-        <p class="missed">Best there: <strong>{missed.word.toUpperCase()}</strong> for {missed.damage}</p>
-      {:else if wasBest}
-        <p class="missed best">Best word on that grid.</p>
-      {/if}
+      <!-- One line for the definition and the missed word (Dean's iPhone, 2026-09-09: four report lines
+           squeezed the grid); each side truncates with an ellipsis rather than wrapping. -->
+      <div class="after">
+        <Definition word={run.lastTurn.word} />
+        {#if beatable && missed}
+          <p class="missed">Best: <strong>{missed.word.toUpperCase()}</strong> {missed.damage}</p>
+        {:else if wasBest}
+          <p class="missed best">Best word there.</p>
+        {/if}
+      </div>
     {/if}
 
     <div class="word" class:valid>
@@ -312,6 +316,28 @@
   .rejected {
     color: var(--harm);
   }
+  .after {
+    flex: none;
+    display: flex;
+    gap: var(--s3);
+    align-items: baseline;
+    min-width: 0;
+    font-size: var(--text);
+    line-height: 1.3;
+  }
+  .after > :global(*) {
+    margin: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  /* The missed word is the lesson: it keeps its full text and the definition yields. */
+  .after .missed {
+    flex: none;
+    max-width: 100%;
+  }
   .missed {
     flex: none;
     margin: 0;
@@ -409,7 +435,7 @@
       min-height: 0;
       overflow: hidden;
     }
-    .missed {
+    .after {
       display: none;
     }
     .word {
