@@ -678,7 +678,8 @@ describe('App', () => {
     expect(await findByText(/Every build since the first commit/)).toBeTruthy();
     const items = document.querySelectorAll('.notes li');
     expect(items.length).toBe(RELEASE_NOTES.length);
-    expect(items[0]?.querySelector('.stamp')?.textContent).toContain(`build ${RELEASE_NOTES[0]?.build}`);
+    expect(items[0]?.querySelector('.stamp')?.textContent).toBe(`build\u00a0${RELEASE_NOTES[0]?.build} · PR\u00a0#${RELEASE_NOTES[0]?.pr}`);
+    expect(items[0]?.querySelector('.date')?.textContent).toBe(RELEASE_NOTES[0]?.date);
     expect(items[0]?.querySelector('.stamp a')?.getAttribute('href')).toBe(`https://github.com/dtammam/lexicell/pull/${RELEASE_NOTES[0]?.pr}`);
     expect(items[items.length - 1]?.querySelector('h3')?.textContent).toBe('First commit');
     expect(items[items.length - 1]?.querySelector('.stamp a')).toBeNull();

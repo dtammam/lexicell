@@ -4,7 +4,8 @@
   let { onBack }: { onBack: () => void } = $props();
 
   const REPO = 'https://github.com/dtammam/lexicell';
-  const stamp = (n: { build: number | null; pr: number | null }) => [n.build === null ? null : `build ${n.build}`, n.pr === null ? null : `PR #${n.pr}`].filter((s) => s !== null).join(' · ');
+  // Non-breaking spaces inside each half: in Press Start 2P "build 65 · PR #63" is the widest line a 390px phone takes, and it must not break at "PR".
+  const stamp = (n: { build: number | null; pr: number | null }) => [n.build === null ? null : `build\u00a0${n.build}`, n.pr === null ? null : `PR\u00a0#${n.pr}`].filter((s) => s !== null).join(' · ');
 </script>
 
 <!-- Release notes (Dean, 2026-09-09): every merge since the first commit, newest on top, scrolling down into history. -->
@@ -17,9 +18,12 @@
   <ol class="list">
     {#each RELEASE_NOTES as n (n.sha)}
       <li>
-        <p class="stamp">
-          {#if n.pr !== null}<a href="{REPO}/pull/{n.pr}" target="_blank" rel="noopener">{stamp(n)}</a>{:else if n.build !== null}<span>{stamp(n)}</span>{/if}{#if n.build !== null || n.pr !== null}<span class="dot"> · </span>{/if}<span class="date">{n.date}</span>
-        </p>
+        {#if n.pr !== null}
+          <p class="stamp"><a href="{REPO}/pull/{n.pr}" target="_blank" rel="noopener">{stamp(n)}</a></p>
+        {:else if n.build !== null}
+          <p class="stamp">{stamp(n)}</p>
+        {/if}
+        <p class="date">{n.date}</p>
         <h3>{n.title}</h3>
         <p class="body">{n.notes}</p>
       </li>
@@ -29,6 +33,7 @@
 
 <style>
   .notes {
+    flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -80,9 +85,10 @@
     color: var(--score);
     text-decoration: none;
   }
-  .stamp .date,
-  .stamp .dot {
+  .date {
+    margin: 0 0 var(--s1);
     color: var(--muted);
+    font-size: var(--text);
   }
   h3 {
     margin: 0 0 var(--s1);
