@@ -124,7 +124,7 @@ Captured without filtering, from the first conversation:
 - **This is NOT a story.** Evolution and eras are art direction and naming, nothing more. If a mechanic "needs" an era to justify it, the mechanic is wrong.
 - **This is NOT a multiplayer or social product.** No accounts, no server, no leaderboard, no sharing. "Publish online" means "put the static bundle on a domain," nothing else.
 - **This DOES have a large item library in v1** (scope change, Dean, 2026-09-08: "v1 changes to 200 item pool"). The original line said twenty to thirty, each tuned, with the library growing later. The library grows now: a 200-item pool built on a widened effect vocabulary (`docs/exec-plans/completed/effects-wave.md`), in batches of forty, each batch measured against the sim exit criteria before merge. "Each tuned" still holds: the per-item win-rate table is the tuning instrument, and an item that does not move a bot's win rate is a reskin and gets cut.
-- **This is NOT endless in v1.** Nine encounters, then a win screen.
+- **This is NOT endless in v1**, as first written: nine encounters, then a win screen. Scope change (Dean, 2026-09-09, "Normal, Endless?" on the variety wave): Normal keeps the nine; an Endless mode continues past nine on a scaling curve, both available from the first run, no unlocks. The pack's other limits (no accounts, no leaderboard, no story) stand.
 - **This is NOT a game-engine project.** No Phaser, no Godot, no canvas rendering. DOM and CSS.
 
 ---

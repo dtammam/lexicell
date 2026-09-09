@@ -24,9 +24,10 @@ and what is still open ships disclosed here.
 
 ## Open
 
-Ordered as Dean set it on 2026-09-08 ("design wave" bookkeeping, then
-the landscape fit, the effects wave in full, run history, starting
-cells).
+Ordered as Dean set it. 2026-09-09: the variety wave
+(`docs/exec-plans/active/variety-wave.md`), nine levers Dean agreed:
+enemies and damage ranges, encounter types, evolution, grid rules,
+Normal and Endless modes, curses, a share card, the daily seed.
 
 - **Effects wave: closed** (PR #47, 200 items, curve F). The plan is
   in `docs/exec-plans/completed/effects-wave.md`. Left for later: a
