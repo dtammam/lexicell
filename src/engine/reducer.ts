@@ -5,15 +5,21 @@
  *
  * Turn order, fixed:
  *   player submits word
- *     -> onWordScored effects (scoring first, then heal/damage extras)
+ *     -> scoring; armour halves it (floored) when the word is shorter than the enemy's armour
+ *     -> onWordScored effects (heal/damage extras; lifesteal reads what landed)
  *     -> enemy takes damage; if dead: onEncounterEnd, then pick or win
  *   enemy turn
  *     -> attack on its cadence: a stun consumes itself and skips the hit; otherwise
- *        onDamageTaken (reduceDamage first), then the shield absorbs, then hp
+ *        the hit is rolled inside hitRange(damage, variance) with one RNG draw (none when the
+ *        range is a single value), then onDamageTaken (reduceDamage first), then the shield
+ *        absorbs, then hp
  *     -> special on its cadence (bosses)
  *     -> if player dead: lose
  *   refill used tiles (onTileDraw vowelWeight / letterWeight), settle columns (gravity), tick locks, dead-grid scramble
  *   next turn: onTurnStart effects; if enemy dead: same as above
+ *     -> enemy traits tick from turn 2: regen heals it (never above max), hunger and the enrage
+ *        clock grow its damage. Regen goes before poison, so a regenerating enemy can out-heal
+ *        the poison on it (pinned by test; Dean's call if it should flip)
  *     -> poison ticks on the enemy (value, then value-1 ...); if enemy dead: same as above
  *     -> venom bites the player; if player dead: lose
  *
@@ -390,7 +396,8 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
 /**
  * Regen heals the enemy (never above max) and hunger grows its damage, both at its turn start from
  * turn 2 on; past tuning.enrageAfter every enemy's damage grows by tuning.enragePerTurn as well, so
- * no fight can stall.
+ * no fight in which the enemy attacks can stall. (A permanent stun lock is the one gap; tracker #8.)
+ * Runs after the onTurnStart effects and their death check: an enemy they killed stays dead.
  */
 function enemyTraitsTick(state: RunState, ctx: EngineContext): RunState {
   const enc = state.encounter;
@@ -511,9 +518,10 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   // Player attack.
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell);
   const score = scoreWord(word, effects, ctx.content.tuning);
-  // Armour (variety wave): a word shorter than the enemy's armour deals half, floored.
-  const armour = enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0;
-  const landed = word.length < armour ? Math.floor(score.damage / 2) : score.damage;
+  // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. The preview
+  // (candidates.ts) applies the same rule, so the number it shows is the number that lands; the
+  // best/worst word stats record the word's own score, as they did with overkill before armour.
+  const landed = armourHit(word, score.damage, enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0);
   const enemyHp = Math.max(0, enc.enemy.hp - landed);
   let s: RunState = {
     ...state,
@@ -553,10 +561,15 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   return endTurn(after.state, ctx, after.report, enc.selection);
 }
 
-function enemyDefOf(ctx: EngineContext, id: string): EnemyDef {
+export function enemyDefOf(ctx: EngineContext, id: string): EnemyDef {
   const def = [...ctx.content.enemies, ...ctx.content.bosses].find((e) => e.id === id);
   if (!def) throw new Error(`unknown enemy ${id}`);
   return def;
+}
+
+/** What a word's score does to an armoured enemy: half, floored, when the word is shorter than the armour. */
+export function armourHit(word: string, damage: number, armour: number): number {
+  return word.length < armour ? Math.floor(damage / 2) : damage;
 }
 
 /** The hit range an enemy rolls in: [round(d*(1-v)), round(d*(1+v))], inclusive. Shared with the intent line. */

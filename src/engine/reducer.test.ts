@@ -6,6 +6,7 @@ import { candidateIndices, candidateWords } from './candidates';
 import { gatherEffects } from './hooks';
 import { isDead, refill, settle } from './grid';
 import { hitRange, MAX_COMMONS_PER_OFFER, newRun, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
+import { scoreWord } from './scoring';
 import { tilesForWord } from './solver';
 import type { Content, Encounter, EnemyDef, ItemDef, RunState } from './types';
 
@@ -1162,10 +1163,10 @@ describe('variety wave step 1: act pools, damage ranges, armour, regen, hunger',
     }
   }, 30000);
 
-  it('a hit rolls inside the range from the run RNG, and the roll is threaded (replay identical)', () => {
+  it('a hit rolls inside the range from the run RNG, reaches both ends, and the roll is one threaded draw (replay identical)', () => {
     const real = nodeContext({ ...REAL_ROLLS, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
     const seen = new Set<number>();
-    for (let seed = 0; seed < 30; seed++) {
+    for (let seed = 0; seed < 60; seed++) {
       let s = newRun(seed, real);
       if (s.phase !== 'fight') continue;
       const enc = s.encounter as Encounter;
@@ -1177,28 +1178,57 @@ describe('variety wave step 1: act pools, damage ranges, armour, regen, hunger',
       expect(hit).toBeGreaterThanOrEqual(4);
       expect(hit).toBeLessThanOrEqual(8);
       seen.add(hit);
-      expect(a.rng.counter).toBeGreaterThan(s.rng.counter);
+      // The roll is exactly one draw on top of what a flat hit spends (gate M2: a dropped RNG
+      // would replay the next draw). Same state, same shuffle, variance 0 versus 0.3.
+      const flatTurn = reduce(s, { type: 'shuffle' }, flat);
+      expect(a.rng.counter - flatTurn.rng.counter).toBe(1);
     }
-    expect(seen.size).toBeGreaterThan(1);
+    // Both ends of the intent line land (gate M11: an off-by-one range never rolls the top).
+    expect(seen.has(4)).toBe(true);
+    expect(seen.has(8)).toBe(true);
   });
 
-  it('armour halves words shorter than it, floored; the preview says what lands', () => {
-    const s = fight(3, flat, { id: 'diatom-swarm' }); // armour 5
+  it('hunger does not grow at the encounter start: the first hit is the base damage times the curve (gate M5)', () => {
+    // Every act-1 enemy made hungry and hitting every turn, so whichever the seed draws is under test.
+    const hungry = nodeContext({ ...flat.content, enemies: CONTENT.enemies.map((e) => ({ ...e, variance: 0, attackEvery: 1, traits: { ...e.traits, hunger: 2 } })) });
+    for (let seed = 0; seed < 6; seed++) {
+      const s = newRun(seed, hungry);
+      if (s.phase !== 'fight') throw new Error('fight');
+      const enc = s.encounter as Encounter;
+      const def = CONTENT.enemies.find((e) => e.id === enc.enemy.id);
+      const slot = CONTENT.encounters[0];
+      if (!def || !slot) throw new Error('def');
+      expect(enc.turn).toBe(1);
+      expect(enc.enemy.damage).toBe(Math.round(def.damage * slot.damageScale));
+      const s1 = reduce(s, { type: 'shuffle' }, hungry);
+      expect(s1.lastTurn?.enemyDamage).toBe(enc.enemy.damage); // turn 1 lands at the base
+      expect((s1.encounter as Encounter).enemy.damage).toBe(enc.enemy.damage + 2); // then the tick for turn 2
+    }
+  });
+
+  it('armour halves words shorter than it, floored, and the preview says what lands; a word of exactly the armour length is not halved', () => {
+    const s = fight(3, flat, { id: 'diatom-swarm' }); // armour 4
     const cands = candidateWords(s, flat);
-    const short = cands.find((c) => c.word.length < 5);
-    const long = cands.find((c) => c.word.length >= 5);
-    if (short) {
-      const after = play(s, short.word, flat);
-      expect(after.lastTurn?.damage).toBe(Math.floor(short.damage / 2));
-    }
-    if (long) {
-      const after = play(s, long.word, flat);
-      expect(after.lastTurn?.damage).toBe(long.damage);
-    }
+    const short = cands.find((c) => c.word.length === 3);
+    const edge = cands.find((c) => c.word.length === 4);
+    if (!short || !edge) throw new Error('seed 3 lost its 3- and 4-letter words');
+    // The preview is already halved (gate W1); the raw score is what the item-free formula gives.
+    const raw = (w: string) => scoreWord(w, [], flat.content.tuning).damage;
+    expect(short.damage).toBe(Math.floor(raw(short.word) / 2));
+    expect(edge.damage).toBe(raw(edge.word)); // gate M9: `<` not `<=`
+    const a = play(s, short.word, flat);
+    expect(a.lastTurn?.damage).toBe(short.damage);
+    expect(a.stats.damageDealt).toBe(short.damage);
+    expect(a.stats.bestWordDamage).toBe(raw(short.word)); // the stat records the word's own score, as with overkill
+    const b = play(s, edge.word, flat);
+    expect(b.lastTurn?.damage).toBe(edge.damage);
+    // Off the armoured enemy the same grid previews the raw score.
+    const bare = fight(3, flat, { id: 'amoeba' });
+    expect(candidateWords(bare, flat).find((c) => c.word === short.word)?.damage).toBe(raw(short.word));
   });
 
   it('regen heals the enemy at its turn start, never above max; hunger grows its damage every turn', () => {
-    const r = fight(4, flat, { id: 'rotifer', hp: 50 }); // regen 3
+    const r = fight(4, flat, { id: 'rotifer', hp: 50 }); // regen 2
     const hurt: RunState = { ...r, encounter: { ...(r.encounter as Encounter), enemy: { ...(r.encounter as Encounter).enemy, hp: 40 } } };
     const r1 = reduce(hurt, { type: 'shuffle' }, flat);
     expect((r1.encounter as Encounter).enemy.hp).toBe(42);
@@ -1212,10 +1242,28 @@ describe('variety wave step 1: act pools, damage ranges, armour, regen, hunger',
     expect((h2.encounter as Encounter).enemy.damage).toBe(14);
     expect(h2.lastTurn?.enemyDamage).toBe(12);
   });
+
+  it('the traits tick runs before poison (regen can out-heal it) and after the onTurnStart death check (a killed enemy stays dead)', () => {
+    // Siphonophore (regen 3) at 1 HP with poison 3: regen first leaves it at 1 HP, poison 2, alive.
+    // Poison first would kill it. Pinned (gate M17); flipping it is Dean's call.
+    const s = fight(7, flat, { id: 'siphonophore', hp: 80 });
+    const enc = s.encounter as Encounter;
+    const low: RunState = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, hp: 1, poison: 3 } } };
+    const t = reduce(low, { type: 'shuffle' }, flat);
+    expect(t.phase).toBe('fight');
+    expect((t.encounter as Encounter).enemy).toMatchObject({ hp: 1, poison: 2 });
+    expect(t.lastTurn?.poison).toBe(3);
+    // Spore Cloud deals 3 at turn start; a regenerating enemy at 3 HP dies to it and does not
+    // regen back (gate M18: the tick must sit after that death check).
+    const armed: RunState = { ...s, player: { ...s.player, items: ['spore-cloud'] }, encounter: { ...enc, enemy: { ...enc.enemy, hp: 3 } } };
+    const k = reduce(armed, { type: 'shuffle' }, flat);
+    expect(k.phase).not.toBe('fight');
+    expect(k.encounter).toBeNull();
+  });
 });
 
 describe('variety wave step 1: the enrage clock', () => {
-  it('past tuning.enrageAfter every enemy hits harder each turn, so a fight cannot stall', () => {
+  it('past tuning.enrageAfter every enemy hits harder each turn, so a fight in which it attacks cannot stall', () => {
     const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0, enrageAfter: 3, enragePerTurn: 2 } });
     let s = newRun(6, flat);
     if (s.phase !== 'fight') throw new Error('fight');

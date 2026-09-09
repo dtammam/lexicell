@@ -33,7 +33,8 @@ on the table.
   `[round(d*(1-v)), round(d*(1+v))]` from the run RNG, so seeds replay),
   and `traits`: `armour` (words under N letters deal half), `regen`
   (heals N at its turn start, never above max), `hunger` (its damage
-  grows by N each turn it is not hit for at least H). No new RunState
+  grows by N every turn from turn 2; the plan first said "each turn it
+  is not hit", the simpler rule shipped and the gate caught the drift). No new RunState
   fields: regen and hunger act on `enemy.hp` and `enemy.damage`, which
   exist; variance uses `state.rng`. Save schema unchanged.
 - Content: 12 enemies (4 per act) and 3 bosses, one per act, each boss
@@ -90,10 +91,12 @@ daily flag.
 
 ## Progress
 
-- Step 1 (PR #61): built. Curve G; mediocre 22.6%, greedy 68.4%, solver
-  87.8%, criteria pass. Cells retuned to the new roster (Diatom, Spore,
+- Step 1 (PR #61): built. Curve G; mediocre 22.6%, greedy 68.6%, solver
+  88.0%, criteria pass. Cells retuned to the new roster (Diatom, Spore,
   Mycelium); all five within ten points of Amoeba, greedy max 82.0%. The enrage clock was not in the plan: the sim
-  found a stalemate and it is the honest fix.
+  found a stalemate on the pre-retune roster and it is a backstop against the next one. It ends any fight in which
+  the enemy attacks; a permanent stun lock is outside it (tracker #8). Gate round: the preview now applies armour
+  (engine), seven surviving mutants bound, regen-before-poison pinned. Tables re-pasted after the preview fix.
 
 ## Acceptance per step
 
