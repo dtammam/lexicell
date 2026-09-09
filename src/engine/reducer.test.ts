@@ -1933,6 +1933,77 @@ describe('variety wave step 2: encounter types (save v6)', () => {
   });
 });
 
+describe('variety wave step 5: a turn-start redraw that kills the grid scrambles it', () => {
+  it('with a redraw organelle at turn start, the grid the player sees always holds a word', () => {
+    // A synthetic organelle that redraws three tiles at every turn start (the shipped ones gate theirs on a condition).
+    const redrawer: ItemDef = { id: 'test-redrawer', name: 'Redrawer', rarity: 'common', description: 'test', flavor: 'test', hooks: { onTurnStart: [{ type: 'redrawTiles', count: 3 }] } };
+    const flat = nodeContext({ ...FLAT, items: [...CONTENT.items, redrawer], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    // Fifteen locked consonants and one free tile: every redraw of the free tile leaves no word, so the guard must scramble.
+    let s = newRun(9, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    const grid = enc.grid.map((t, i) => (i === 15 ? { ...t, letter: 'x', lockedTurns: 0 } : { ...t, letter: 'x', lockedTurns: 9 }));
+    s = { ...s, player: { ...s.player, items: [redrawer.id] }, encounter: { ...enc, grid, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0 } } };
+    // The dead grid is what the fixture built; a shuffle's end-of-turn guard already scrambles, so go through turnStart directly:
+    // a shuffle redraws the one free tile, the end-of-turn guard scrambles (locks included), then turn start redraws again.
+    const next = reduce(s, { type: 'shuffle' }, flat);
+    expect(next.phase).toBe('fight');
+    expect(isDead((next.encounter as Encounter).grid, flat.solver)).toBe(false);
+    // Over many seeds with the redrawer held, no turn ever starts on a dead grid.
+    for (let seed = 0; seed < 30; seed++) {
+      let r = newRun(seed, flat);
+      if (r.phase !== 'fight') continue;
+      const e = r.encounter as Encounter;
+      r = { ...r, player: { ...r.player, items: [redrawer.id, redrawer.id, redrawer.id] }, encounter: { ...e, enemy: { ...e.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0 } } };
+      for (let t = 0; t < 8; t++) {
+        expect(isDead((r.encounter as Encounter).grid, flat.solver), `seed ${seed} turn ${t}`).toBe(false);
+        r = reduce(r, { type: 'shuffle' }, flat);
+      }
+    }
+  });
+});
+
+describe('variety wave step 5: a hit to 0 HP is death before an on-hit heal', () => {
+  it('an on-hit heal cannot stand the player back up from 0; at 1 HP it still fires', () => {
+    const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    const healer = CONTENT.items.find((i) => i.hooks.onDamageTaken?.some((e) => e.type === 'heal'));
+    if (!healer) throw new Error('no on-hit healer in the pool');
+    let s = newRun(8, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, player: { ...s.player, hp: 6, items: [healer.id] }, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 6 } } };
+    const dead = reduce(s, { type: 'shuffle' }, flat);
+    expect(dead.phase).toBe('summary');
+    expect(dead.outcome).toBe('lost');
+    expect(dead.player.hp).toBe(0);
+    expect(dead.lastTurn?.enemyDamage).toBe(6);
+    const alive = reduce({ ...s, player: { ...s.player, hp: 7 } }, { type: 'shuffle' }, flat);
+    expect(alive.phase).toBe('fight');
+    expect(alive.player.hp).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('variety wave step 5: rage breaks a stun (tracker #8)', () => {
+  it('before the enrage clock a stun skips the attack; from the turn after it the enemy attacks through the stun and the intent agrees', () => {
+    const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0, enrageAfter: 3, enragePerTurn: 0 } });
+    let s = newRun(6, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, player: { ...s.player, hp: 1000, maxHp: 1000 }, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 6, stunned: 99 } } };
+    const hits: number[] = [];
+    const stuns: boolean[] = [];
+    for (let i = 0; i < 5; i++) {
+      s = reduce(s, { type: 'shuffle' }, flat);
+      hits.push(s.lastTurn?.enemyDamage ?? -1);
+      stuns.push(s.lastTurn?.stunned ?? false);
+    }
+    // Turns 1-3 stunned (0 damage); turns 4 and 5 hit through the stun.
+    expect(hits).toEqual([0, 0, 0, 6, 6]);
+    expect(stuns).toEqual([true, true, true, false, false]);
+    expect((s.encounter as Encounter).enemy.stunned).toBe(94); // the count still ticks down, it is simply not honoured
+  });
+});
+
 describe('stats HUD: the worst word (save v5)', () => {
   it('the first word sets the worst, a weaker word replaces it, a stronger one leaves it', () => {
     let s = newRun(21, ctx);

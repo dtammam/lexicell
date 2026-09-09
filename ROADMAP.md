@@ -80,6 +80,159 @@ persist refuses every other version (tracker #3 closed).
 
 ## Shipped
 
+### Variety wave, step 5: Normal and Endless modes (PR #66, 2026-09-09)
+
+Dean's answer 6: both modes from the first run, chosen with the cell.
+`RunState.mode` (save v9; a v8 save migrates as normal) rides on the run
+and on the `newRun` action, and the cell picker offers Normal and
+Endless beside the five cells. Normal ends with the ninth slot as
+before. Endless never ends on a win: `encounterDefFor(content, index)`
+generates every slot past the content's nine from act 3's pools, a boss
+every third slot (`index % 3 === 2`, the way the content lays them out),
+the last act's fight or boss scale grown by `tuning.endlessHpGrowth`
+(1.06) and `endlessDamageGrowth` (1.08) per slot past the end,
+compounding. It is pure, so the same index always gives the same def and
+a save needs nothing new to continue. `extendKinds` draws one detour
+(elite, rest, event or a plain fight) per generated block of three, as
+the block is reached, so the deep keeps step 2's rhythm; an evolve
+follows every boss. Arena shows "Enc N" without the "/9" in Endless and
+clamps sprites and palettes to act 3; the summary says "The deep took
+you", names the mode and shows the depth uncapped; history entries carry
+`mode` and keep `encounterReached` uncapped in Endless (the CSV gains a
+`mode` column); Help explains the two modes. The sim takes
+`npx tsx scripts/sim.ts --mode endless`, guards a run at 50,000 actions,
+and caps the nine HP columns at nine for an Endless run that went
+deeper.
+
+Endless found three engine rules that Normal's nine slots were too short
+to expose. All three are fixed here, in `src/engine/reducer.ts`:
+
+- **A hit that leaves 0 HP is death, before the rest of the
+  `onDamageTaken` effects fire.** Before this branch the hit clamped HP
+  to 0, an on-hit heal fired, and only then came the death check, so any
+  of the seven "heal when hit" organelles made the player unkillable by
+  attacks: only venom tiles could still finish a run (there is no poison
+  on the player's side, and an event trade floors HP at 1). Say it
+  plainly: every balance table in this file before this entry was tuned
+  against that bug. Closing it cost the casual bot ten points on curve H
+  (21.0% to 10.6%) and the strong bot ten (66.8% to 57.2%).
+- **Past `tuning.enrageAfter` a stunned enemy attacks through the
+  stun.** Rage breaks a stun; the count is left alone, it is simply not
+  honoured. That closes tracker #8 (two stun organelles on the same beat
+  locked an enemy forever), and the intent line shows the hit that will
+  land instead of "stunned" once the clock is past.
+- **A turn-start redraw that leaves a dead grid now scrambles it**, the
+  same guard the end of a turn has had. An Endless run holding several
+  redraw organelles met one.
+
+Curve J pays for the first of those. Acts 2 and 3 come down from curve H
+(act 2 hp 1.2 / 1.35 / 1.2, damage 0.9 / 1.05 / 1.15; act 3 hp 2.1 / 2.4
+/ 1.9, damage 1.6 / 1.8 / 1.9), which brings the casual bot back to
+24.4% on Amoeba. Alternatives measured on the balanced cell, greedy /
+mediocre: G 66.2 / 12.0, I 78.6 / 19.4, K 83.6 / 20.2, L 75.2 / 17.8 (HP
+kept, damage cut), M 79.6 / 20.4, J 84.0 / 24.4. The two bots stay
+linked: whenever the casual bot reaches the 20-40 band the strong bot
+sits near 80 or above. Endless growth was retuned too: 1.1 HP / 1.06
+damage gave 600-turn fights against million-HP enemies the strong bot
+out-healed, so damage now grows faster than HP (1.06 / 1.08) and the
+deep kills before it bores.
+
+Disclosed:
+
+- The strong bot's rate rose from 67% to 84% on Amoeba. That is the
+  honest cost of closing the immortality bug, not a tuning slip, and it
+  is a design decision for Dean: the runs that used to end in act 3 now
+  end there for real, and a strong player wins far more often.
+- Spore (`--cell gambler`) prints FAIL on both criteria: mediocre 19.8%,
+  greedy 95.6%. The criteria are judged on Amoeba and Spore's casual
+  rate sits 4.6 points from Amoeba's 24.4, inside the ten-point rule,
+  but its strong-bot rate is over the 90% cap. A lever for Dean, not
+  hidden.
+- Endless runs out of traits. There are twelve, an evolve follows every
+  boss, so after twelve picks the offer shrinks and then empties, and
+  the boss's item pick follows directly.
+- Sprites and palettes stop at act 3 in Endless. The HUD's act number
+  keeps counting past it.
+
+`npx tsx scripts/sim.ts`, curve J, shipped:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    84.0% |           9 |       16.2 |       111 |       30 |   100 |   100 |    96 |    89 |    88 |    88 |    83 |    82 |    81 |
+| mediocre |  500 |    24.4% |           9 |       28.5 |       282 |        2 |   101 |    95 |    83 |    58 |    63 |    69 |    59 |    69 |    76 |
+|   solver |  500 |    96.8% |           9 |       11.8 |        24 |       14 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    90 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell aggro`, Predator:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    87.6% |           9 |       13.9 |        48 |       23 |    85 |    85 |    82 |    77 |    77 |    76 |    73 |    72 |    72 |
+| mediocre |  500 |    23.4% |           8 |       23.4 |       184 |        2 |    86 |    80 |    70 |    48 |    55 |    59 |    52 |    57 |    64 |
+|   solver |  500 |    97.8% |           9 |       10.3 |         1 |       11 |    85 |    86 |    84 |    82 |    81 |    81 |    80 |    78 |    77 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell defensive`, Diatom:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    89.2% |           9 |       18.3 |       161 |       40 |   115 |   115 |   112 |   105 |   105 |   104 |    99 |    97 |    95 |
+| mediocre |  500 |    37.0% |           9 |       35.4 |       414 |        4 |   116 |   113 |   103 |    79 |    83 |    88 |    73 |    82 |    87 |
+|   solver |  500 |    98.4% |           9 |       13.2 |        56 |       14 |   115 |   116 |   113 |   110 |   110 |   109 |   108 |   107 |   106 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell gambler`, Spore:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    95.6% |           9 |       12.5 |        28 |       11 |    90 |    91 |    88 |    84 |    84 |    83 |    82 |    81 |    80 |
+| mediocre |  500 |    19.8% |           8 |       27.0 |       240 |        2 |    91 |    85 |    73 |    50 |    55 |    61 |    53 |    63 |    68 |
+|   solver |  500 |    99.6% |           9 |        9.4 |         4 |        4 |    90 |    91 |    89 |    88 |    87 |    87 |    87 |    85 |    85 |
+
+  FAIL  mediocre wins 20-40%
+  FAIL  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    78.4% |           9 |       17.3 |       127 |       37 |    86 |    85 |    82 |    76 |    75 |    76 |    71 |    70 |    72 |
+| mediocre |  500 |    28.6% |           9 |       29.8 |       292 |        1 |    87 |    83 |    74 |    57 |    62 |    66 |    59 |    67 |    71 |
+|   solver |  500 |    93.6% |           9 |       12.8 |        48 |       24 |    86 |    86 |    83 |    81 |    80 |    80 |    79 |    78 |    78 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --mode endless --runs 200`, the deep (no bot wins; the
+number that matters is the median encounter reached):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  200 |     0.0% |          30 |       50.7 |       209 |      185 |   100 |   100 |    96 |    89 |    89 |    88 |    82 |    82 |    80 |
+| mediocre |  200 |     0.0% |         8.5 |       41.5 |       251 |        4 |   101 |    95 |    84 |    59 |    65 |    70 |    59 |    69 |    77 |
+|   solver |  200 |     0.0% |          36 |       65.2 |       394 |      181 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    91 |
+
+Endless: the criteria judge Normal; here the number that matters is the median encounter reached.
+```
+
+Gate: adversarial round on the engine and the save (below, once it reports).
+
 ### Variety wave, step 4: gold and cracked tiles (PR #65, 2026-09-09)
 
 Dean's answer 5: gold tiles and cracked tiles now, a dead letter later.

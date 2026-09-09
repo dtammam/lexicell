@@ -53,7 +53,8 @@
     // Kept short: the line must fit one row of the wide HUD face on a 390px phone.
     const specialText = special?.type === 'lockTiles' ? `+lock ${special.count}` : special?.type === 'venomTiles' ? `+venom ${special.count}` : special?.type === 'scramble' ? '+scramble' : special ? '+special' : '';
     const [lo, hi] = hitRange(enc.enemy.damage, def.variance);
-    const hit = !attacks ? 'rests' : stunned > 0 ? 'stunned' : hi > lo ? `hits ${lo}-${hi}` : `hits ${lo}`;
+    // A stun holds only until the enrage clock (step 5): past it the line shows the hit that will land through it.
+    const hit = !attacks ? 'rests' : stunned > 0 && enc.turn <= CONTENT.tuning.enrageAfter ? 'stunned' : hi > lo ? `hits ${lo}-${hi}` : `hits ${lo}`;
     return `Next: ${hit}${specialText ? ` ${specialText}` : ''}`;
   });
 

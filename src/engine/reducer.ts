@@ -10,10 +10,11 @@
  *     -> onWordScored effects (heal/damage extras; lifesteal reads what landed)
  *     -> enemy takes damage; if dead: onEncounterEnd, then pick or win
  *   enemy turn
- *     -> attack on its cadence: a stun consumes itself and skips the hit; otherwise
+ *     -> attack on its cadence: a stun consumes itself and skips the hit (unless the enemy is
+ *        enraged, past tuning.enrageAfter: then it attacks through the stun); otherwise
  *        the hit is rolled inside hitRange(damage, variance) with one RNG draw (none when the
- *        range is a single value), then onDamageTaken (reduceDamage first), then the shield
- *        absorbs, then hp
+ *        range is a single value), then onDamageTaken's reduceDamage, then the shield absorbs,
+ *        then hp; 0 HP is death right there, before the rest of onDamageTaken (heals) fires
  *     -> special on its cadence (bosses)
  *     -> if player dead: lose
  *   refill used tiles (onTileDraw vowelWeight / letterWeight), settle columns (gravity), tick locks,
@@ -594,6 +595,12 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
     stats: { ...a.state.stats, damageDealt: a.state.stats.damageDealt + a.enemyDamage },
   };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
+  // Turn-start redraws (redrawTiles) can leave a grid with no word, as the end of a turn can (step 5:
+  // an Endless run holding several redraw organelles met one); the same guard, the same scramble.
+  if (s.encounter && a.redrawn.length > 0 && isDead(s.encounter.grid, ctx.solver)) {
+    s = scramble(s, ctx);
+    s = { ...s, lastTurn: { ...(s.lastTurn ?? EMPTY_REPORT), scrambled: true, used: Array.from({ length: GRID_SIZE }, (_, i) => i) } };
+  }
   s = enemyTraitsTick(s, ctx);
   s = poisonTick(s);
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
@@ -605,7 +612,7 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
 /**
  * Regen heals the enemy (never above max) and hunger grows its damage, both at its turn start from
  * turn 2 on; past tuning.enrageAfter every enemy's damage grows by tuning.enragePerTurn as well, so
- * no fight in which the enemy attacks can stall. (A permanent stun lock is the one gap; tracker #8.)
+ * no fight can stall: past the clock a stun no longer stops the attack either (step 5, tracker #8 closed).
  * Runs after the onTurnStart effects and their death check: an enemy they killed stays dead.
  */
 function enemyTraitsTick(state: RunState, ctx: EngineContext): RunState {
@@ -850,6 +857,11 @@ export function scoreSelection(state: RunState, ctx: EngineContext): number | nu
   return armourHit(word, score.damage + selectionGold(enc), enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0);
 }
 
+/** Enraged from the turn after tuning.enrageAfter: damage grows each turn and a stun no longer stops the attack. */
+export function enraged(enc: Encounter, ctx: EngineContext): boolean {
+  return enc.turn > ctx.content.tuning.enrageAfter;
+}
+
 /** The hit range an enemy rolls in: [round(d*(1-v)), round(d*(1+v))], inclusive. Shared with the intent line. */
 export function hitRange(damage: number, variance: number): readonly [number, number] {
   const lo = Math.max(0, Math.round(damage * (1 - variance)));
@@ -867,11 +879,16 @@ function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { s
   const enemyDef = enemyDefOf(ctx, enc2.enemy.id);
   let enemyDamage = 0;
   if (enc2.turn % enemyDef.attackEvery === 0) {
-    if (enc2.enemy.stunned > 0) {
+    if (enc2.enemy.stunned > 0 && !enraged(enc2, ctx)) {
       // A stun eats the attack. The special below still fires: a stun is not a silence.
       s = { ...s, encounter: { ...enc2, enemy: { ...enc2.enemy, stunned: enc2.enemy.stunned - 1 } } };
       report = { ...report, stunned: true };
     } else {
+      // Past the enrage clock rage breaks through a stun (step 5): two stun organelles on the same
+      // beat locked an enemy forever (tracker #8) and an Endless run never ended; now every fight
+      // in which the player keeps stunning still ends, because the enemy attacks anyway from
+      // turn enrageAfter + 1 on. The stun count is left alone: it is simply not honoured.
+      if (enc2.enemy.stunned > 0) s = { ...s, encounter: { ...enc2, enemy: { ...enc2.enemy, stunned: enc2.enemy.stunned - 1 } } };
       const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx), s.cell, s.player.traits);
       // The roll (variety wave): one RNG draw inside the range, threaded like every other draw.
       const [lo, hi] = hitRange(enc2.enemy.damage, enemyDef.variance);
@@ -895,6 +912,9 @@ function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { s
         player: { ...s.player, hp, shield: s.player.shield - shielded },
         stats: { ...s.stats, damageTaken: s.stats.damageTaken + enemyDamage },
       };
+      // A hit that leaves 0 HP is death before anything an on-hit organelle would do (step 5): a
+      // "heal when hit" item stood a player back up from 0 every turn, and an Endless run never ended.
+      if (hp <= 0) return { state: { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null, lastTurn: { ...report, enemyDamage, shielded } }, report: { ...report, enemyDamage, shielded } };
       const after = applyEffects(s, taken, ctx);
       s = after.state;
       report = { ...report, healed: report.healed + after.healed, shielded };

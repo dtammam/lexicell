@@ -114,10 +114,16 @@ daily flag.
   greedy 66.8%, mediocre 21.0%, solver 87.6%; cells 17.8 (Spore, by design) to 29.6 mediocre, greedy max 83.2%.
 - Step 5 (PR #66): built on top of step 4. `RunState.mode` (save v9, v8 migrates as normal), chosen with the
   cell; `encounterDefFor` generates slots past the ninth from the act-3 fight/boss scale grown by
-  `endlessHpGrowth` 1.1 and `endlessDamageGrowth` 1.06 per slot, a boss every third, an evolve after each;
-  `extendKinds` draws one detour per block of three as the block is reached; Endless never wins, history
-  keeps the encounter reached uncapped. Normal tables unchanged (the mode adds no draw); Endless measured
-  by the median encounter reached.
+  `endlessHpGrowth` 1.06 and `endlessDamageGrowth` 1.08 per slot (damage faster than HP: at 1.1 / 1.06 the
+  strong bot out-healed 600-turn fights), a boss every third, an evolve after each; `extendKinds` draws one
+  detour per block of three as the block is reached; Endless never wins, history keeps the encounter reached
+  uncapped. Three engine rules Endless exposed and this step fixes: a hit to 0 HP is death before the rest of
+  onDamageTaken (an on-hit heal made the player unkillable by attacks, so every earlier table was tuned against
+  that bug), rage breaks a stun past `enrageAfter` (tracker #8 closed), a turn-start redraw that leaves a dead
+  grid scrambles. Closing the first cost ten points each on curve H (mediocre 21.0 to 10.6, greedy 66.8 to 57.2);
+  curve J (acts 2 and 3 softened) restores balanced mediocre 24.4%, greedy 84.0%, solver 96.8%; cells 19.8
+  (Spore, now failing both criteria) to 37.0 mediocre, greedy max 95.6% (Spore, over the cap: Dean's lever).
+  Endless over 200 runs, median encounter reached: greedy 30, mediocre 8.5, solver 36.
 
 ## Acceptance per step
 

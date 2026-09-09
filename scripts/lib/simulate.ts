@@ -69,7 +69,8 @@ export function summarise(bot: BotName, results: readonly RunResult[]): Summary 
   const hpSum = new Array<number>(encounters).fill(0);
   const hpCount = new Array<number>(encounters).fill(0);
   for (const r of results) {
-    r.hpAtEncounterStart.forEach((hp, i) => {
+    // The table has nine HP columns; an Endless run's later slots are summarised by the median encounter instead.
+    r.hpAtEncounterStart.slice(0, encounters).forEach((hp, i) => {
       hpSum[i] = (hpSum[i] ?? 0) + hp;
       hpCount[i] = (hpCount[i] ?? 0) + 1;
     });
