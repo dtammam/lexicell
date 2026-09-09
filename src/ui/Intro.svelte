@@ -2,7 +2,7 @@
   // One screen of onboarding after New run (Dean, 2026-09-08, after a first-time player asked
   // "what am I doing here"). Three beats play on their own and a tap skips ahead; the button is
   // always there. Not a story screen: it says what the pick and the fight are, in the game's voice.
-  let { onBegin }: { onBegin: () => void } = $props();
+  let { onBegin, cell = 'balanced' }: { onBegin: () => void; cell?: string } = $props();
 
   const base = import.meta.env.BASE_URL;
   const BEATS = ['Something ate your pond.', 'You escaped through the only door left: a portal made of letters.', 'A long word hits hard.'];
@@ -37,12 +37,12 @@
     {#key beat}
       {#if beat === 0}
         <div class="pond">
-          <img class="you" src="{base}sprites/player-1.png" alt="" />
+          <img class="you" src="{base}sprites/cell-{cell}-1.png" alt="" />
           <img class="predator" src="{base}sprites/amoeba.png" alt="" />
         </div>
       {:else if beat === 1}
         <div class="portal">
-          <img class="you dash" src="{base}sprites/player-1.png" alt="" />
+          <img class="you dash" src="{base}sprites/cell-{cell}-1.png" alt="" />
           <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
             <defs>
               <path id="ring-path" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0" />

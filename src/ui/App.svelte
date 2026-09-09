@@ -182,7 +182,7 @@
     {:else if screen === 'title' || !run}
       <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} onHistory={toHistory} />
     {:else if screen === 'intro'}
-      <Intro {onBegin} />
+      <Intro {onBegin} cell={run?.cell ?? 'balanced'} />
     {:else if run.phase === 'fight'}
       <Fight {run} {prev} {dispatch} {isWord} {ctx} />
     {:else if run.phase === 'pick'}

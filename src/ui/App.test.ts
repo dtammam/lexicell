@@ -620,7 +620,7 @@ describe('App', () => {
     await startRun();
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { encounter: { enemy: { id: string } } };
     const enemyImg = document.querySelector<HTMLImageElement>('.fighter.enemy img');
-    expect(document.querySelector<HTMLImageElement>('.fighter.you img')?.getAttribute('src')).toBe('/sprites/player-1.png');
+    expect(document.querySelector<HTMLImageElement>('.fighter.you img')?.getAttribute('src')).toBe('/sprites/cell-balanced-1.png');
     expect(enemyImg?.getAttribute('src')).toBe(`/sprites/${saved.encounter.enemy.id}.png`);
     expect(document.querySelector('.arena')?.getAttribute('data-act')).toBe('1');
     expect(document.querySelector('.fighter.enemy.hit')).toBeNull();

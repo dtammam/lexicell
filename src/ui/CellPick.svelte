@@ -7,8 +7,8 @@
 
   const base = import.meta.env.BASE_URL;
   const cells: readonly CellDef[] = CONTENT.cells;
-  /** Until each cell has its own sprite, the three evolution stages stand in, cycling. */
-  const sprite = (i: number) => `${base}sprites/player-${(i % 3) + 1}.png`;
+  /** Each cell's own body at act 1, drawn by scripts/sprites.py. */
+  const sprite = (id: string) => `${base}sprites/cell-${id}-1.png`;
 </script>
 
 <section class="cells">
@@ -18,10 +18,10 @@
   </header>
   <p class="hint">Every cell can win. Pick the one whose trade you like; it holds for the whole run.</p>
   <ul class="list">
-    {#each cells as cell, i (cell.id)}
+    {#each cells as cell (cell.id)}
       <li>
         <button class="cell" onclick={() => { onPick(cell.id); }}>
-          <img src={sprite(i)} alt="" width="40" height="40" />
+          <img src={sprite(cell.id)} alt="" width="40" height="40" />
           <span class="text">
             <span class="name">{cell.name} <span class="hud hp">{cell.maxHp} HP</span></span>
             <span class="desc">{cell.description}</span>

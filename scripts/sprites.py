@@ -81,6 +81,108 @@ def sprite(name: str, cells: int, eyes: bool = True, limbs: int = 0) -> Image.Im
     return img.resize((SIZE * SCALE, SIZE * SCALE), Image.NEAREST)
 
 
+# ---------------------------------------------------------------------------------------------
+# Cellular sprites (tester via Dean, 2026-09-08: "make the cells more cellular"; per starting
+# cell, 2026-09-09). Same seeded blob, then the parts a cell has: a membrane (a lighter band
+# inside the outline), a nucleus (a dark 2x2 off centre), organelle dots, and a silhouette per
+# cell: spikes for the Predator, a boxy frustule for the Diatom, spore dots for the Spore,
+# threads for the Mycelium. The body grows per act like the player did: 56, 78, 96 cells.
+# ---------------------------------------------------------------------------------------------
+
+# cell id -> (fill, membrane, outline, nucleus)
+CELL_PALETTE = {
+    "balanced": ((90, 201, 138), (200, 255, 220), (30, 80, 55), (30, 80, 55)),
+    "aggro": ((230, 90, 70), (255, 190, 150), (100, 25, 20), (60, 15, 20)),
+    "defensive": ((110, 170, 220), (210, 240, 255), (30, 60, 110), (25, 45, 90)),
+    "gambler": ((190, 110, 230), (240, 200, 255), (70, 25, 100), (55, 20, 80)),
+    "tinkerer": ((70, 200, 190), (255, 230, 120), (20, 80, 80), (120, 90, 20)),
+}
+CELL_ACT_CELLS = {1: 56, 2: 78, 3: 96}
+# silhouette: (limbs per act, spikes, boxy, spores)
+CELL_SHAPE = {
+    "balanced": (lambda act: act - 1, False, False, False),
+    "aggro": (lambda act: 0, True, False, False),
+    "defensive": (lambda act: 0, False, True, False),
+    "gambler": (lambda act: 0, False, False, True),
+    "tinkerer": (lambda act: act + 1, False, False, False),
+}
+
+
+def boxy_blob(seed: str, cells: int) -> set[tuple[int, int]]:
+    """A frustule: grow in straight runs so the outline reads as facets, mirrored left-right."""
+    rng = random.Random(seed)
+    half = SIZE // 2
+    alive = {(half - 1, half), (half, half), (half - 1, half - 1), (half, half - 1)}
+    while len(alive) < cells:
+        x, y = rng.choice(sorted(alive))
+        dx, dy = rng.choice([(1, 0), (-1, 0), (0, 1), (0, -1)])
+        for step in range(1, 4):
+            nx, ny = x + dx * step, y + dy * step
+            if 1 <= nx < SIZE - 1 and 2 <= ny < SIZE - 2:
+                alive.add((nx, ny))
+                alive.add((SIZE - 1 - nx, ny))
+    return alive
+
+
+def cell_sprite(cell_id: str, act: int) -> Image.Image:
+    fill, membrane, outline, nucleus = CELL_PALETTE[cell_id]
+    limbs_of, spikes, boxy, spores = CELL_SHAPE[cell_id]
+    seed = f"cell-{cell_id}-{act}"
+    body = boxy_blob(seed, CELL_ACT_CELLS[act]) if boxy else blob(seed, CELL_ACT_CELLS[act])
+    rng_l = random.Random(seed + "limbs")
+    for _ in range(limbs_of(act)):
+        x, y = rng_l.choice(sorted(body))
+        dx = 1 if x >= SIZE // 2 else -1
+        for step in range(1, 4):
+            nx = x + dx * step
+            if 1 <= nx < SIZE - 1:
+                body.add((nx, y))
+                body.add((SIZE - 1 - nx, y))
+    if spikes:
+        # Short spikes out of the rim, every third rim pixel, mirrored.
+        rim = sorted((x, y) for (x, y) in body if any((x + dx, y + dy) not in body for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]))
+        for i, (x, y) in enumerate(rim):
+            if i % 3 == 0 and x <= SIZE // 2:
+                dx = -1 if x < SIZE // 2 else 1
+                dy = -1 if y < SIZE // 2 else 1
+                for nx, ny in ((x + dx, y), (x, y + dy)):
+                    if 0 < nx < SIZE - 1 and 0 < ny < SIZE - 1 and (nx, ny) not in body:
+                        body.add((nx, ny))
+                        body.add((SIZE - 1 - nx, ny))
+                        break
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    px = img.load()
+    for (x, y) in body:
+        px[x, y] = (*fill, 255)
+    neighbours = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    # Outline outside; membrane band just inside.
+    for (x, y) in list(body):
+        for dx, dy in neighbours:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < SIZE and 0 <= ny < SIZE and (nx, ny) not in body:
+                px[nx, ny] = (*outline, 255)
+    rim = {(x, y) for (x, y) in body if any((x + dx, y + dy) not in body for dx, dy in neighbours)}
+    for (x, y) in rim:
+        px[x, y] = (*membrane, 255)
+    interior = sorted(body - rim)
+    # Nucleus: a 2x2 (3x3 from act 2) a little up and left of centre, mirrored so the cell stays symmetric.
+    if interior:
+        size = 2 if act == 1 else 3
+        cx, cy = SIZE // 2 - 2, SIZE // 2 - 1
+        for x in range(cx, cx + size):
+            for y in range(cy, cy + size):
+                if (x, y) in body:
+                    px[x, y] = (*nucleus, 255)
+    # Organelle dots: a few interior pixels in the membrane tone (spores: many, tiny, both sides).
+    rng_d = random.Random(seed + "dots")
+    dots = 8 if spores else 2 + act
+    pool = [p for p in interior if not (SIZE // 2 - 3 <= p[0] <= SIZE // 2 + 1 and SIZE // 2 - 2 <= p[1] <= SIZE // 2 + 2)]
+    for (x, y) in rng_d.sample(pool, min(dots, len(pool))):
+        px[x, y] = (*membrane, 255)
+        px[SIZE - 1 - x, y] = (*membrane, 255)
+    return img.resize((SIZE * SCALE, SIZE * SCALE), Image.NEAREST)
+
+
 # Item icons: 16x16 ASCII maps, two tones plus an outline. "#" body, "o" highlight, "." empty.
 # Edit the characters to redraw an item; the file name is the item id. Tone by rarity.
 ITEM_TONES = {
@@ -643,6 +745,10 @@ def main() -> None:
     for name, (cells, limbs) in specs.items():
         sprite(name, cells, limbs=limbs).save(OUT / f"{name}.png", optimize=True)
         print(f"wrote {name}.png ({cells} cells, {limbs} limbs)")
+    for cell_id in CELL_PALETTE:
+        for act in (1, 2, 3):
+            cell_sprite(cell_id, act).save(OUT / f"cell-{cell_id}-{act}.png", optimize=True)
+            print(f"wrote cell-{cell_id}-{act}.png")
     items_dir = OUT / "items"
     items_dir.mkdir(parents=True, exist_ok=True)
     for item_id, (rarity, rows) in ITEMS.items():

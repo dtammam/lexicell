@@ -34,9 +34,7 @@ cells).
   measurable; the 3000-run tables catch degenerate and never-picked
   items only.
 - **Run history with export**: built (PR #51), reviewer round pending.
-- **Clarity feedback batch**: five of seven shipped (PR #55). Left: cells
-  more cellular (the sprite pass, with per-cell sprites) and a stats HUD
-  with best and worst word (the worst word needs a new stat).
+- **Clarity feedback batch**: all seven shipped (PRs #55, #56, #57).
 - **Run history with export**: shipped (PR #51); plan in completed/.
 - **Clarity feedback batch** (a tester via Dean, 2026-09-08): names
   shown twice on the fight screen; a busy backdrop; no clear cue that
@@ -408,6 +406,9 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #57 (2026-09-09): the sprite pass. Cellular sprites (membrane,
+  nucleus, organelle dots) and a body per starting cell per act, from
+  scripts/sprites.py; the picker, intro and arena use them.
 - PR #55 (2026-09-08): clarity. Enemy intent line, names once on the
   bars, a veil over the backdrop, the report steps in per turn, grafts
   glow when they fire for the selected word; prose face to DotGothic16
