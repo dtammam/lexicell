@@ -89,7 +89,7 @@ async function startRun() {
   const offered = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { offer: string[] }).offer;
   offers.forEach((o, i) => { expect(o.querySelector('img.icon')?.getAttribute('src')).toBe(`/sprites/items/${offered[i]}.png`); });
   await click(document.querySelector('button.offer'));
-  expect(await findByText('Encounter 1 / 9')).toBeTruthy();
+  expect(await findByText('Enc 1/9')).toBeTruthy();
 }
 
 beforeEach(() => {
@@ -140,7 +140,7 @@ describe('App', () => {
     await findByText('Choose a starting item', 15000);
     expect(getByText(/Tap one\. You keep it/)).toBeTruthy();
     await click(document.querySelector('button.offer'));
-    await findByText('Encounter 1 / 9');
+    await findByText('Enc 1/9');
     expect(tiles()).toHaveLength(16);
     expect(getByText('Turn 1')).toBeTruthy();
     expect(attackButton().disabled).toBe(true);
@@ -283,7 +283,7 @@ describe('App', () => {
 
     render(App);
     await click(await findByText('Continue', 15000));
-    await findByText(/Encounter \d \/ 9|Choose an item/);
+    await findByText(/Enc \d\/9|Choose an item/);
     expect(queryByText('Choose a starting item')).toBeNull();
     expect(mainHtml()).toBe(snapshot);
   });
@@ -307,7 +307,7 @@ describe('App', () => {
     expect(offered).toHaveLength(3);
     expect(offered[at]).toBe('spores');
     await click(document.querySelectorAll('button.offer')[at] ?? null);
-    await findByText('Encounter 1 / 9');
+    await findByText('Enc 1/9');
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { player: { items: string[] } };
     expect(saved.player.items).toEqual(['spores']);
     expect(getByText('Turn start: 6 damage')).toBeTruthy();
@@ -336,7 +336,7 @@ describe('App', () => {
     await click(getButton('Menu'));
     expect(getButton('Continue')).toBeTruthy();
     await click(getButton('Continue'));
-    expect(await findByText('Encounter 1 / 9')).toBeTruthy();
+    expect(await findByText('Enc 1/9')).toBeTruthy();
     await click(getButton('Menu'));
     await click(getButton('New run'));
     expect(getByText('Abandon the current run and start over?')).toBeTruthy();
@@ -399,7 +399,7 @@ describe('App', () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
     render(App);
     await click(await findByText('Continue', 15000));
-    expect(await findByText('Encounter 1 / 9')).toBeTruthy();
+    expect(await findByText('Enc 1/9')).toBeTruthy();
     expect(getByText('+12')).toBeTruthy();
     expect(document.querySelector('.fill.shield')).not.toBeNull();
     expect(getByText('\u26234')).toBeTruthy();
@@ -479,7 +479,7 @@ describe('App', () => {
 
   it('the first fight shows the two tile signals in the report line', async () => {
     await startRun();
-    expect(getByText(/Tiles do not need to touch: pick letters anywhere. Yellow tiles are vowels, pink-edged ones are rare letters/)).toBeTruthy();
+    expect(getByText(/Tiles need not touch. Yellow: vowel. Pink edge: rare./)).toBeTruthy();
     expect(document.querySelector('.tile[data-tier="mid"]')).toBeNull();
   });
 
@@ -514,7 +514,7 @@ describe('App', () => {
     expect((JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { runs: unknown[] }).runs).toHaveLength(1);
     // Abandoning the live run from the menu records it as abandoned, newest first in the list.
     await click(document.querySelector('button.offer'));
-    await findByText('Encounter 1 / 9');
+    await findByText('Enc 1/9');
     await click(getButton('Menu'));
     await click(getButton('New run'));
     await click(getButton('Yes, start over'));
@@ -543,7 +543,7 @@ describe('App', () => {
     vi.spyOn(Date, 'now').mockReturnValue(SEED + 3_600_000);
     render(App);
     await click(await findByText('Continue', 15000));
-    await findByText('Encounter 1 / 9');
+    await findByText('Enc 1/9');
     expect(JSON.parse(localStorage.getItem('lexicell.run.started') ?? 'null')).toEqual(started);
     cleanup();
     // A fresh load with an unfinished save on disk: New run asks, Yes records the disk save as abandoned, once, with its start time.
@@ -582,8 +582,8 @@ describe('App', () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
     render(App);
     await click(await findByText('Continue', 15000));
-    await findByText('Encounter 1 / 9');
-    expect(getByText('Next: hits for 6')).toBeTruthy();
+    await findByText('Enc 1/9');
+    expect(getByText('Next: hits 6')).toBeTruthy();
     expect(document.querySelectorAll('figcaption')).toHaveLength(0);
     expect(document.querySelectorAll('.arena .bar-label strong')).toHaveLength(2);
     expect(document.querySelector('.arena .veil')).not.toBeNull();
@@ -599,7 +599,7 @@ describe('App', () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify({ ...seeded, encounter: { ...seeded.encounter, enemy: { ...enc.enemy, id: 'amoeba', damage: 6, stunned: 1 } } }));
     render(App);
     await click(await findByText('Continue', 15000));
-    expect(await findByText('Next: is stunned: no attack')).toBeTruthy();
+    expect(await findByText('Next: stunned')).toBeTruthy();
   }, 30000);
 
   it('the stats row shows the best and worst word after a word, and a migrated save shows a dash for the worst (gate S5, W2)', async () => {
@@ -616,7 +616,7 @@ describe('App', () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify({ ...saved, stats: { ...saved.stats, worstWord: '', worstWordDamage: 0 } }));
     render(App);
     await click(await findByText('Continue', 15000));
-    await findByText('Encounter 1 / 9');
+    await findByText('Enc 1/9');
     expect(document.querySelector('.row.stats .worst')?.textContent).toBe('WORST -');
   }, 30000);
 
@@ -745,7 +745,7 @@ describe('App', () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
     render(App);
     await click(await findByText('Continue', 15000));
-    await findByText('Encounter 1 / 9');
+    await findByText('Enc 1/9');
     const badge = document.querySelector('button.tile.venomous .value.venom');
     expect(badge?.textContent).toBe('\u26233');
     // Play a word that does not use tile 0 so the venom survives and bites at the next turn start.

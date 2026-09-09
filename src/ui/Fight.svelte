@@ -201,7 +201,7 @@
           {#if run.lastTurn.redrawn.length > 0}<span class="note">{run.lastTurn.redrawn.length} tiles redrawn</span>{/if}
         {:else}
           <span class="note">Spell a word of 3+ letters</span>
-          {#if run.encounterIndex === 0 && enc.turn <= 3}<span class="note">Tiles do not need to touch: pick letters anywhere. Yellow tiles are vowels, pink-edged ones are rare letters worth the most. How to play is on the menu.</span>{/if}
+          {#if run.encounterIndex === 0 && enc.turn <= 2}<span class="note">Tiles need not touch. Yellow: vowel. Pink edge: rare. More under Menu, How to play.</span>{/if}
         {/if}
       {/key}
       {#if run.rejected}<span class="rejected">{run.rejected}</span>{/if}
@@ -548,6 +548,15 @@
     font-size: var(--hud-s);
     color: inherit;
     opacity: 0.85;
+  }
+  /* On a grid under 300px the tiles are under 70px and a 16px badge would sit on the letter
+     (Dean's iPhone screenshot, 2026-09-09: the selected letters read as garbage). The word line
+     already shows the order; the badge is a luxury for big tiles. */
+  @container (max-height: 300px) {
+    .tile .order,
+    .tile .value {
+      display: none;
+    }
   }
   .tile.selected {
     background: var(--tile-select);
