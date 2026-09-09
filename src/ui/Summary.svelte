@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { RunState } from '../engine/types';
   import Definition from './Definition.svelte';
-  import { itemDef } from './lookup';
+  import { itemDef, traitDef } from './lookup';
   import { CONTENT } from '../content/index';
 
   let { run, onNewRun, onHistory }: { run: RunState; onNewRun: () => void; onHistory: () => void } = $props();
@@ -24,6 +24,8 @@
     <dd>{run.stats.worstWord ? `${run.stats.worstWord.toUpperCase()} (${run.stats.worstWordDamage})` : 'none'}</dd>
     <dt>Damage dealt / taken</dt>
     <dd>{run.stats.damageDealt} / {run.stats.damageTaken}</dd>
+    <dt>Traits</dt>
+    <dd>{run.player.traits.length > 0 ? run.player.traits.map((id) => traitDef(id).name).join(', ') : 'none'}</dd>
     <dt>Items</dt>
     <dd>{run.player.items.length > 0 ? run.player.items.map((id) => itemDef(id).name).join(', ') : 'none'}</dd>
     <dt>Cell</dt>

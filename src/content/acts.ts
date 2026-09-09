@@ -53,10 +53,13 @@ export const ENCOUNTERS: readonly EncounterDef[] = [
   // Batch 3 (2026-09-08), curve F, the final pass at 200 items: the bigger pool and the lock removals
   // had pulled greedy to 53.6%, so act 3 damage 2.4 / 2.7 / 2.8 (hp unchanged). Measured at 500 runs:
   // greedy 59.4%, mediocre 33.6%; full table in ROADMAP.
-  { act: 2, boss: false, hpScale: 1.3, damageScale: 1.0 },
-  { act: 2, boss: false, hpScale: 1.5, damageScale: 1.2 },
-  { act: 2, boss: true, hpScale: 1.3, damageScale: 1.3 },
-  { act: 3, boss: false, hpScale: 2.5, damageScale: 1.9 },
-  { act: 3, boss: false, hpScale: 2.8, damageScale: 2.1 },
-  { act: 3, boss: true, hpScale: 2.2, damageScale: 2.2 },
+  // Evolution (variety wave step 3, 2026-09-09), curve H: a trait after each of the first two
+  // bosses lifted greedy 61.8 to 73.8 on curve G and Spore's greedy past the 90% cap; acts 2 and
+  // 3 grow to absorb it.
+  { act: 2, boss: false, hpScale: 1.4, damageScale: 1.05 },
+  { act: 2, boss: false, hpScale: 1.6, damageScale: 1.25 },
+  { act: 2, boss: true, hpScale: 1.4, damageScale: 1.35 },
+  { act: 3, boss: false, hpScale: 2.7, damageScale: 2.0 },
+  { act: 3, boss: false, hpScale: 3.0, damageScale: 2.2 },
+  { act: 3, boss: true, hpScale: 2.4, damageScale: 2.3 },
 ];

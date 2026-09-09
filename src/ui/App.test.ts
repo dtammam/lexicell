@@ -687,6 +687,26 @@ describe('App', () => {
     expect(await findByText('New run')).toBeTruthy();
   });
 
+  it('evolution: after a boss the evolve screen offers three traits, the pick lands on the items strip and the summary (step 3)', async () => {
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const evolve: RunState = { ...blob, phase: 'evolve', encounter: null, offer: ['thick-membrane', 'predatory', 'venom-glands'], encounterIndex: 2, kinds: ['fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight'], player: { ...blob.player, items: [] } };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(evolve));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    expect(await findByText('Evolve')).toBeTruthy();
+    expect(document.querySelectorAll('.evolve button.offer')).toHaveLength(3);
+    expect(getByText('Predatory')).toBeTruthy();
+    expect(getByText('+15% damage on every word.')).toBeTruthy();
+    await click(document.querySelectorAll('.evolve button.offer')[1] ?? null);
+    // The item pick the boss win owes, then the next fight with the trait on the strip.
+    expect(await findByText('Choose an item')).toBeTruthy();
+    await click(document.querySelector('button.offer'));
+    expect(await findByText('Enc 4/9')).toBeTruthy();
+    expect(getByText(/Traits: Predatory\./)).toBeTruthy();
+  }, 30000);
+
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
     for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {

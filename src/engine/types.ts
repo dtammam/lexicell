@@ -115,6 +115,18 @@ export interface EventChoice {
   readonly rarePick?: true;
 }
 
+/**
+ * An evolution trait (variety wave step 3, Dean's answer 4): item hooks without a place in the
+ * item pool. Three are offered after each boss but the last; the pick is permanent.
+ */
+export interface TraitDef {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly flavor: string;
+  readonly hooks: Partial<Record<Hook, readonly Effect[]>>;
+}
+
 export interface EventDef {
   readonly id: string;
   readonly name: string;
@@ -161,6 +173,8 @@ export interface Content {
   readonly encounters: readonly EncounterDef[];
   /** Events the event slot draws from (variety wave step 2). */
   readonly events: readonly EventDef[];
+  /** Evolution traits offered after a boss (variety wave step 3). */
+  readonly traits: readonly TraitDef[];
   readonly playerMaxHp: number;
   readonly tuning: Tuning;
 }
@@ -170,6 +184,8 @@ export interface PlayerState {
   readonly maxHp: number;
   /** Item ids in acquisition order. Hooks apply in this order. */
   readonly items: readonly string[];
+  /** Evolution trait ids (content.traits) in pick order (v7); gathered after the cell, before the items. */
+  readonly traits: readonly string[];
   /** Absorbs enemy damage before HP. Persists across encounters until spent; capped by tuning.shieldMax. */
   readonly shield: number;
   /** Shuffles that do not hand the turn to the enemy. */
@@ -196,8 +212,11 @@ export interface Encounter {
   readonly playerHpAtStart: number;
 }
 
-/** rest and event (variety wave step 2): screens between fights; the reducer's restHeal, pickItem and eventChoice leave them. */
-export type Phase = 'fight' | 'pick' | 'rest' | 'event' | 'summary';
+/**
+ * rest and event (variety wave step 2): screens between fights; the reducer's restHeal, pickItem and
+ * eventChoice leave them. evolve (step 3): the trait pick after a boss, left by pickTrait.
+ */
+export type Phase = 'fight' | 'pick' | 'rest' | 'event' | 'evolve' | 'summary';
 export type Outcome = 'won' | 'lost';
 
 export interface TurnReport {
@@ -237,7 +256,7 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 6;
+  readonly v: 7;
   readonly rng: Rng;
   /** The starting cell's id (content.cells). v4; v3 saves load as 'balanced'. */
   readonly cell: string;

@@ -67,6 +67,20 @@ describe('content bundle', () => {
     expect(CONTENT.events.some((e) => e.choices[0]?.rarePick)).toBe(true);
   });
 
+  it('traits (variety wave step 3): at least nine so both evolutions offer three fresh ones, unique ids, description and flavor, real hooks', () => {
+    expect(CONTENT.traits.length).toBeGreaterThanOrEqual(9);
+    expect(new Set(CONTENT.traits.map((t) => t.id)).size).toBe(CONTENT.traits.length);
+    const itemIds = new Set(CONTENT.items.map((i) => i.id));
+    for (const t of CONTENT.traits) {
+      expect(itemIds.has(t.id), t.id).toBe(false); // a trait is not an item
+      expect(t.name.length, t.id).toBeGreaterThan(0);
+      expect(t.description.length, t.id).toBeGreaterThan(0);
+      expect(t.flavor.length, t.id).toBeGreaterThan(0);
+      expect(t.flavor, t.id).not.toMatch(/\d/);
+      expect(Object.values(t.hooks).some((e) => (e?.length ?? 0) > 0), t.id).toBe(true);
+    }
+  });
+
   it('every item carries a mechanic and a separate line of flavor, neither empty', () => {
     for (const i of CONTENT.items) {
       expect(i.description.length, i.id).toBeGreaterThan(0);

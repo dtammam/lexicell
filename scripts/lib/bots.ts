@@ -114,7 +114,8 @@ function usableCondition(w: Condition): boolean {
   }
 }
 
-export function offerScore(item: ItemDef): number {
+/** How often a set of hooks will matter to the mediocre bot's 4-5 letter words; shared by items and traits. */
+export function hooksScore(hooks: ItemDef['hooks']): number {
   let score = 0;
   const walk = (effects: readonly Effect[]) => {
     for (const e of effects) {
@@ -128,9 +129,23 @@ export function offerScore(item: ItemDef): number {
       }
     }
   };
-  for (const effects of Object.values(item.hooks)) walk(effects ?? []);
+  for (const effects of Object.values(hooks)) walk(effects ?? []);
+  return score;
+}
+
+export function offerScore(item: ItemDef): number {
   // Rarity breaks ties (tracker #6): a rare that scores like a common is still the rarer pull.
-  return score + RARITY_TIEBREAK[item.rarity];
+  return hooksScore(item.hooks) + RARITY_TIEBREAK[item.rarity];
+}
+
+/** Every bot takes the trait whose hooks score highest; ties keep the first offered. */
+export function chooseTrait(state: RunState, ctx: EngineContext): number {
+  const scores = (state.offer ?? []).map((id) => hooksScore(ctx.content.traits.find((t) => t.id === id)?.hooks ?? {}));
+  let best = 0;
+  scores.forEach((sc, i) => {
+    if (sc > (scores[best] ?? -Infinity)) best = i;
+  });
+  return best;
 }
 
 export function mediocreBot(seed: number): Bot {
@@ -196,6 +211,7 @@ export function tradeCost(choice: EventChoice): number {
 export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Action[] | null {
   if (state.phase === 'summary') return null;
   if (state.phase === 'pick') return [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];
+  if (state.phase === 'evolve') return [{ type: 'pickTrait', index: chooseTrait(state, ctx) }];
   if (state.phase === 'rest') {
     const low = state.player.hp < state.player.maxHp * REST_HEAL_BELOW;
     return low || !state.offer ? [{ type: 'restHeal' }] : [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];

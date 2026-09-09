@@ -42,7 +42,7 @@ export interface Persist {
   clear(): void;
 }
 
-const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'rest', 'event', 'summary']);
+const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'rest', 'event', 'evolve', 'summary']);
 const KINDS: ReadonlySet<unknown> = new Set(['fight', 'elite', 'rest', 'event']);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -89,6 +89,8 @@ function looksLikeRunState(value: unknown): value is RunState {
     isNum(v.player.hp) &&
     isNum(v.player.maxHp) &&
     Array.isArray(v.player.items) &&
+    Array.isArray(v.player.traits) &&
+    v.player.traits.every((t) => typeof t === 'string') &&
     isNum(v.player.shield) &&
     isNum(v.player.freeShuffles) &&
     encounterOk &&
@@ -118,6 +120,8 @@ export function migrate(value: unknown): unknown {
   }
   // v5 -> v6 (encounter types): no kinds were placed, so the rest of the run is fights; no event on screen.
   if (isRecord(v) && v.v === 5 && !('kinds' in v)) v = { ...v, v: 6, kinds: [], event: null };
+  // v6 -> v7 (evolution): no traits picked yet.
+  if (isRecord(v) && v.v === 6 && isRecord(v.player) && !('traits' in v.player)) v = { ...v, v: 7, player: { ...v.player, traits: [] } };
   return v;
 }
 

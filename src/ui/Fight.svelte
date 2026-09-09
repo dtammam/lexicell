@@ -265,7 +265,7 @@
 
     </div>
     <div class="side tail">
-    <ItemsPanel items={run.player.items} />
+    <ItemsPanel items={run.player.items} traits={run.player.traits} />
     <p class="kbd">Type letters to select, Backspace to undo, Enter to attack, Esc to clear.</p>
     </div>
   </section>
