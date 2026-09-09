@@ -80,6 +80,102 @@ persist refuses every other version (tracker #3 closed).
 
 ## Shipped
 
+### Variety wave, step 2: encounter types (PR #62, 2026-09-09)
+
+Dean's answer 3: one elite, one rest and one event inside the nine,
+placed by the seed. `RunState.kinds` (save v6; a v5 save migrates with
+empty kinds and finishes its run as fights) holds a kind per slot: at
+newRun three draws put an elite, a rest and an event on distinct
+non-boss slots after the first (slots 2, 4, 5, 7, 8 of nine). An elite
+fights the next act's pool at this slot's scale (act 3: an act-3 enemy
+at 1.3x HP, 1.15x damage) and its win offers a rare first. A rest is a
+screen: heal 30% of max HP, or take one organelle of a normal
+three-offer. An event is one of eight small trades in
+`src/content/events.ts` (heal for max HP, max HP for HP now, a shield,
+free shuffles, a rare pick for skin); the trade is the first choice,
+walking away the last, and a trade never kills (HP floors at 1; effects
+apply in EFFECT_ORDER, so damage lands before max HP grows). New
+actions `restHeal` and `eventChoice`; `pickItem` works on the rest
+screen. Rest and event slots count as encounters reached, so the
+summary's 9 and the sim's HP columns keep their meaning. The bots heal
+at a rest below 60% HP and pick otherwise; the strong bots take a trade
+when its cost leaves them above 60%, the mediocre bot takes every
+trade. Help and the intro say "encounters", and Help explains the three
+kinds. Every earlier seed's layout changed (three draws before the
+kit); no replay promise crosses a save version.
+
+Balance, no retune: fewer fights and a heal against an elite and fewer
+picks net out a little harder for the strong bots and unchanged for the
+mediocre one. All criteria PASS; every cell within ten points of
+Amoeba's 21.6%.
+
+`npx tsx scripts/sim.ts`, shipped:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    61.8% |           9 |       17.4 |       181 |        6 |   100 |   100 |    96 |    89 |    88 |    86 |    75 |    71 |    69 |
+| mediocre |  500 |    21.6% |           7 |       29.0 |       326 |        2 |   101 |    95 |    83 |    59 |    62 |    63 |    50 |    58 |    66 |
+|   solver |  500 |    87.2% |           9 |       13.1 |        79 |       22 |   100 |   101 |    98 |    95 |    94 |    92 |    89 |    85 |    84 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell aggro`, Predator:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    65.6% |           9 |       15.2 |       127 |       14 |    85 |    85 |    82 |    77 |    76 |    75 |    67 |    63 |    61 |
+| mediocre |  500 |    20.4% |           7 |       23.8 |       247 |        0 |    86 |    80 |    70 |    48 |    51 |    53 |    44 |    50 |    54 |
+|   solver |  500 |    88.2% |           9 |       11.4 |        25 |       10 |    85 |    86 |    84 |    82 |    81 |    80 |    77 |    74 |    73 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell defensive`, Diatom:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    68.2% |           9 |       19.9 |       242 |       23 |   115 |   115 |   112 |   106 |   104 |   102 |    92 |    86 |    84 |
+| mediocre |  500 |    26.6% |           9 |       36.2 |       502 |        2 |   116 |   113 |   103 |    79 |    80 |    82 |    65 |    69 |    73 |
+|   solver |  500 |    87.4% |           9 |       14.6 |       120 |       14 |   115 |   116 |   113 |   110 |   109 |   107 |   103 |    98 |    95 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell gambler`, Spore:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    79.8% |           9 |       13.9 |        85 |        8 |    90 |    91 |    88 |    85 |    83 |    82 |    78 |    73 |    71 |
+| mediocre |  500 |    20.6% |           6 |       27.4 |       297 |        2 |    91 |    85 |    73 |    50 |    53 |    55 |    47 |    53 |    58 |
+|   solver |  500 |    95.2% |           9 |       10.2 |        11 |        8 |    90 |    91 |    89 |    89 |    87 |    85 |    84 |    81 |    80 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    60.4% |           9 |       18.6 |       202 |       27 |    86 |    85 |    82 |    75 |    74 |    74 |    65 |    62 |    63 |
+| mediocre |  500 |    24.6% |           7 |       30.0 |       385 |        2 |    87 |    83 |    75 |    56 |    57 |    59 |    50 |    52 |    56 |
+|   solver |  500 |    83.4% |           9 |       13.9 |        88 |       21 |    86 |    86 |    83 |    81 |    80 |    79 |    75 |    71 |    70 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+Gate: adversarial round on the engine (below, once it reports).
+
 ### Variety wave, step 1: enemies and damage ranges (PR #61, 2026-09-09)
 
 Dean's brief: testers finish runs and share screenshots; vary it up.

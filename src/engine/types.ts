@@ -99,6 +99,29 @@ export interface EncounterDef {
   readonly damageScale: number;
 }
 
+/**
+ * What a run's slot holds (variety wave step 2, Dean's answer 3). The curve (EncounterDef) is
+ * static content; the kinds are placed per run by the seed: one elite, one rest and one event
+ * among the non-boss slots after the first, the rest fights. Bosses stay on the def.
+ */
+export type EncounterKind = 'fight' | 'elite' | 'rest' | 'event';
+
+/** A small forced trade (variety wave step 2): the first choice is the trade, the last walks away. */
+export interface EventChoice {
+  readonly label: string;
+  /** Player-side effects (heal, damagePlayer, maxHp, shield, freeShuffle); enemy and grid verbs are no-ops here. */
+  readonly effects: readonly Effect[];
+  /** A pick of three follows, with a rare guaranteed in it. */
+  readonly rarePick?: true;
+}
+
+export interface EventDef {
+  readonly id: string;
+  readonly name: string;
+  readonly text: string;
+  readonly choices: readonly EventChoice[];
+}
+
 /** Formula numbers the sim tunes. Structure of the formula lives in scoring.ts; these are its knobs. */
 export interface Tuning {
   /** Multiplier by word length; index = length. Lengths beyond the table use the last entry. */
@@ -119,6 +142,14 @@ export interface Tuning {
    */
   readonly enrageAfter: number;
   readonly enragePerTurn: number;
+  /** A rest heals this fraction of max HP, rounded (variety wave step 2). */
+  readonly restHeal: number;
+  /**
+   * An elite is drawn from the next act's pool at this slot's scale; in act 3 there is no next
+   * act, so it is an act-3 enemy scaled by these two instead.
+   */
+  readonly eliteHpScale: number;
+  readonly eliteDamageScale: number;
 }
 
 export interface Content {
@@ -128,6 +159,8 @@ export interface Content {
   readonly enemies: readonly EnemyDef[];
   readonly bosses: readonly EnemyDef[];
   readonly encounters: readonly EncounterDef[];
+  /** Events the event slot draws from (variety wave step 2). */
+  readonly events: readonly EventDef[];
   readonly playerMaxHp: number;
   readonly tuning: Tuning;
 }
@@ -163,7 +196,8 @@ export interface Encounter {
   readonly playerHpAtStart: number;
 }
 
-export type Phase = 'fight' | 'pick' | 'summary';
+/** rest and event (variety wave step 2): screens between fights; the reducer's restHeal, pickItem and eventChoice leave them. */
+export type Phase = 'fight' | 'pick' | 'rest' | 'event' | 'summary';
 export type Outcome = 'won' | 'lost';
 
 export interface TurnReport {
@@ -203,12 +237,19 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 5;
+  readonly v: 6;
   readonly rng: Rng;
   /** The starting cell's id (content.cells). v4; v3 saves load as 'balanced'. */
   readonly cell: string;
+  /**
+   * The kind of each slot, index = encounterIndex, placed by the seed at newRun (v6). A slot past
+   * the array's end is a fight, which is how a migrated v5 save finishes its run.
+   */
+  readonly kinds: readonly EncounterKind[];
   readonly phase: Phase;
   readonly encounterIndex: number;
+  /** The event on screen while phase is 'event' (content.events id); null otherwise. */
+  readonly event: string | null;
   readonly player: PlayerState;
   readonly encounter: Encounter | null;
   readonly offer: readonly string[] | null;

@@ -18,6 +18,8 @@
 
   const enc = $derived(run.encounter);
   const act = $derived(Math.floor(run.encounterIndex / 3) + 1);
+  /** An elite slot (variety wave step 2): the next act's enemy, a guaranteed rare on the win. */
+  const elite = $derived(run.kinds[run.encounterIndex] === 'elite');
   /** Earthbound-style battle backdrop: a pattern per enemy, a palette per act, slow drift. */
   const PATTERNS: Readonly<Record<string, string>> = {
     amoeba: 'dots', flagellate: 'stripes', polyp: 'cells', rotifer: 'rings', colony: 'rings',
@@ -150,7 +152,7 @@
         <div class="fill" style="width: {(100 * run.player.hp) / run.player.maxHp}%"></div>
       </div>
       <div class="bar-label">
-        <strong>{enemyName(enc.enemy.id)}</strong>
+        <strong>{elite ? 'Elite ' : ''}{enemyName(enc.enemy.id)}</strong>
         <span>{enc.enemy.hp} / {enc.enemy.maxHp}</span>
       </div>
       <div class="bar enemy"><div class="fill" style="width: {(100 * enc.enemy.hp) / enc.enemy.maxHp}%"></div></div>

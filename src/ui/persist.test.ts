@@ -42,34 +42,49 @@ describe('persist', () => {
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: SAVE_VERSION + 1 }) });
     expect(createPersist(storage).load()).toBeNull();
     expect(storage.data.has(SAVE_KEY)).toBe(false);
-    expect(SAVE_VERSION).toBe(5);
+    expect(SAVE_VERSION).toBe(6);
     for (const old of [1, 2]) {
       const stale = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: old }) });
       expect(createPersist(stale).load()).toBeNull();
       expect(stale.data.has(SAVE_KEY)).toBe(false);
     }
-    // A v3 save (no cell, no worst word) loads as v5: the balanced cell (Dean, 2026-09-08, question 3) and empty worst stats.
+    // A v5 save (no kinds, no event) loads as v6 with empty kinds: the rest of its run is fights (encounter types, step 2).
+    const v5body = Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'kinds' && k !== 'event')) as Omit<RunState, 'kinds' | 'event'>;
+    const fromV5 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v5body, v: 5 }) })).load();
+    expect(fromV5?.v).toBe(6);
+    expect(fromV5?.kinds).toEqual([]);
+    expect(fromV5?.event).toBeNull();
+    expect(fromV5?.rng).toEqual(s.rng);
+    // A v3 save (no cell, no worst word) loads as v6: the balanced cell (Dean, 2026-09-08, question 3), empty worst stats, empty kinds.
     const oldStats = Object.fromEntries(Object.entries(s.stats).filter(([k]) => k !== 'worstWord' && k !== 'worstWordDamage'));
-    const v4body = { ...s, stats: oldStats };
-    const v3body = Object.fromEntries(Object.entries(v4body).filter(([k]) => k !== 'cell')) as Omit<RunState, 'cell'>;
+    const v4body = { ...v5body, stats: oldStats };
+    const v3body = Object.fromEntries(Object.entries(v4body).filter(([k]) => k !== 'cell')) as Omit<RunState, 'cell' | 'kinds' | 'event'>;
     const v3 = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v3body, v: 3 }) });
     const loaded = createPersist(v3).load();
     expect(loaded).not.toBeNull();
-    expect(loaded?.v).toBe(5);
+    expect(loaded?.v).toBe(6);
     expect(loaded?.cell).toBe('balanced');
     expect(loaded?.stats.worstWord).toBe('');
     expect(loaded?.stats.worstWordDamage).toBe(0);
+    expect(loaded?.kinds).toEqual([]);
     expect(loaded?.rng).toEqual(s.rng);
-    // A v4 save (cell, no worst word) loads as v5 too.
+    // A v4 save (cell, no worst word) loads as v6 too.
     const fromV4 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v4body, v: 4 }) })).load();
-    expect(fromV4?.v).toBe(5);
+    expect(fromV4?.v).toBe(6);
     expect(fromV4?.cell).toBe(s.cell);
     expect(fromV4?.stats).toEqual(s.stats);
     // Blobs that claim a version whose shape they do not have are not migrated: dropped.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 3 }) })).load()).toBeNull(); // v3 with a cell
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 4 }) })).load()).toBeNull(); // v4 with worst stats
-    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull(); // v5 without a cell
-    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 5, cell: 'balanced', stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 5 }) })).load()).toBeNull(); // v5 with kinds
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull(); // v6 without a cell
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v5body) })).load()).toBeNull(); // v6 without kinds
+    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 6, cell: 'balanced', kinds: [], event: null, stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
+    // The kinds must be known kinds and the event a string or null; an event phase needs its event.
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: ['fight', 'boss'] }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: 'fight' }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, event: 7 }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, phase: 'event', encounter: null, event: null }) })).load()).toBeNull();
     // The stats the screens render are type-checked (gate W1): a v5 blob whose stats lack or mistype them is dropped.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: oldStats }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, worstWord: 7 } }) })).load()).toBeNull();

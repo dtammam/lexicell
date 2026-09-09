@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
 import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
-import { candidateIndices, candidateWords } from './candidates';
+import { candidateIndices, candidateWords, type Candidate } from './candidates';
+import { EFFECT_ORDER } from './effects';
 import { gatherEffects } from './hooks';
 import { isDead, refill, settle } from './grid';
-import { hitRange, MAX_COMMONS_PER_OFFER, newRun, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
+import { hitRange, kindAt, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { scoreWord } from './scoring';
+import { createRng } from './rng';
 import { tilesForWord } from './solver';
-import type { Content, Encounter, EnemyDef, ItemDef, RunState } from './types';
+import type { Content, Encounter, EncounterDef as EncounterDefT, EnemyDef, EventChoice as EventChoiceT, ItemDef, RunState } from './types';
 
 /** Shipped content opens on a starting-kit pick; most tests here want the first fight directly. */
 /** Flat hits (variance 0) so the arithmetic in these tests stays exact; the variety-wave block tests the roll. */
@@ -47,6 +49,15 @@ function greedyRun(seed: number, c: EngineContext = ctx, pickIndex = 0): { final
       step({ type: 'pickItem', index: pickIndex });
       continue;
     }
+    // Encounter types (step 2): the greedy helper heals at a rest below 60% and takes every trade.
+    if (s.phase === 'rest') {
+      step(s.player.hp < s.player.maxHp * 0.6 || !s.offer ? { type: 'restHeal' } : { type: 'pickItem', index: pickIndex });
+      continue;
+    }
+    if (s.phase === 'event') {
+      step({ type: 'eventChoice', index: 0 });
+      continue;
+    }
     const best = candidateWords(s, c).sort((a, b) => b.damage - a.damage)[0];
     if (!best) throw new Error(`seed ${seed}: no candidate word: dead grid reached the bot`);
     for (const i of candidateIndices(s, best.word) ?? []) step({ type: 'toggleTile', index: i });
@@ -54,6 +65,15 @@ function greedyRun(seed: number, c: EngineContext = ctx, pickIndex = 0): { final
   }
   if (s.phase !== 'summary') throw new Error('run did not finish');
   return { final: s, log, states };
+}
+
+/** Items a greedy win holds: six fight picks, the rest's pick unless it healed, the event's pick when its trade carries one. */
+function expectedItems(seed: number, c: EngineContext = ctx): number {
+  const { log, states } = greedyRun(seed, c);
+  const healed = log.some((a) => a.type === 'restHeal') ? 0 : 1;
+  const eventState = states.find((st) => st.phase === 'event');
+  const trade = c.content.events.find((e) => e.id === eventState?.event)?.choices[0];
+  return 6 + healed + (trade?.rarePick ? 1 : 0);
 }
 
 function assertInvariants(s: RunState, c: EngineContext) {
@@ -70,6 +90,8 @@ function assertInvariants(s: RunState, c: EngineContext) {
     expect(s.encounter).toBeNull();
   }
   if (s.phase === 'pick') expect(s.offer?.length).toBeGreaterThan(0);
+  if (s.phase === 'event') expect(s.event).not.toBeNull();
+  if (s.phase !== 'event') expect(s.event).toBeNull();
   if (s.phase === 'summary') expect(s.outcome).not.toBeNull();
   expect(JSON.parse(JSON.stringify(s))).toEqual(s);
 }
@@ -173,7 +195,9 @@ describe('full runs', () => {
       if (final.outcome === 'won') {
         won++;
         expect(final.stats.hpAtEncounterStart).toHaveLength(9);
-        expect(final.player.items.length).toBe(8);
+        // One pick per fight won short of the last (six), plus the rest's pick unless it healed,
+        // plus the event's pick when its trade carries one (step 2).
+        expect(final.player.items.length).toBe(expectedItems(seed));
       } else {
         lost++;
         expect(final.player.hp).toBe(0);
@@ -237,7 +261,7 @@ describe('starting kit (tuning.startingPicks)', () => {
     expect(final.phase).toBe('summary');
     if (final.outcome === 'won') {
       expect(final.stats.hpAtEncounterStart).toHaveLength(9);
-      expect(final.player.items).toHaveLength(9);
+      expect(final.player.items).toHaveLength(expectedItems(7, kit) + 1);
     }
   });
 
@@ -323,24 +347,32 @@ describe('venom: a tile that bites until you spend it', () => {
   });
 
   it('bites every turn and grows; spending the tile cures it; it can kill', () => {
-    const s0 = polypTurn(41, 1);
-    const enc0 = s0.encounter as Encounter;
-    const grid = enc0.grid.map((t, i) => (i === 5 ? { ...t, venom: 2 } : t));
-    const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
-    // Play a word that avoids tile 5: the venom bites for 2 and grows to 3.
-    const cands = candidateWords(s1, ctx).sort((a, b) => a.damage - b.damage);
-    const avoiding = cands.find((c) => !(candidateIndices(s1, c.word) ?? []).includes(5));
-    if (!avoiding) throw new Error('no word avoiding tile 5');
-    const s2 = play(s1, avoiding.word);
-    expect(s2.phase).toBe('fight');
+    // The first seed from 41 whose grid holds a word avoiding tile 5 and, after it, a word through the
+    // venomed tile (the grids moved when step 2 added three placement draws to newRun).
+    const fixture = (): { s1: RunState; avoiding: Candidate; s2: RunState; through: Candidate } => {
+      for (let seed = 41; seed < 80; seed++) {
+        const s0 = polypTurn(seed, 1);
+        const enc0 = s0.encounter as Encounter;
+        const grid = enc0.grid.map((t, i) => (i === 5 ? { ...t, venom: 2 } : t));
+        const s1: RunState = { ...s0, encounter: { ...enc0, grid } };
+        const cands = candidateWords(s1, ctx).sort((a, b) => a.damage - b.damage);
+        const avoiding = cands.find((c) => !(candidateIndices(s1, c.word) ?? []).includes(5));
+        if (!avoiding) continue;
+        const s2 = play(s1, avoiding.word);
+        if (s2.phase !== 'fight') continue;
+        const at = (s2.encounter as Encounter).grid.findIndex((t) => t.venom > 0);
+        const through = candidateWords(s2, ctx).find((c) => (candidateIndices(s2, c.word) ?? []).includes(at));
+        if (through) return { s1, avoiding, s2, through };
+      }
+      throw new Error('no seed in 41..79 fits the venom fixture');
+    };
+    const { s1, avoiding, s2, through } = fixture();
+    // Playing a word that avoids tile 5: the venom bites for 2 and grows to 3.
     expect(s2.lastTurn?.venom).toBe(2);
     expect(s2.stats.damageTaken).toBe(s1.stats.damageTaken + 2 + (s2.lastTurn?.enemyDamage ?? 0));
     const g2 = (s2.encounter as Encounter).grid;
     expect(g2.filter((t) => t.venom > 0).map((t) => t.venom)).toEqual([3]);
-    // Now spend it: settle may have moved it; find it and play a word through it.
-    const at = g2.findIndex((t) => t.venom > 0);
-    const through = candidateWords(s2, ctx).find((c) => (candidateIndices(s2, c.word) ?? []).includes(at));
-    if (!through) throw new Error('no word through the venomous tile');
+    // Now spend it: settle may have moved it; a word through it cures it.
     const s3 = play(s2, through.word);
     if (s3.phase === 'fight') {
       expect((s3.encounter as Encounter).grid.every((t) => t.venom === 0)).toBe(true);
@@ -459,7 +491,8 @@ describe('boss lock lands on survivors, never on the tiles just played (tracker 
       expect(after.phase, `seed ${seed}`).toBe('fight');
       const grid = (after.encounter as Encounter).grid;
       const locked = grid.filter((t) => t.lockedTurns > 0);
-      expect(locked, `seed ${seed}: ${locked.length} locked`).toHaveLength(3);
+      // Three, or every survivor when the word left fewer (seed 35 plays a 14-letter word).
+      expect(locked, `seed ${seed}: ${locked.length} locked`).toHaveLength(Math.min(3, 16 - idx.length));
       // A locked tile keeps its letter from before the turn: it was a survivor, not a fresh draw.
       const before = (s.encounter as Encounter).grid;
       const survivorsLetters = before.filter((_, i) => !idx.includes(i)).map((t) => t.letter);
@@ -1127,7 +1160,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(5);
+      expect(a.final.v).toBe(6);
     }
   });
 });
@@ -1158,7 +1191,9 @@ describe('variety wave step 1: act pools, damage ranges, armour, regen, hunger',
         const pool = def?.boss ? CONTENT.bosses : CONTENT.enemies;
         const e = pool.find((x) => x.id === st.encounter?.enemy.id);
         expect(e, st.encounter.enemy.id).toBeDefined();
-        expect(e?.act).toBe(def?.act);
+        // An elite slot (step 2) draws from the next act; in act 3 from act 3, scaled.
+        const elite = !def?.boss && kindAt(st, st.encounterIndex) === 'elite';
+        expect(e?.act).toBe(elite ? Math.min(3, (def?.act ?? 1) + 1) : def?.act);
       }
     }
   }, 30000);
@@ -1276,6 +1311,229 @@ describe('variety wave step 1: the enrage clock', () => {
     }
     // Turns 1-3 hit 6; the tick at the start of turn 4 and after adds 2 each: 8, 10, 12.
     expect(hits).toEqual([6, 6, 6, 8, 10, 12]);
+  });
+});
+
+describe('variety wave step 2: encounter types (save v6)', () => {
+  const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+  const rarePlus = new Set(['rare', 'mythic']);
+  const NON_BOSS_AFTER_FIRST = [1, 3, 4, 6, 7];
+
+  it('placeKinds puts one elite, one rest and one event on distinct non-boss slots after the first, in three draws, and every eligible slot gets each kind over the seeds', () => {
+    const seen: Record<string, Set<number>> = { elite: new Set(), rest: new Set(), event: new Set() };
+    for (let seed = 0; seed < 200; seed++) {
+      const rng = createRng(seed);
+      const [kinds, after] = placeKinds(rng, CONTENT);
+      expect(kinds).toHaveLength(9);
+      expect(after.counter - rng.counter).toBe(3);
+      for (const kind of ['elite', 'rest', 'event'] as const) {
+        const at = kinds.map((k, i) => (k === kind ? i : -1)).filter((i) => i >= 0);
+        expect(at, `${kind} seed ${seed}`).toHaveLength(1);
+        expect(NON_BOSS_AFTER_FIRST, `${kind} at ${at[0]}`).toContain(at[0]);
+        seen[kind]?.add(at[0] as number);
+      }
+      expect(kinds.filter((k) => k === 'fight')).toHaveLength(6);
+      expect(kinds[0]).toBe('fight');
+      // The same kinds land in the run, and the run's RNG has spent the three draws before the kit.
+      const run = newRun(seed, flat);
+      expect(run.kinds).toEqual(kinds);
+      expect(run.v).toBe(6);
+      expect(run.event).toBeNull();
+    }
+    for (const kind of ['elite', 'rest', 'event']) expect([...(seen[kind] ?? [])].sort(), kind).toEqual(NON_BOSS_AFTER_FIRST);
+    // Placement is a pure function of the seed: same seed, same kinds; a different seed differs somewhere over 200.
+    expect(new Set(Array.from({ length: 200 }, (_, seed) => placeKinds(createRng(seed), CONTENT)[0].join())).size).toBeGreaterThan(20);
+    // Without eligible slots (a one-encounter curve) nothing is placed and nothing is drawn.
+    const [none, rng2] = placeKinds(createRng(1), { ...CONTENT, encounters: [CONTENT.encounters[0] as EncounterDefT] });
+    expect(none).toEqual(['fight']);
+    expect(rng2.counter).toBe(createRng(1).counter);
+  });
+
+  /** Drive the greedy helper until the run reaches the slot at `index`, returning the state on arrival. */
+  function arriveAt(seed: number, index: number, c: EngineContext = flat): RunState {
+    const { states } = greedyRun(seed, c);
+    const st = states.find((x) => x.encounterIndex === index && x.phase !== 'pick' && (x.phase === 'fight' ? x.encounter?.turn === 1 : true));
+    if (!st) throw new Error(`seed ${seed} never reached slot ${index}`);
+    return st;
+  }
+  /** A seed whose greedy run reaches its slot of `kind`. */
+  function seedReaching(kind: 'elite' | 'rest' | 'event', c: EngineContext = flat): { seed: number; index: number; state: RunState } {
+    for (let seed = 0; seed < 60; seed++) {
+      const kinds = placeKinds(createRng(seed), c.content)[0];
+      const index = kinds.indexOf(kind);
+      try {
+        return { seed, index, state: arriveAt(seed, index, c) };
+      } catch {
+        // died before it; next seed
+      }
+    }
+    throw new Error(`no seed under 60 reaches a ${kind}`);
+  }
+
+  it('a rest is a screen with a three-offer: restHeal heals 30% of max HP rounded and capped and moves on; pickItem takes the item instead', () => {
+    const { state } = seedReaching('rest');
+    expect(state.phase).toBe('rest');
+    expect(state.encounter).toBeNull();
+    expect(state.offer).toHaveLength(3);
+    expect(state.stats.hpAtEncounterStart).toHaveLength(state.encounterIndex + 1); // a rest counts as reached
+    // Items stripped so the next slot's turn start is inert and the HP delta is the rest's alone.
+    const hurt: RunState = { ...state, player: { ...state.player, hp: 40, maxHp: 100, items: [] } };
+    const healed = reduce(hurt, { type: 'restHeal' }, flat);
+    expect(healed.player.hp).toBe(70);
+    expect(healed.encounterIndex).toBe(state.encounterIndex + 1);
+    expect(healed.player.items).toEqual([]);
+    expect(['fight', 'event', 'rest']).toContain(healed.phase);
+    const nearFull: RunState = { ...hurt, player: { ...hurt.player, hp: 90 } };
+    const capped = reduce(nearFull, { type: 'restHeal' }, flat);
+    expect(capped.player.hp).toBe(100);
+    const picked = reduce(hurt, { type: 'pickItem', index: 1 }, flat);
+    expect(picked.player.hp).toBe(40); // no heal with the pick
+    expect(picked.player.items).toEqual([state.offer?.[1]]);
+    expect(picked.encounterIndex).toBe(state.encounterIndex + 1);
+    // Off a rest, restHeal is rejected and changes nothing.
+    const fight = newRun(1, flat);
+    expect(reduce(fight, { type: 'restHeal' }, flat)).toEqual({ ...fight, rejected: 'not resting' });
+  });
+
+  it('an event is drawn from content by one RNG draw; the trade applies its effects (never below 1 HP), the last choice changes nothing, a rarePick opens a rare-guaranteed offer', () => {
+    const { state } = seedReaching('event');
+    expect(state.phase).toBe('event');
+    expect(state.encounter).toBeNull();
+    expect(state.offer).toBeNull();
+    const def = CONTENT.events.find((e) => e.id === state.event);
+    expect(def).toBeDefined();
+    // Every event through the same slot: force each id in turn and check its trade.
+    for (const ev of CONTENT.events) {
+      // Items stripped so the next slot's turn start is inert and the player delta is the trade's alone.
+      const at: RunState = { ...state, event: ev.id, player: { ...state.player, hp: 60, maxHp: 100, shield: 0, freeShuffles: 0, items: [] } };
+      const pass = reduce(at, { type: 'eventChoice', index: ev.choices.length - 1 }, flat);
+      expect(pass.player, ev.id).toEqual(at.player);
+      expect(pass.event, ev.id).toBeNull();
+      expect(pass.encounterIndex, ev.id).toBe(state.encounterIndex + 1);
+      const trade = reduce(at, { type: 'eventChoice', index: 0 }, flat);
+      const choice = ev.choices[0] as EventChoiceT;
+      let hp = 60;
+      let maxHp = 100;
+      let shield = 0;
+      let free = 0;
+      // Effects apply in EFFECT_ORDER, as an item's do (damage before max HP growth), not in the label's order.
+      const ordered = [...choice.effects].sort((a, b) => EFFECT_ORDER.indexOf(a.type) - EFFECT_ORDER.indexOf(b.type));
+      for (const e of ordered) {
+        if (e.type === 'heal') hp = Math.min(maxHp, hp + e.value);
+        if (e.type === 'damagePlayer') hp = Math.max(0, hp - e.value);
+        if (e.type === 'maxHp') {
+          maxHp = Math.max(1, maxHp + e.value);
+          hp = Math.min(maxHp, hp + Math.max(0, e.value));
+        }
+        if (e.type === 'shield') shield = Math.min(CONTENT.tuning.shieldMax, shield + e.value);
+        if (e.type === 'freeShuffle') free += e.value;
+      }
+      expect(trade.player, ev.id).toMatchObject({ hp: Math.max(1, hp), maxHp, shield, freeShuffles: free });
+      expect(trade.event, ev.id).toBeNull();
+      if (choice.rarePick) {
+        expect(trade.phase, ev.id).toBe('pick');
+        expect(trade.encounterIndex, ev.id).toBe(state.encounterIndex);
+        const first = CONTENT.items.find((i) => i.id === trade.offer?.[0]);
+        expect(rarePlus.has(first?.rarity ?? ''), `${ev.id}: ${first?.id}`).toBe(true);
+        const after = reduce(trade, { type: 'pickItem', index: 0 }, flat);
+        expect(after.encounterIndex).toBe(state.encounterIndex + 1);
+      } else {
+        expect(trade.encounterIndex, ev.id).toBe(state.encounterIndex + 1);
+      }
+    }
+    // A trade never kills: 5 HP into the spore bank's 15 damage leaves 1, and its rare pick still opens.
+    const dying: RunState = { ...state, event: 'spore-bank', player: { ...state.player, hp: 5, items: [] } };
+    const survived = reduce(dying, { type: 'eventChoice', index: 0 }, flat);
+    expect(survived.player.hp).toBe(1);
+    expect(survived.phase).toBe('pick');
+    expect(survived.stats.damageTaken).toBe(dying.stats.damageTaken + 4);
+    // Damage lands before growth (EFFECT_ORDER): 5 HP into the vent is 0 then 20 of 120, not 1.
+    const vent: RunState = { ...dying, event: 'thermal-vent' };
+    expect(reduce(vent, { type: 'eventChoice', index: 0 }, flat).player).toMatchObject({ hp: 20, maxHp: 120 });
+    // Bad indexes and a wrong phase are rejected.
+    expect(reduce(state, { type: 'eventChoice', index: 9 }, flat).rejected).toBe('bad event choice');
+    expect(reduce(newRun(1, flat), { type: 'eventChoice', index: 0 }, flat).rejected).toBe('no event');
+    // The event id is one RNG draw past arrival: the same seed replays the same event.
+    const again = seedReaching('event');
+    expect(again.state.event).toBe(state.event);
+  });
+
+  it('an elite fights the next act\'s pool at this slot\'s scale (act 3: an act-3 enemy scaled up) and its win offers a rare first', () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const kinds = placeKinds(createRng(seed), CONTENT)[0];
+      const index = kinds.indexOf('elite');
+      const def = CONTENT.encounters[index] as EncounterDefT;
+      let state: RunState;
+      try {
+        state = arriveAt(seed, index);
+      } catch {
+        continue;
+      }
+      expect(state.phase).toBe('fight');
+      const enc = state.encounter as Encounter;
+      const enemy = CONTENT.enemies.find((e) => e.id === enc.enemy.id) as EnemyDef;
+      if (def.act < 3) {
+        expect(enemy.act, `seed ${seed}`).toBe(def.act + 1);
+        expect(enc.enemy.maxHp).toBe(Math.round(enemy.hp * def.hpScale));
+        expect(enc.enemy.damage).toBe(Math.round(enemy.damage * def.damageScale));
+      } else {
+        expect(enemy.act, `seed ${seed}`).toBe(3);
+        expect(enc.enemy.maxHp).toBe(Math.round(enemy.hp * def.hpScale * CONTENT.tuning.eliteHpScale));
+        expect(enc.enemy.damage).toBe(Math.round(enemy.damage * def.damageScale * CONTENT.tuning.eliteDamageScale));
+      }
+      // Kill it: the offer's first item is rare or mythic.
+      const lowHp: RunState = { ...state, encounter: { ...enc, enemy: { ...enc.enemy, hp: 1 } } };
+      const word = candidateWords(lowHp, flat)[0];
+      if (!word) throw new Error('no word');
+      const won = play(lowHp, word.word, flat);
+      expect(won.phase).toBe('pick');
+      const first = CONTENT.items.find((i) => i.id === won.offer?.[0]);
+      expect(rarePlus.has(first?.rarity ?? ''), `seed ${seed}: ${first?.id}`).toBe(true);
+    }
+  }, 60000);
+
+  it('a plain fight\'s offer is not rare-guaranteed: over the seeds some first slots are common', () => {
+    let commonFirst = 0;
+    for (let seed = 0; seed < 30; seed++) {
+      const s = newRun(seed, flat);
+      const enc = s.encounter as Encounter;
+      const lowHp: RunState = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, hp: 1 } } };
+      const word = candidateWords(lowHp, flat)[0];
+      if (!word) continue;
+      const won = play(lowHp, word.word, flat);
+      const first = CONTENT.items.find((i) => i.id === won.offer?.[0]);
+      if (first?.rarity === 'common') commonFirst++;
+    }
+    expect(commonFirst).toBeGreaterThan(0);
+  });
+
+  it('a migrated v5 save (empty kinds) plays the rest of its run as fights', () => {
+    let s: RunState = { ...newRun(3, flat), kinds: [] };
+    for (let guard = 0; guard < 2000 && s.phase !== 'summary'; guard++) {
+      expect(['fight', 'pick']).toContain(s.phase);
+      if (s.phase === 'pick') {
+        s = reduce(s, { type: 'pickItem', index: 0 }, flat);
+        continue;
+      }
+      const best = candidateWords(s, flat).sort((a, b) => b.damage - a.damage)[0];
+      if (!best) throw new Error('dead grid');
+      s = play(s, best.word, flat);
+    }
+    expect(s.phase).toBe('summary');
+  });
+
+  it('a run with rests and events replays byte-identical and stays JSON-plain', () => {
+    for (const seed of [0, 1, 2, 3]) {
+      const a = greedyRun(seed, flat);
+      const b = greedyRun(seed, flat);
+      expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
+      expect(a.log).toEqual(b.log);
+      const kinds = a.states.map((st) => st.phase).filter((p) => p === 'rest' || p === 'event');
+      expect(a.final.v).toBe(6);
+      // Over the four seeds at least one run passes through a rest or an event before the summary.
+      if (kinds.length > 0) return;
+    }
+    throw new Error('no seed in 0..3 reached a rest or an event');
   });
 });
 
@@ -1516,6 +1774,14 @@ describe('starting cells (save v4)', () => {
         for (let guard = 0; guard < 2000 && s.phase !== 'summary'; guard++) {
           if (s.phase === 'pick') {
             s = reduce(s, { type: 'pickItem', index: 0 }, cc);
+            continue;
+          }
+          if (s.phase === 'rest') {
+            s = reduce(s, { type: 'restHeal' }, cc);
+            continue;
+          }
+          if (s.phase === 'event') {
+            s = reduce(s, { type: 'eventChoice', index: 0 }, cc);
             continue;
           }
           const best = candidateWords(s, cc).sort((a, b) => b.damage - a.damage)[0];

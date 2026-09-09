@@ -14,6 +14,7 @@
   import Help from './Help.svelte';
   import History from './History.svelte';
   import CellPick from './CellPick.svelte';
+  import Event from './Event.svelte';
   import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
 
@@ -185,8 +186,10 @@
       <Intro {onBegin} cell={run?.cell ?? 'balanced'} />
     {:else if run.phase === 'fight'}
       <Fight {run} {prev} {dispatch} {isWord} {ctx} />
-    {:else if run.phase === 'pick'}
+    {:else if run.phase === 'pick' || run.phase === 'rest'}
       <Pick {run} {dispatch} />
+    {:else if run.phase === 'event'}
+      <Event {run} {dispatch} />
     {:else}
       <Summary {run} onNewRun={newRun} onHistory={toHistory} />
     {/if}
