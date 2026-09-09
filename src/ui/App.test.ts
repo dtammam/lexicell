@@ -651,6 +651,16 @@ describe('App', () => {
     await click(getButton('Brave it: max HP +20, take 30'));
     expect(await findByText('Enc 3/9')).toBeTruthy();
     expect(getByText('30 / 120')).toBeTruthy();
+    // A save on an event content no longer has (gate W1): one "Move on" button, and it moves on.
+    cleanup();
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...event, event: 'gone-event' }));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    expect(await findByText('Something in the water')).toBeTruthy();
+    expect(document.querySelectorAll('button.choice')).toHaveLength(1);
+    await click(getButton('Move on'));
+    expect(await findByText('Enc 3/9')).toBeTruthy();
+    expect(getByText('40 / 100')).toBeTruthy();
     // An elite slot labels the enemy.
     cleanup();
     const elite: RunState = { ...blob, kinds: ['elite', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight', 'fight'] };

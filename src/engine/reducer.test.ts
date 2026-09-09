@@ -3,12 +3,11 @@ import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
 import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { candidateIndices, candidateWords, type Candidate } from './candidates';
-import { EFFECT_ORDER } from './effects';
 import { gatherEffects } from './hooks';
 import { isDead, refill, settle } from './grid';
 import { hitRange, kindAt, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { scoreWord } from './scoring';
-import { createRng } from './rng';
+import { createRng, pick } from './rng';
 import { tilesForWord } from './solver';
 import type { Content, Encounter, EncounterDef as EncounterDefT, EnemyDef, EventChoice as EventChoiceT, ItemDef, RunState } from './types';
 
@@ -1386,6 +1385,9 @@ describe('variety wave step 2: encounter types (save v6)', () => {
     const nearFull: RunState = { ...hurt, player: { ...hurt.player, hp: 90 } };
     const capped = reduce(nearFull, { type: 'restHeal' }, flat);
     expect(capped.player.hp).toBe(100);
+    // Rounded, not floored (gate W3): Predator's 85 heals 26, so 10 becomes 36.
+    const predator: RunState = { ...hurt, player: { ...hurt.player, hp: 10, maxHp: 85 } };
+    expect(reduce(predator, { type: 'restHeal' }, flat).player.hp).toBe(36);
     const picked = reduce(hurt, { type: 'pickItem', index: 1 }, flat);
     expect(picked.player.hp).toBe(40); // no heal with the pick
     expect(picked.player.items).toEqual([state.offer?.[1]]);
@@ -1416,9 +1418,8 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       let maxHp = 100;
       let shield = 0;
       let free = 0;
-      // Effects apply in EFFECT_ORDER, as an item's do (damage before max HP growth), not in the label's order.
-      const ordered = [...choice.effects].sort((a, b) => EFFECT_ORDER.indexOf(a.type) - EFFECT_ORDER.indexOf(b.type));
-      for (const e of ordered) {
+      // Effects apply in the order written (gate S1): a trade is a script, so "max HP +20, take 30" costs 30.
+      for (const e of choice.effects) {
         if (e.type === 'heal') hp = Math.min(maxHp, hp + e.value);
         if (e.type === 'damagePlayer') hp = Math.max(0, hp - e.value);
         if (e.type === 'maxHp') {
@@ -1447,9 +1448,27 @@ describe('variety wave step 2: encounter types (save v6)', () => {
     expect(survived.player.hp).toBe(1);
     expect(survived.phase).toBe('pick');
     expect(survived.stats.damageTaken).toBe(dying.stats.damageTaken + 4);
-    // Damage lands before growth (EFFECT_ORDER): 5 HP into the vent is 0 then 20 of 120, not 1.
+    // Written order, not EFFECT_ORDER (gate S1): 5 HP into the vent grows to 25 of 120, takes 30, floors at 1.
     const vent: RunState = { ...dying, event: 'thermal-vent' };
-    expect(reduce(vent, { type: 'eventChoice', index: 0 }, flat).player).toMatchObject({ hp: 20, maxHp: 120 });
+    const braved = reduce(vent, { type: 'eventChoice', index: 0 }, flat);
+    expect(braved.player).toMatchObject({ hp: 1, maxHp: 120 });
+    expect(braved.stats.damageTaken).toBe(dying.stats.damageTaken + 24); // 25 taken, 1 given back by the floor
+    // A max-HP cut is not damage taken (gate S3): warm-current at full HP.
+    const full: RunState = { ...state, event: 'warm-current', player: { ...state.player, hp: 100, maxHp: 100, items: [] } };
+    const basked = reduce(full, { type: 'eventChoice', index: 0 }, flat);
+    expect(basked.player).toMatchObject({ hp: 90, maxHp: 90 });
+    expect(basked.stats.damageTaken).toBe(full.stats.damageTaken);
+    // An event id content no longer has (gate W1): any choice is the walk-away, nothing applied, the run moves on.
+    const stale: RunState = { ...state, event: 'gone-event', player: { ...state.player, items: [] } };
+    const moved = reduce(stale, { type: 'eventChoice', index: 0 }, flat);
+    expect(moved.player).toEqual(stale.player);
+    expect(moved.event).toBeNull();
+    expect(moved.encounterIndex).toBe(state.encounterIndex + 1);
+    expect(moved.rejected).toBeNull();
+    // The event id is exactly one draw past arrival (gate W2): re-drawing from the counter before it gives the id and the state's rng.
+    const [drawn, rngAfter] = pick({ seed: state.rng.seed, counter: state.rng.counter - 1 }, CONTENT.events);
+    expect(drawn.id).toBe(state.event);
+    expect(rngAfter).toEqual(state.rng);
     // Bad indexes and a wrong phase are rejected.
     expect(reduce(state, { type: 'eventChoice', index: 9 }, flat).rejected).toBe('bad event choice');
     expect(reduce(newRun(1, flat), { type: 'eventChoice', index: 0 }, flat).rejected).toBe('no event');

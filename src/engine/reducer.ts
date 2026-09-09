@@ -433,10 +433,9 @@ function startEvent(state: RunState, ctx: EngineContext): RunState {
   return { ...withRng(state, rng), phase: 'event', event: def.id, encounter: null, offer: null, rejected: null };
 }
 
-function eventDefOf(ctx: EngineContext, id: string): EventDef {
-  const def = ctx.content.events.find((e) => e.id === id);
-  if (!def) throw new Error(`unknown event ${id}`);
-  return def;
+/** The event by id, or undefined: a save can carry an id that content has since dropped (gate W1). */
+function eventDefOf(ctx: EngineContext, id: string): EventDef | undefined {
+  return ctx.content.events.find((e) => e.id === id);
 }
 
 /** Rest: heal tuning.restHeal of max HP (rounded, capped), forgo the pick, move on. */
@@ -454,22 +453,29 @@ function restHeal(state: RunState, ctx: EngineContext): RunState {
 }
 
 /**
- * Event: apply the choice's player-side effects (a trade never kills: HP floors at 1), then a
- * rare-guaranteed pick if the choice carries one, else the next slot.
+ * Event: apply the choice's player-side effects IN THE ORDER WRITTEN (a trade is a script, not a
+ * hook: "max HP +20, take 30" grows first and then takes 30, so the cost is always the cost; the
+ * item vocabulary's EFFECT_ORDER would land the damage first and make the trade a net heal at
+ * low HP, gate S1). A trade never kills on the spot: HP floors at 1 (the next turn start can
+ * still, gate S2). Then a rare-guaranteed pick if the choice carries one, else the next slot.
+ * An event id that content no longer has (a save across a content change, gate W1) is treated
+ * as the walk-away: the slot is left with nothing applied.
  */
 function eventChoice(state: RunState, index: number, ctx: EngineContext): RunState {
   if (state.phase !== 'event' || state.event === null) return reject(state, 'no event');
-  const choice = eventDefOf(ctx, state.event).choices[index];
+  const def = eventDefOf(ctx, state.event);
+  if (!def) return advance({ ...state, rejected: null, event: null }, ctx);
+  const choice = def.choices[index];
   if (!choice) return reject(state, 'bad event choice');
-  const effects = resolveEffects(choice.effects, conditionCtx(state, ctx));
-  const a = applyEffects({ ...state, rejected: null }, effects, ctx);
+  const a = applyEffects({ ...state, rejected: null }, choice.effects, ctx);
   const hp = Math.max(1, a.state.player.hp);
   const s: RunState = {
     ...a.state,
     player: { ...a.state.player, hp },
     event: null,
     lastTurn: { ...EMPTY_REPORT, healed: a.healed },
-    stats: { ...a.state.stats, damageTaken: a.state.stats.damageTaken + (state.player.hp - hp > 0 ? state.player.hp - hp : 0) },
+    // What the trade hit for, not what a max-HP cut trimmed (gate S3), and not the 1 HP the floor gave back.
+    stats: { ...a.state.stats, damageTaken: a.state.stats.damageTaken + a.playerDamage - (hp - a.state.player.hp) },
   };
   return choice.rarePick ? makeOffer(s, ctx, 'rare') : advance(s, ctx);
 }

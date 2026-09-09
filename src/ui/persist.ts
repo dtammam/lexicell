@@ -78,8 +78,8 @@ function looksLikeRunState(value: unknown): value is RunState {
     typeof v.cell === 'string' &&
     Array.isArray(v.kinds) &&
     v.kinds.every((k) => KINDS.has(k)) &&
-    (v.event === null || typeof v.event === 'string') &&
-    (v.phase !== 'event' || typeof v.event === 'string') &&
+    // An event id only while an event is on screen (gate S4): forged pairs are dropped.
+    (v.phase === 'event' ? typeof v.event === 'string' : v.event === null) &&
     isRecord(v.rng) &&
     isNum(v.rng.seed) &&
     isNum(v.rng.counter) &&

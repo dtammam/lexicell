@@ -16,6 +16,10 @@
   {#each def?.choices ?? [] as choice, i (choice.label)}
     <button class="choice" class:pass={i === (def?.choices.length ?? 1) - 1} onclick={() => { dispatch({ type: 'eventChoice', index: i }); }}>{choice.label}</button>
   {/each}
+  {#if !def}
+    <!-- A save carrying an event id that content no longer has (gate W1): the reducer treats any choice as the walk-away. -->
+    <button class="choice pass" onclick={() => { dispatch({ type: 'eventChoice', index: 0 }); }}>Move on</button>
+  {/if}
 </section>
 
 <style>

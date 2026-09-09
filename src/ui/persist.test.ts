@@ -85,6 +85,14 @@ describe('persist', () => {
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: 'fight' }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, event: 7 }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, phase: 'event', encounter: null, event: null }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, event: 'eddy' }) })).load()).toBeNull(); // an event id off the event screen (gate S4)
+    // A rest save and an event save load (gate S5): a phase set without them would delete a mid-run save on reload.
+    const rest = { ...s, phase: 'rest', encounter: null, offer: ['sharp-pen'] };
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(rest) })).load()).toEqual(rest);
+    const event = { ...s, phase: 'event', encounter: null, offer: null, event: 'eddy' };
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(event) })).load()).toEqual(event);
+    const restNoOffer = { ...rest, offer: null };
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(restNoOffer) })).load()).toEqual(restNoOffer);
     // The stats the screens render are type-checked (gate W1): a v5 blob whose stats lack or mistype them is dropped.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: oldStats }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, worstWord: 7 } }) })).load()).toBeNull();

@@ -100,8 +100,9 @@ daily flag.
 - Step 2 (PR #62): built. `RunState.kinds` placed by three draws at newRun (save v6, v5 migrates with
   empty kinds); elite from the next act's pool (act 3: act-3 at 1.3x/1.15x) with a rare-first offer; rest
   = heal 30% or a pick; eight events in content, a trade never kills. Actions are `restHeal` and
-  `eventChoice` (the plan said `restChoice`; the rest's pick reuses `pickItem`). No retune: balanced
-  greedy 61.8%, mediocre 21.6%, solver 87.2%; cells 20.4 to 26.6 mediocre, greedy max 79.8%.
+  `eventChoice` (the plan said `restChoice`; the rest's pick reuses `pickItem`). Gate round: a dropped
+  event id soft-locked a save (now the walk-away), event effects apply in written order, damage taken
+  ignores max-HP cuts, persist tightened and tested on rest/event saves. Tables re-pasted after.
 
 ## Acceptance per step
 
