@@ -37,11 +37,17 @@ cells).
 - **Clarity feedback batch**: five of seven shipped (PR #55). Left: cells
   more cellular (the sprite pass, with per-cell sprites) and a stats HUD
   with best and worst word (the worst word needs a new stat).
+- **Run history with export**: shipped (PR #51); plan in completed/.
+- **Clarity feedback batch** (a tester via Dean, 2026-09-08): names
+  shown twice on the fight screen; a busy backdrop; no clear cue that
+  a turn ended; no view of the enemy's next action (Slay the Spire
+  intent); cells should look more cellular; a visual indicator for
+  organelles that fire; a stats HUD later (best and worst word).
+  Proposed as one UI PR after run history, before starting cells.
 - **Logo, round two** (Dean, 2026-09-08): none of the first three
   landed; B (the amoeba) was closest. Second page of directions.
-- **Starting cells**: built (PR #53), reviewer round pending; five cells
-  within the band. Next for cells: their own sprites (with the sprite
-  pass the tester asked for).
+- **Starting cells**: shipped (PR #53); plan in completed/. Next for
+  cells: their own sprites, with the sprite pass the tester asked for.
 - **Starting cells** (Dean, 2026-09-08): plan
   `docs/exec-plans/active/starting-cells.md` (PR #48), five questions
   for Dean. Engine and save schema: reviewer round. Builds after run
@@ -152,8 +158,15 @@ offers. Shipped numbers, all PASS:
   PASS  no run hit a grid with zero valid words
 ```
 
-Gate: adversarial round on the engine, the save migration and persist
-(below, once it reports).
+Gate (adversarial, two rounds): no runtime defect; four binding gaps
+(the chosen cell through the action, cell-before-items order, the
+draw/turn-start/encounter-end pass-throughs, persist's cell type) closed
+by tests; one design gap fixed (a cell's starting items now fire their
+onPick, so a Colossus starter really adds its 40 HP). Default equivalence
+measured: 300 runs byte-identical to the merge-base with the balanced
+cell. Disclosed: the App-level cell pass-throughs are bound by the
+reviewer's scratch test, not the suite; "in order" on starting items'
+onPick is unbound (the two shipped-pool cases commute).
 
 ### Run history with export (PR #51, 2026-09-08)
 
