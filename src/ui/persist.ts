@@ -1,3 +1,4 @@
+import { CONTENT } from '../content/index';
 import { DEFAULT_CELL_ID, SAVE_VERSION } from '../engine/reducer';
 import type { RunState } from '../engine/types';
 
@@ -96,6 +97,8 @@ function looksLikeRunState(value: unknown): value is RunState {
     encounterOk &&
     (v.phase !== 'fight' || v.encounter !== null) &&
     (v.offer === null || Array.isArray(v.offer)) &&
+    // A pick or an evolve screen needs something to pick (gate S4, PR #64): the reducer never writes an empty one.
+    ((v.phase !== 'pick' && v.phase !== 'evolve') || (Array.isArray(v.offer) && v.offer.length > 0)) &&
     (v.outcome === null || typeof v.outcome === 'string') &&
     (v.lastTurn === null || isRecord(v.lastTurn)) &&
     (v.rejected === null || typeof v.rejected === 'string') &&
@@ -112,6 +115,27 @@ function looksLikeRunState(value: unknown): value is RunState {
  * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
  * the empty worst-word stats (stats HUD). Anything else passes through and meets the shape check.
  */
+const KNOWN_ITEMS: ReadonlySet<string> = new Set(CONTENT.items.map((i) => i.id));
+const KNOWN_TRAITS: ReadonlySet<string> = new Set(CONTENT.traits.map((t) => t.id));
+
+/**
+ * An id the content no longer has is dropped from a save at load (gate, PR #64): the engine's
+ * lookups throw on an unknown item or trait id, which would throw on the next hook of a run saved
+ * across a content change and leave it stuck. A held item or trait that is gone is simply gone; an
+ * evolve offer keeps its known traits, and a mid-evolve save whose offered traits are all gone is
+ * dropped by the shape check (its offer would be empty).
+ */
+export function dropUnknownIds(value: unknown): unknown {
+  if (!isRecord(value) || !isRecord(value.player)) return value;
+  const player = value.player;
+  const items = Array.isArray(player.items) ? player.items.filter((id) => KNOWN_ITEMS.has(id as string)) : player.items;
+  const traits = Array.isArray(player.traits) ? player.traits.filter((id) => KNOWN_TRAITS.has(id as string)) : player.traits;
+  let offer = value.offer;
+  if (value.phase === 'evolve' && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_TRAITS.has(id as string));
+  else if (value.phase === 'pick' && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_ITEMS.has(id as string));
+  return { ...value, player: { ...player, items, traits }, offer };
+}
+
 export function migrate(value: unknown): unknown {
   let v: unknown = value;
   if (isRecord(v) && v.v === 3 && !('cell' in v)) v = { ...v, v: 4, cell: DEFAULT_CELL_ID };
@@ -143,7 +167,7 @@ export function createPersist(storage: StorageLike, key: string = SAVE_KEY): Per
         return null;
       }
       // v3 -> v4 (starting cells, Dean, 2026-09-08, question 3): a v3 save is the balanced cell.
-      const migrated = migrate(parsed);
+      const migrated = dropUnknownIds(migrate(parsed));
       if (!looksLikeRunState(migrated) || migrated.v !== SAVE_VERSION) {
         storage.removeItem(key);
         return null;

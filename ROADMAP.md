@@ -171,7 +171,19 @@ Amoeba).
   PASS  no run hit a grid with zero valid words
 ```
 
-Gate: adversarial round on the engine and the save (below, once it reports).
+Gate (adversarial, one round, REQUEST CHANGES then fixed): a trait id
+content later drops would have thrown from every hook of a saved run
+(the event-id class from step 2, and the same has been true of item ids
+all along); persist now drops any item or trait id content no longer
+has at load, from the player and from a pick or evolve offer, and
+refuses a pick or evolve with nothing left to pick. Four tests did not
+bind what they claimed (cell-before-trait order, the trait argument on
+the damage, encounter-end and tile-draw hooks) and chooseTrait had none;
+all bound now. The fight's preview cache keys on traits too. Measured by
+the gate: 17,569 replayed steps with 0 mismatches, 607 real v6 saves
+migrated and finished, 26 mutants killed, the curve G claim (greedy 73.8
+with traits) reproduced exactly. Disclosed: a forged evolve save with a
+null offer is dropped rather than repaired.
 
 ### Variety wave, step 2: encounter types (PR #62, 2026-09-09)
 

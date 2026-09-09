@@ -206,7 +206,7 @@ export function conditionCtx(state: RunState, ctx: EngineContext, word?: string)
 }
 
 /** onTileDraw effects folded into one per-letter multiplier: vowelWeight on the vowels, letterWeight on its letters. */
-function letterBias(state: RunState, ctx: EngineContext): LetterBias {
+export function letterBias(state: RunState, ctx: EngineContext): LetterBias {
   const bias: Record<string, number> = {};
   const bump = (letter: string, value: number) => {
     bias[letter] = (bias[letter] ?? 1) * value;

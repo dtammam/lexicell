@@ -106,7 +106,8 @@ daily flag.
 - Step 3 (PR #64): built. Twelve traits, `player.traits` (save v7, v6 migrates with none), `evolve`
   phase after the first two bosses, `pickTrait`, gathered after the cell and before the items. Curve H
   (acts 2 and 3 up) absorbs the traits: balanced greedy 68.2%, mediocre 22.2%, solver 87.6%; cells 18.0
-  (Spore, by design) to 29.2 mediocre, greedy max 84.8%.
+  (Spore, by design) to 29.2 mediocre, greedy max 84.8%. Gate round: persist drops item and trait ids content no
+  longer has (a held one would have thrown from every hook); four tests and chooseTrait bound.
 
 ## Acceptance per step
 

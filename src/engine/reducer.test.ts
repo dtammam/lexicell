@@ -4,8 +4,8 @@ import { CONTENT } from '../content/index';
 import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { candidateIndices, candidateWords, type Candidate } from './candidates';
 import { gatherEffects } from './hooks';
-import { isDead, refill, settle } from './grid';
-import { hitRange, kindAt, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
+import { biasFor, isDead, refill, settle } from './grid';
+import { hitRange, kindAt, letterBias, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { scoreWord } from './scoring';
 import { createRng, pick } from './rng';
 import { tilesForWord } from './solver';
@@ -1353,6 +1353,7 @@ describe('variety wave step 3: evolution (save v7)', () => {
       // Three draws, one per trait, on top of what the win itself spent.
       const picked = reduce(won, { type: 'pickTrait', index: 1 }, flat);
       expect(picked.player.traits).toEqual([won.offer?.[1]]);
+      expect(picked.rejected).toBeNull(); // a stale rejection does not ride into the pick (gate S2)
       expect(picked.phase).toBe('pick');
       expect(picked.offer).toHaveLength(3);
       expect(picked.encounterIndex).toBe(2);
@@ -1406,11 +1407,23 @@ describe('variety wave step 3: evolution (save v7)', () => {
     expect(hit.lastTurn?.mult).toBeCloseTo(1.15, 5);
     expect(preview?.damage).toBe(hit.lastTurn?.damage);
     expect(hit.lastTurn?.damage).toBe(Math.floor(word.damage * 1.15));
-    // Thick Membrane before an item's reduceDamage: the Diatom cell (-2), the trait (-2) and a -3 item stack in that order and clamp at 0.
-    const order = gatherEffects('onDamageTaken', ['thick-skin'], CONTENT, 'defensive', ['thick-membrane']).map((e) => (e.type === 'reduceDamage' ? e.value : -1));
-    expect(order[0]).toBe(2); // the cell first
-    expect(order[1]).toBe(2); // the trait second
-    expect(order.length).toBeGreaterThanOrEqual(3);
+    // Cell, then trait, then item (gate W2): Predator (-1: every hit hurts 1 more), Thick Membrane (2), Thick Skin (4).
+    const order = gatherEffects('onDamageTaken', ['thick-skin'], CONTENT, 'aggro', ['thick-membrane']).map((e) => (e.type === 'reduceDamage' ? e.value : NaN));
+    expect(order).toEqual([-1, 2, 4]);
+    // Wired into the hit (gate W3): a 10 hit with Thick Membrane held costs 8.
+    const membrane: RunState = { ...bare, player: { ...bare.player, hp: 50, traits: ['thick-membrane'] }, encounter: { ...(bare.encounter as Encounter), enemy: { ...(bare.encounter as Encounter).enemy, damage: 10 } } };
+    const struck = reduce(membrane, { type: 'shuffle' }, flat);
+    expect(struck.player.hp).toBe(42);
+    expect(struck.lastTurn?.enemyDamage).toBe(8);
+    // Wired into the encounter end and the draw (gate W4): Chitin Shell shields 10 and Photosynthesis heals 12 on a win;
+    // Rare Taste weights j, q, x and z at 1.5 in the letter bias.
+    const winner: RunState = { ...bare, player: { ...bare.player, hp: 50, traits: ['chitin-shell', 'photosynthesis'] }, encounter: { ...(bare.encounter as Encounter), enemy: { ...(bare.encounter as Encounter).enemy, hp: 1 } } };
+    const won = play(winner, word.word, flat);
+    expect(won.player.shield).toBe(10);
+    expect(won.player.hp).toBe(62);
+    const tasteful: RunState = { ...bare, player: { ...bare.player, traits: ['rare-taste'] } };
+    expect(biasFor(letterBias(tasteful, flat), 'q')).toBeCloseTo(1.5, 5);
+    expect(biasFor(letterBias(bare, flat), 'q')).toBeCloseTo(1, 5);
     // An unknown trait id throws where an unknown item would.
     expect(() => gatherEffects('onWordScored', [], CONTENT, undefined, ['no-such-trait'])).toThrow(/unknown trait/);
     // Regenerative heals 2 at turn start.
