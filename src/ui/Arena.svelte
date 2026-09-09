@@ -93,7 +93,7 @@
           <!-- You evolve per act: one cell, then more body, then limbs; and every organelle you pick is
                grafted onto the body (Dean, 2026-09-08), so the build is visible on the creature. -->
           <div class="body">
-            <img src="{base}sprites/player-{act}.png" alt="You" onerror={fallback} />
+            <img src="{base}sprites/cell-{run.cell}-{act}.png" alt="You" onerror={fallback} />
             {#each run.player.items as id, i (`${id}-${i}`)}
               <span class="graft" class:live={live.includes(i)} style="--slot: {i}"><ItemIcon {id} size={16} /></span>
             {/each}

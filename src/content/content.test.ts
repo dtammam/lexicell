@@ -75,6 +75,10 @@ describe('content bundle', () => {
     }
   });
 
+  it('every cell has a sprite for each act under public/sprites (scripts/sprites.py)', () => {
+    for (const c of CONTENT.cells) for (const act of [1, 2, 3]) expect(existsSync(`public/sprites/cell-${c.id}-${act}.png`), `${c.id} act ${act}`).toBe(true);
+  });
+
   it('the boss has a distinct mechanic', () => {
     expect(CONTENT.bosses[0]?.special?.effects.some((e) => e.type === 'lockTiles')).toBe(true);
     expect(CONTENT.enemies.find((e) => e.id === 'polyp')?.special?.effects.some((e) => e.type === 'venomTiles')).toBe(true);

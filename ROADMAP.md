@@ -34,6 +34,7 @@ cells).
   measurable; the 3000-run tables catch degenerate and never-picked
   items only.
 - **Run history with export**: built (PR #51), reviewer round pending.
+- **Clarity feedback batch**: all seven shipped (PRs #55, #56, #57).
 - **Clarity feedback batch**: six of seven shipped (PRs #55, #56). Left:
   cells more cellular with a sprite per starting cell (the sprite pass,
   in progress).
@@ -408,6 +409,9 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #57 (2026-09-09): the sprite pass. Cellular sprites (membrane,
+  nucleus, organelle dots) and a body per starting cell per act, from
+  scripts/sprites.py; the picker, intro and arena use them.
 - PR #56 (2026-09-09): stats HUD. RunStats gains the worst word; save
   v5 with a v4 migration (v3 saves chain through); a BEST / WORST row in
   the arena and the worst word on the summary. Gate: a migrated save
