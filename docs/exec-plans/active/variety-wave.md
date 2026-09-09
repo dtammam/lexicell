@@ -91,7 +91,8 @@ daily flag.
 ## Progress
 
 - Step 1 (PR #61): built. Curve G; mediocre 22.6%, greedy 68.4%, solver
-  87.8%, criteria pass. The enrage clock was not in the plan: the sim
+  87.8%, criteria pass. Cells retuned to the new roster (Diatom, Spore,
+  Mycelium); all five within ten points of Amoeba, greedy max 82.0%. The enrage clock was not in the plan: the sim
   found a stalemate and it is the honest fix.
 
 ## Acceptance per step

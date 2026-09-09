@@ -115,8 +115,67 @@ Tardigrade King 6 to 5.
   PASS  no run hit a grid with zero valid words
 ```
 
-Per-cell tables follow in the same PR once their runs finish. Gate:
-adversarial round on the engine (below, once it reports).
+The other cells on the new roster, first measured with the cell numbers
+shipped in PR #53: Predator 24.8%, Diatom 38.2%, Spore 20.4% with greedy
+at 86.6%, Mycelium 36.6%; Diatom and Mycelium sat outside the ten-point
+band around Amoeba's 22.6% and Spore's greedy rate was near the cap.
+Retuned: Diatom 115 HP and 2 less per hit (was 120 and 3), Spore +50% on
+6+ letters (was +60%), Mycelium 85 HP and -20% damage (was 90 and -15%).
+Shipped per-cell tables:
+
+`npx tsx scripts/sim.ts --cell aggro`, Predator:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    70.6% |           9 |       18.2 |        91 |        9 |    85 |    85 |    83 |    77 |    77 |    76 |    69 |    64 |    64 |
+| mediocre |  500 |    24.8% |           7 |       27.8 |       248 |        0 |    86 |    79 |    66 |    46 |    45 |    47 |    49 |    52 |    55 |
+|   solver |  500 |    89.8% |           9 |       13.7 |        18 |        7 |    85 |    85 |    85 |    84 |    84 |    84 |    81 |    79 |    76 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell defensive`, Diatom:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    70.8% |           9 |       24.4 |       233 |       24 |   115 |   115 |   113 |   106 |   106 |   105 |    94 |    87 |    84 |
+| mediocre |  500 |    31.2% |           8 |       41.9 |       454 |        1 |   116 |   113 |   102 |    78 |    75 |    72 |    63 |    65 |    66 |
+|   solver |  500 |    91.0% |           9 |       17.6 |        99 |       14 |   115 |   115 |   115 |   112 |   112 |   112 |   107 |   104 |   100 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell gambler`, Spore:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    82.0% |           9 |       16.7 |        78 |        3 |    90 |    90 |    89 |    85 |    86 |    85 |    80 |    76 |    74 |
+| mediocre |  500 |    20.2% |           6 |       31.2 |       266 |        1 |    91 |    84 |    71 |    49 |    48 |    50 |    51 |    54 |    57 |
+|   solver |  500 |    98.0% |           9 |       12.5 |         7 |        1 |    90 |    90 |    91 |    90 |    91 |    91 |    89 |    88 |    87 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    62.0% |           9 |       22.1 |       176 |       23 |    86 |    85 |    83 |    76 |    76 |    74 |    67 |    64 |    64 |
+| mediocre |  500 |    32.0% |           8 |       34.7 |       368 |        2 |    87 |    83 |    73 |    55 |    56 |    57 |    59 |    60 |    62 |
+|   solver |  500 |    83.0% |           9 |       16.8 |        81 |       14 |    86 |    86 |    85 |    82 |    83 |    82 |    78 |    75 |    74 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+Gate: adversarial round on the engine (below, once it reports).
 
 ### Starting cells (PR #53, 2026-09-08)
 
