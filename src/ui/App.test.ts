@@ -168,7 +168,7 @@ describe('App', () => {
     if (queryByText('Choose an item')) {
       expect(document.querySelectorAll('button.offer').length).toBeGreaterThan(0);
     } else {
-      expect(getByText(new RegExp(`^${word.toUpperCase()} hit for \\d+$`))).toBeTruthy();
+      expect(getByText(new RegExp(`^${word.toUpperCase()} \\d+$`))).toBeTruthy();
       expect(document.querySelector('.bar.enemy .fill')?.getAttribute('style')).not.toBe(before);
       expect(getByText('Turn 2')).toBeTruthy();
     }
@@ -238,7 +238,7 @@ describe('App', () => {
     expect(getButton(`Attack for ${expected}`)).toBeTruthy();
     await click(getButton(`Attack for ${expected}`));
     if (queryByText('Choose an item')) return;
-    expect(getByText(new RegExp(`^${word.toUpperCase()} hit for ${expected}$`))).toBeTruthy();
+    expect(getByText(new RegExp(`^${word.toUpperCase()} ${expected}$`))).toBeTruthy();
   });
 
   it('after a word, the best word that was on that grid AND is now gone is revealed, or the play is praised as the best', async () => {
@@ -255,9 +255,9 @@ describe('App', () => {
     const el = document.querySelector('.missed');
     if (best.word !== '') expect(stillHere.has(best.word)).toBe(false);
     if (best.damage > played && best.word !== word) {
-      expect(el?.textContent).toBe(`Best there: ${best.word.toUpperCase()} for ${best.damage}`);
+      expect(el?.textContent).toBe(`Best: ${best.word.toUpperCase()} ${best.damage}`);
     } else {
-      expect(el?.textContent).toBe('Best word on that grid.');
+      expect(el?.textContent).toBe('Best word there.');
     }
     // A later tap must not change the reveal: it belongs to the turn, not to the current selection.
     await click(tiles()[0] ?? null);
@@ -311,7 +311,7 @@ describe('App', () => {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { player: { items: string[] } };
     expect(saved.player.items).toEqual(['spores']);
     expect(getByText('Turn start: 6 damage')).toBeTruthy();
-    expect(queryByText(/hit for/)).toBeNull();
+    expect(queryByText(/^[A-Z]{3,} \d+$/)).toBeNull(); // no word was scored
   });
 
   it('a save that passes the shape check but breaks a screen is dropped and a new run starts', async () => {
@@ -608,7 +608,7 @@ describe('App', () => {
     const word = await attackOnce('short');
     if (queryByText('Choose an item')) return;
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
-    const row = document.querySelector('.row.stats')?.textContent ?? '';
+    const row = Array.from(document.querySelectorAll('.row.stats')).map((r) => r.textContent?.replace(/\s+/g, ' ').trim()).join(' ');
     expect(row).toContain(`BEST ${word.toUpperCase()} ${saved.stats.bestWordDamage}`);
     expect(row).toContain(`WORST ${word.toUpperCase()} ${saved.stats.worstWordDamage}`);
     // A save from before the stat: best known, worst not yet.
@@ -617,7 +617,7 @@ describe('App', () => {
     render(App);
     await click(await findByText('Continue', 15000));
     await findByText('Enc 1/9');
-    expect(document.querySelector('.row.stats .worst')?.textContent).toBe('WORST -');
+    expect(Array.from(document.querySelectorAll('.row.stats .worst')).map((e) => e.textContent).join(' ')).toBe('WORST -');
   }, 30000);
 
   it('a finished run does not offer Continue on the title', async () => {

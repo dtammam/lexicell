@@ -84,10 +84,15 @@
     </div>
     <!-- Stats HUD (tester, 2026-09-08): the run's best and worst word so far. -->
     {#if run.stats.bestWord || run.stats.worstWord}
+      <!-- One stat per row: "BEST SLOTTED 25 WORST SLOTTED 25" overflowed a 390px phone (Dean's screenshot, 2026-09-09). -->
       <div class="row stats">
-        <span class="best">BEST {run.stats.bestWord ? `${run.stats.bestWord.toUpperCase()} ${run.stats.bestWordDamage}` : '-'}</span>
+        <span class="best">BEST</span>
+        <span class="best">{run.stats.bestWord ? `${run.stats.bestWord.toUpperCase()} ${run.stats.bestWordDamage}` : '-'}</span>
+      </div>
+      <div class="row stats">
+        <span class="worst">WORST</span>
         <!-- A save migrated from before this stat has no worst word until the next one is played. -->
-        <span class="worst">WORST {run.stats.worstWord ? `${run.stats.worstWord.toUpperCase()} ${run.stats.worstWordDamage}` : '-'}</span>
+        <span class="worst">{run.stats.worstWord ? `${run.stats.worstWord.toUpperCase()} ${run.stats.worstWordDamage}` : '-'}</span>
       </div>
     {/if}
     <div class="stage">
@@ -306,7 +311,7 @@
     display: flex;
     justify-content: space-around;
     align-items: flex-end;
-    min-height: 68px;
+    min-height: 52px;
   }
   .fighter {
     position: relative;
@@ -447,6 +452,11 @@
   }
   .row.stats {
     margin-top: -2px;
+  }
+  .row.stats span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .row.stats .best {
     color: var(--score);
