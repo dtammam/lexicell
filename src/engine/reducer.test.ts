@@ -1152,6 +1152,36 @@ describe('stats HUD: the worst word (save v5)', () => {
       expect(s.stats.bestWord).toBe(before.bestWord);
     }
   });
+
+  it('a tie keeps the first word, and a zero-damage word counts for neither best nor worst (gate W3, S4)', () => {
+    let s = newRun(0, ctx);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, hp: 100000, maxHp: 100000, damage: 0 } } };
+    const cands = candidateWords(s, ctx);
+    const first = cands[0];
+    if (!first) throw new Error('no word');
+    s = play(s, first.word, ctx);
+    const tie = candidateWords(s, ctx).find((c) => c.damage === first.damage && c.word !== first.word);
+    if (tie) {
+      s = play(s, tie.word, ctx);
+      expect(s.stats.worstWord).toBe(first.word);
+    }
+    // Zero damage: a multiplier stack at exactly 0 (Spore's 3-letter half, Paralytic -0.3, Wellspring -0.2).
+    const zero = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    let z = newRun(0, zero, 'gambler');
+    if (z.phase !== 'fight') throw new Error('fight');
+    const zenc = z.encounter as Encounter;
+    z = { ...z, player: { ...z.player, items: ['paralytic', 'wellspring'] }, encounter: { ...zenc, enemy: { ...zenc.enemy, hp: 100000, maxHp: 100000, damage: 0 } } };
+    const three = candidateWords(z, zero).find((c) => c.word.length === 3);
+    if (!three) return;
+    expect(three.damage).toBe(0);
+    z = play(z, three.word, zero);
+    expect(z.lastTurn?.damage).toBe(0);
+    expect(z.stats.bestWord).toBe('');
+    expect(z.stats.worstWord).toBe('');
+    expect(z.stats.turns).toBe(1);
+  });
 });
 
 describe('starting cells (save v4)', () => {

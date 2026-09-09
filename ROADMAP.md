@@ -410,8 +410,13 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 - PR #56 (2026-09-09): stats HUD. RunStats gains the worst word; save
   v5 with a v4 migration (v3 saves chain through); a BEST / WORST row in
-  the arena and the worst word on the summary. Adversarial round on the
-  stat and the migration.
+  the arena and the worst word on the summary. Gate: a migrated save
+  showed an empty WORST 0 until the next word (now a dash); ties keep the
+  first word and zero-damage words count for neither stat, both bound;
+  persist now type-checks the stats the screens render. Disclosed: a
+  migrated run's worst word covers only words played after the update;
+  history entries and the CSV carry the best word only (adding the worst
+  is a HISTORY_VERSION decision, not taken).
 - PR #55 (2026-09-08): clarity. Enemy intent line, names once on the
   bars, a veil over the backdrop, the report steps in per turn, grafts
   glow when they fire for the selected word; prose face to DotGothic16

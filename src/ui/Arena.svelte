@@ -80,10 +80,11 @@
       <span>Turn {enc.turn}</span>
     </div>
     <!-- Stats HUD (tester, 2026-09-08): the run's best and worst word so far. -->
-    {#if run.stats.bestWord}
+    {#if run.stats.bestWord || run.stats.worstWord}
       <div class="row stats">
-        <span class="best">BEST {run.stats.bestWord.toUpperCase()} {run.stats.bestWordDamage}</span>
-        <span class="worst">WORST {run.stats.worstWord.toUpperCase()} {run.stats.worstWordDamage}</span>
+        <span class="best">BEST {run.stats.bestWord ? `${run.stats.bestWord.toUpperCase()} ${run.stats.bestWordDamage}` : '-'}</span>
+        <!-- A save migrated from before this stat has no worst word until the next one is played. -->
+        <span class="worst">WORST {run.stats.worstWord ? `${run.stats.worstWord.toUpperCase()} ${run.stats.worstWordDamage}` : '-'}</span>
       </div>
     {/if}
     <div class="stage">

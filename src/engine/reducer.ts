@@ -498,9 +498,11 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
       damageDealt: state.stats.damageDealt + (enc.enemy.hp - enemyHp),
       bestWord: score.damage > state.stats.bestWordDamage ? word : state.stats.bestWord,
       bestWordDamage: Math.max(score.damage, state.stats.bestWordDamage),
-      // The worst word is the lowest-damage word played; the first word sets it (stats HUD, 2026-09-09).
-      worstWord: state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage ? word : state.stats.worstWord,
-      worstWordDamage: state.stats.worstWord === '' ? score.damage : Math.min(score.damage, state.stats.worstWordDamage),
+      // The worst word is the lowest-damage word played that did any damage; the first sets it, a
+      // weaker one replaces it, a tie keeps the first. Zero-damage words (a multiplier stack at 0)
+      // count for neither best nor worst, so the two stats agree on what a word is (stats HUD, 2026-09-09).
+      worstWord: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? word : state.stats.worstWord,
+      worstWordDamage: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? score.damage : state.stats.worstWordDamage,
     },
   };
   const extras = applyEffects(s, effects, ctx, enc.enemy.hp - enemyHp);

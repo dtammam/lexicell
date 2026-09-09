@@ -91,7 +91,11 @@ function looksLikeRunState(value: unknown): value is RunState {
     (v.lastTurn === null || isRecord(v.lastTurn)) &&
     (v.rejected === null || typeof v.rejected === 'string') &&
     isNum(v.pendingPicks) &&
-    isRecord(v.stats)
+    isRecord(v.stats) &&
+    typeof v.stats.bestWord === 'string' &&
+    isNum(v.stats.bestWordDamage) &&
+    typeof v.stats.worstWord === 'string' &&
+    isNum(v.stats.worstWordDamage)
   );
 }
 

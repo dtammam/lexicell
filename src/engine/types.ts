@@ -167,7 +167,7 @@ export interface RunStats {
   readonly damageTaken: number;
   readonly bestWord: string;
   readonly bestWordDamage: number;
-  /** The weakest word played this run (lowest damage; ties keep the first). Empty until a word is played. v5. */
+  /** The weakest damaging word played this run (lowest damage above 0; ties keep the first). Empty until one is played. v5. */
   readonly worstWord: string;
   readonly worstWordDamage: number;
   /** Player HP at the start of each encounter reached, index = encounterIndex. */

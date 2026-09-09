@@ -602,6 +602,24 @@ describe('App', () => {
     expect(await findByText('Next: is stunned: no attack')).toBeTruthy();
   }, 30000);
 
+  it('the stats row shows the best and worst word after a word, and a migrated save shows a dash for the worst (gate S5, W2)', async () => {
+    await startRun();
+    expect(document.querySelector('.row.stats')).toBeNull();
+    const word = await attackOnce('short');
+    if (queryByText('Choose an item')) return;
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const row = document.querySelector('.row.stats')?.textContent ?? '';
+    expect(row).toContain(`BEST ${word.toUpperCase()} ${saved.stats.bestWordDamage}`);
+    expect(row).toContain(`WORST ${word.toUpperCase()} ${saved.stats.worstWordDamage}`);
+    // A save from before the stat: best known, worst not yet.
+    cleanup();
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...saved, stats: { ...saved.stats, worstWord: '', worstWordDamage: 0 } }));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await findByText('Encounter 1 / 9');
+    expect(document.querySelector('.row.stats .worst')?.textContent).toBe('WORST -');
+  }, 30000);
+
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
     for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {
