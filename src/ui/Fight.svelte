@@ -177,7 +177,7 @@
 {#if enc}
   <section class="fight">
     <div class="side">
-    <Arena {run} />
+    <Arena {run} {ctx} {word} />
 
     <div class="report">
       {#key run.stats.turns}
@@ -279,9 +279,11 @@
   .board {
     display: contents;
   }
+  /* The report steps in with each turn (tester: unclear when a turn had ended). */
   .report {
     flex: none;
     min-height: 1.3rem;
+    animation: turn-in var(--dur-settle) var(--ease-step) both;
     display: flex;
     flex-wrap: wrap;
     gap: var(--s2) var(--s3);
@@ -601,6 +603,16 @@
   .shuffle.armed {
     background: var(--harm);
     color: var(--ground);
+  }
+  @keyframes turn-in {
+    from {
+      opacity: 0;
+      transform: translateX(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
   @keyframes pop {
     from {
