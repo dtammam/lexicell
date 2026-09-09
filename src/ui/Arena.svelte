@@ -319,6 +319,8 @@
   }
   .row,
   .bar-label {
+    /* A long name (Diatom Swarm) ran into its HP figure on the 390px render (step 4). */
+    gap: var(--s2);
     display: flex;
     justify-content: space-between;
     white-space: nowrap;

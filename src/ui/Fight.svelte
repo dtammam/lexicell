@@ -1,6 +1,6 @@
 <script lang="ts">
   import { candidateWords, type Candidate } from '../engine/candidates';
-  import { selectedWord, type Action, type EngineContext } from '../engine/reducer';
+  import { scoreSelection, selectedWord, type Action, type EngineContext } from '../engine/reducer';
   import { LETTER_VALUE } from '../engine/scoring';
   import type { RunState } from '../engine/types';
   import Arena from './Arena.svelte';
@@ -33,18 +33,6 @@
   const valid = $derived(word.length >= 3 && isWord(word));
   const canAttack = $derived(word.length >= 3);
 
-  // Every word on this grid with its damage under the current items, from the engine's own
-  // scorer, so the preview matches what Attack will do. Memoised on the grid: a tap changes
-  // the selection, not the grid, and solving ~1000 words per tap would be wasteful.
-  // Keyed on traits too (gate S3, PR #64): a trait that changed mid-fight would otherwise show a stale preview.
-  let candCache: { grid: readonly unknown[] | null; hp: number; items: number; traits: number; list: Candidate[] } = { grid: null, hp: 0, items: 0, traits: 0, list: [] };
-  const candidates = $derived.by(() => {
-    const grid = enc?.grid ?? null;
-    if (candCache.grid === grid && candCache.hp === run.player.hp && candCache.items === run.player.items.length && candCache.traits === run.player.traits.length) return candCache.list;
-    const list = grid ? candidateWords(run, ctx) : [];
-    candCache = { grid, hp: run.player.hp, items: run.player.items.length, traits: run.player.traits.length, list };
-    return list;
-  });
   /**
    * The word you missed (Dean, 2026-09-08): after a word is played, the best word that was on
    * that grid. Captured once per turn from `prev`, the state before the action, at the moment
@@ -74,7 +62,8 @@
   const wasBest = $derived(missed !== null && run.lastTurn !== null && run.lastTurn.word !== '' && !beatable);
 
   /** Damage the selected word would deal, shown before Attack (Dean, 2026-09-08: make me want to hunt). */
-  const preview = $derived(valid ? (candidates.find((c) => c.word === word)?.damage ?? null) : null);
+  // The exact hit for this selection (step 4: gold rides on the tiles chosen, not on the word), from the engine's own path.
+  const preview = $derived(valid ? scoreSelection(run, ctx) : null);
 
   // Shuffle costs the turn (Dean, 2026-09-08). The first tap arms it, the second fires;
   // the arm drops on any other action so a stray tap never spends a turn.
@@ -200,6 +189,8 @@
           {#if run.lastTurn.venom > 0}<span class="taken">venom bit for {run.lastTurn.venom}</span>{/if}
           {#if run.lastTurn.healed > 0}<span class="healed">healed {run.lastTurn.healed}</span>{/if}
           {#if run.lastTurn.redrawn.length > 0}<span class="note">{run.lastTurn.redrawn.length} tiles redrawn</span>{/if}
+          {#if run.lastTurn.gold > 0}<span class="hit">gold +{run.lastTurn.gold}</span>{/if}
+          {#if run.lastTurn.crumbled > 0}<span class="note">{run.lastTurn.crumbled} {run.lastTurn.crumbled === 1 ? 'tile' : 'tiles'} crumbled</span>{/if}
         {:else}
           <span class="note">Spell a word of 3+ letters</span>
           {#if run.encounterIndex === 0 && enc.turn <= 2}<span class="note">Tiles need not touch. Yellow: vowel. Pink edge: rare. More under Menu, How to play.</span>{/if}
@@ -243,12 +234,14 @@
           data-tier={tier(tile.letter)}
           class:locked={tile.lockedTurns > 0}
           class:venomous={tile.venom > 0}
+          class:gold={tile.gold > 0}
+          class:cracked={tile.cracked > 0}
           class:shiver={shivers(i)}
           disabled={tile.lockedTurns > 0}
           onclick={() => { dispatch({ type: 'toggleTile', index: i }); }}
         >
           <span class="letter">{tile.letter.toUpperCase()}</span>
-          {#if tile.lockedTurns > 0}<span class="value">{`\u{1F512}${tile.lockedTurns}`}</span>{:else if tile.venom > 0}<span class="value venom">{`\u2623${tile.venom}`}</span>{/if}
+          {#if tile.lockedTurns > 0}<span class="value">{`\u{1F512}${tile.lockedTurns}`}</span>{:else if tile.venom > 0}<span class="value venom">{`\u2623${tile.venom}`}</span>{:else if tile.gold > 0}<span class="value gold">{`+${tile.gold}`}</span>{:else if tile.cracked > 0}<span class="value crack">{`\u23F3${tile.cracked}`}</span>{/if}
           {#if order > 0}<span class="order">{order}</span>{/if}
         </button>
       {/each}
@@ -608,6 +601,19 @@
   .tile.venomous {
     border-color: var(--venom);
     box-shadow: 0 0 8px rgba(125, 255, 90, 0.5), var(--shadow-tile);
+  }
+  .tile.gold {
+    border-color: var(--score);
+    box-shadow: 0 0 6px var(--score), var(--shadow);
+  }
+  .tile.gold .value.gold {
+    color: var(--score);
+  }
+  .tile.cracked {
+    border-style: dashed;
+  }
+  .tile.cracked .value.crack {
+    color: var(--muted);
   }
   .tile .value.venom {
     color: var(--venom);

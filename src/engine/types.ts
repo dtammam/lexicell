@@ -12,6 +12,10 @@ export interface Tile {
   readonly lockedTurns: number;
   /** Venom: bites the player for this much at the start of every turn and then grows by one. 0 = clean. Cured by playing the tile, a shuffle, a scramble, or a redraw (redrawTiles). */
   readonly venom: number;
+  /** Gold (variety wave step 4): adds this much damage when the tile is played, after the multiplier and before armour. 0 = plain. Gone with the tile. */
+  readonly gold: number;
+  /** Cracked (variety wave step 4): turns left before the tile crumbles and is refilled. 0 = sound. Still playable while it lasts; a shuffle or scramble replaces it. */
+  readonly cracked: number;
 }
 
 export const GRID_SIZE = 16;
@@ -240,6 +244,10 @@ export interface TurnReport {
   readonly shielded: number;
   /** Tile indices redrawn in place mid-turn (redrawTiles), not settled. */
   readonly redrawn: readonly number[];
+  /** Gold the played tiles added to the hit (variety wave step 4). */
+  readonly gold: number;
+  /** Cracked tiles that crumbled at the end of this turn and were refilled. */
+  readonly crumbled: number;
 }
 
 export interface RunStats {
@@ -256,7 +264,7 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 7;
+  readonly v: 8;
   readonly rng: Rng;
   /** The starting cell's id (content.cells). v4; v3 saves load as 'balanced'. */
   readonly cell: string;

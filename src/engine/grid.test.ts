@@ -33,8 +33,8 @@ describe('enforceVowelFloor', () => {
     const locked = grid.map((t, i) => (i < 2 ? { ...t, lockedTurns: 2 } : t));
     const [out] = enforceVowelFloor(createRng(3), locked);
     expect(out.filter((t) => isVowel(t.letter)).length).toBe(VOWEL_FLOOR);
-    expect(out[0]).toEqual({ letter: 'b', lockedTurns: 2, venom: 0 });
-    expect(out[1]).toEqual({ letter: 'c', lockedTurns: 2, venom: 0 });
+    expect(out[0]).toEqual({ letter: 'b', lockedTurns: 2, venom: 0, gold: 0, cracked: 0 });
+    expect(out[1]).toEqual({ letter: 'c', lockedTurns: 2, venom: 0, gold: 0, cracked: 0 });
   });
 
   it('leaves a grid that already meets the floor unchanged', () => {
@@ -81,7 +81,7 @@ describe('playable + isDead', () => {
 });
 
 describe('settle (gravity)', () => {
-  const t = (letter: string, lockedTurns = 0) => ({ letter, lockedTurns, venom: 0 });
+  const t = (letter: string, lockedTurns = 0) => ({ letter, lockedTurns, venom: 0, gold: 0, cracked: 0 });
   // Rows top to bottom; index = row * 4 + col.
   const grid = [
     t('a'), t('b'), t('c'), t('d'),

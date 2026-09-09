@@ -200,6 +200,6 @@ describe('effects wave: new conditions and perUnit', () => {
       { type: 'perUnit', unit: 'item', then: [] },
     ];
     for (const e of wave) expect(EFFECT_ORDER, e.type).toContain(e.type);
-    expect(EFFECT_ORDER).toHaveLength(21);
+    expect(EFFECT_ORDER).toHaveLength(23);
   });
 });

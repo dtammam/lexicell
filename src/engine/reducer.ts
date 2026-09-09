@@ -5,7 +5,8 @@
  *
  * Turn order, fixed:
  *   player submits word
- *     -> scoring; armour halves it (floored) when the word is shorter than the enemy's armour
+ *     -> scoring, plus the gold on the tiles played (step 4); armour halves it (floored) when the
+ *        word is shorter than the enemy's armour
  *     -> onWordScored effects (heal/damage extras; lifesteal reads what landed)
  *     -> enemy takes damage; if dead: onEncounterEnd, then pick or win
  *   enemy turn
@@ -15,7 +16,8 @@
  *        absorbs, then hp
  *     -> special on its cadence (bosses)
  *     -> if player dead: lose
- *   refill used tiles (onTileDraw vowelWeight / letterWeight), settle columns (gravity), tick locks, dead-grid scramble
+ *   refill used tiles (onTileDraw vowelWeight / letterWeight), settle columns (gravity), tick locks,
+ *   tick cracks (a tile at 1 crumbles: refilled and settled), dead-grid scramble
  *   next turn: onTurnStart effects; if enemy dead: same as above
  *     -> enemy traits tick from turn 2: regen heals it (never above max), hunger and the enrage
  *        clock grow its damage. Regen goes before poison, so a regenerating enemy can out-heal
@@ -74,12 +76,12 @@ export type Action =
   | { readonly type: 'pickTrait'; readonly index: number };
 
 /**
- * 7 since evolution (player.traits; variety wave step 3); a v6 save is MIGRATED by persist.ts with
- * no traits. 6 was encounter types (kinds, event; v5 migrates with empty kinds), 5 the stats HUD
- * (worstWord), 4 starting cells, 3 the effects wave (v2 dropped), 2 the tuning wave (v1 dropped);
- * v3 to v6 all migrate forward.
+ * 8 since grid rules (Tile.gold, Tile.cracked; variety wave step 4); a v7 save is MIGRATED by
+ * persist.ts with plain tiles. 7 was evolution (player.traits), 6 encounter types (kinds, event),
+ * 5 the stats HUD (worstWord), 4 starting cells, 3 the effects wave (v2 dropped), 2 the tuning
+ * wave (v1 dropped); v3 to v7 all migrate forward.
  */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 /** The cell a run gets when none is named: the game as it was before cells. */
 export const DEFAULT_CELL_ID = 'balanced';
 export const OFFER_SIZE = 3;
@@ -100,6 +102,8 @@ const EMPTY_REPORT: TurnReport = {
   stunned: false,
   shielded: 0,
   redrawn: [],
+  gold: 0,
+  crumbled: 0,
 };
 
 // ---------- entry points ----------
@@ -110,7 +114,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
   const maxHp = cell.maxHp;
   const [kinds, rng] = placeKinds(createRng(seed), ctx.content);
   const state: RunState = {
-    v: 7,
+    v: 8,
     cell: cell.id,
     kinds,
     rng,
@@ -354,6 +358,38 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
           [k, rng] = nextInt(rng, candidates.length);
           const idx = candidates[k] as number;
           grid[idx] = { ...(grid[idx] as Tile), venom: e.value };
+          candidates = candidates.filter((c) => c !== idx);
+        }
+        s = { ...s, rng, encounter: { ...s.encounter, grid } };
+        break;
+      }
+      case 'goldTiles': {
+        if (!s.encounter) break;
+        const grid = s.encounter.grid.slice();
+        let rng = s.rng;
+        const played = new Set(s.encounter.selection);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).gold === 0);
+        for (let n = 0; n < e.count && candidates.length > 0; n++) {
+          let k: number;
+          [k, rng] = nextInt(rng, candidates.length);
+          const idx = candidates[k] as number;
+          grid[idx] = { ...(grid[idx] as Tile), gold: e.value };
+          candidates = candidates.filter((c) => c !== idx);
+        }
+        s = { ...s, rng, encounter: { ...s.encounter, grid } };
+        break;
+      }
+      case 'crackTiles': {
+        if (!s.encounter) break;
+        const grid = s.encounter.grid.slice();
+        let rng = s.rng;
+        const played = new Set(s.encounter.selection);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).cracked === 0);
+        for (let n = 0; n < e.count && candidates.length > 0; n++) {
+          let k: number;
+          [k, rng] = nextInt(rng, candidates.length);
+          const idx = candidates[k] as number;
+          grid[idx] = { ...(grid[idx] as Tile), cracked: Math.max(1, e.turns) };
           candidates = candidates.filter((c) => c !== idx);
         }
         s = { ...s, rng, encounter: { ...s.encounter, grid } };
@@ -683,13 +719,14 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   const word = selectedWord(state);
   if (!ctx.dictionary.has(word)) return reject(state, word.length < 3 ? 'too short' : 'not a word');
 
-  // Player attack.
+  // Player attack: the word's score, plus the gold on the tiles played (step 4), then armour.
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell, state.player.traits);
   const score = scoreWord(word, effects, ctx.content.tuning);
+  const gold = selectionGold(enc);
   // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. The preview
-  // (candidates.ts) applies the same rule, so the number it shows is the number that lands; the
-  // best/worst word stats record the word's own score, as they did with overkill before armour.
-  const landed = armourHit(word, score.damage, enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0);
+  // (candidates.ts, scoreSelection) applies the same rules, so the number it shows is the number
+  // that lands; the best/worst word stats record the word's own score, as they did with overkill.
+  const landed = armourHit(word, score.damage + gold, enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0);
   const enemyHp = Math.max(0, enc.enemy.hp - landed);
   let s: RunState = {
     ...state,
@@ -713,6 +750,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   const report: TurnReport = {
     ...EMPTY_REPORT,
     word,
+    gold,
     base: score.base,
     mult: score.mult,
     damage: enc.enemy.hp - enemyHp + extras.enemyDamage,
@@ -738,6 +776,26 @@ export function enemyDefOf(ctx: EngineContext, id: string): EnemyDef {
 /** What a word's score does to an armoured enemy: half, floored, when the word is shorter than the armour. */
 export function armourHit(word: string, damage: number, armour: number): number {
   return word.length < armour ? Math.floor(damage / 2) : damage;
+}
+
+/** The gold on the selected tiles (step 4): added to the hit after the multiplier, before armour. */
+export function selectionGold(enc: Encounter): number {
+  return enc.selection.reduce((sum, i) => sum + (enc.grid[i]?.gold ?? 0), 0);
+}
+
+/**
+ * The exact hit the current selection would land, or null when it is not a word: the same
+ * scoring, gold and armour path submitWord takes, for the word line and the Attack button
+ * (the number shown is the number that lands).
+ */
+export function scoreSelection(state: RunState, ctx: EngineContext): number | null {
+  const enc = state.encounter;
+  if (!enc) return null;
+  const word = selectedWord(state);
+  if (!ctx.dictionary.has(word)) return null;
+  const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell, state.player.traits);
+  const score = scoreWord(word, effects, ctx.content.tuning);
+  return armourHit(word, score.damage + selectionGold(enc), enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0);
 }
 
 /** The hit range an enemy rolls in: [round(d*(1-v)), round(d*(1+v))], inclusive. Shared with the intent line. */
@@ -812,8 +870,14 @@ function endTurn(state: RunState, ctx: EngineContext, report: TurnReport, used: 
   const [refilled, rng] = used.length > 0 ? refill(s.rng, enc3.grid, used, letterBias(s, ctx)) : [enc3.grid, s.rng];
   // Gravity: survivors rise, fresh tiles land at the bottom of their column.
   const settled = used.length > 0 ? settle(refilled, used) : refilled;
-  const grid = settled.map((t) => (t.lockedTurns > 0 ? { ...t, lockedTurns: t.lockedTurns - 1 } : t));
-  s = { ...s, rng, encounter: { ...enc3, grid, selection: [], turn: enc3.turn + 1 } };
+  const ticked = settled.map((t) => (t.lockedTurns > 0 ? { ...t, lockedTurns: t.lockedTurns - 1 } : t));
+  // Cracked tiles (step 4): the count ticks; a tile that reaches zero crumbles, is refilled and settles like a played one.
+  const crumbling = ticked.map((t, i) => (t.cracked === 1 ? i : -1)).filter((i) => i >= 0);
+  const aged = ticked.map((t) => (t.cracked > 1 ? { ...t, cracked: t.cracked - 1 } : t));
+  const [regrown, rng2] = crumbling.length > 0 ? refill(rng, aged, crumbling, letterBias(s, ctx)) : [aged, rng];
+  const grid = crumbling.length > 0 ? settle(regrown, crumbling) : regrown;
+  report = { ...report, crumbled: crumbling.length };
+  s = { ...s, rng: rng2, encounter: { ...enc3, grid, selection: [], turn: enc3.turn + 1 } };
   if (isDead(grid, ctx.solver)) {
     s = scramble(s, ctx);
     // freshGrid replaced every tile, locks included; tell the UI so it animates the whole grid.

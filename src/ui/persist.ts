@@ -73,6 +73,7 @@ function looksLikeRunState(value: unknown): value is RunState {
       isNum(v.encounter.enemy.stunned) &&
       Array.isArray(v.encounter.grid) &&
       v.encounter.grid.length === 16 &&
+      v.encounter.grid.every((t) => isRecord(t) && isNum(t.gold) && isNum(t.cracked) && isNum(t.lockedTurns) && isNum(t.venom)) &&
       Array.isArray(v.encounter.selection));
   return (
     isNum(v.v) &&
@@ -137,7 +138,7 @@ export function dropUnknownIds(value: unknown): unknown {
 /**
  * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
  * the empty worst-word stats (stats HUD), v5 gains empty kinds and no event (encounter types), v6
- * gains no traits (evolution). Anything else passes through and meets the shape check.
+ * gains no traits (evolution), v7 gains plain gold and cracked marks on every tile (grid rules). Anything else passes through and meets the shape check.
  */
 export function migrate(value: unknown): unknown {
   let v: unknown = value;
@@ -149,6 +150,12 @@ export function migrate(value: unknown): unknown {
   if (isRecord(v) && v.v === 5 && !('kinds' in v)) v = { ...v, v: 6, kinds: [], event: null };
   // v6 -> v7 (evolution): no traits picked yet.
   if (isRecord(v) && v.v === 6 && isRecord(v.player) && !('traits' in v.player)) v = { ...v, v: 7, player: { ...v.player, traits: [] } };
+  // v7 -> v8 (grid rules): every tile gains gold 0 and cracked 0; a save between fights has no grid to touch.
+  if (isRecord(v) && v.v === 7) {
+    const enc = v.encounter;
+    const grid = isRecord(enc) && Array.isArray(enc.grid) ? enc.grid.map((t: unknown) => (isRecord(t) ? { gold: 0, cracked: 0, ...t } : t)) : null;
+    v = { ...v, v: 8, encounter: isRecord(enc) && grid ? { ...enc, grid } : enc };
+  }
   return v;
 }
 

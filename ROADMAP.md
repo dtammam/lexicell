@@ -80,6 +80,104 @@ persist refuses every other version (tracker #3 closed).
 
 ## Shipped
 
+### Variety wave, step 4: gold and cracked tiles (PR #65, 2026-09-09)
+
+Dean's answer 5: gold tiles and cracked tiles now, a dead letter later.
+Two marks on `Tile` (save v8; a v7 save migrates with plain tiles):
+`gold` adds that much damage when the tile is played, after the word's
+multiplier and before the enemy's armour, and leaves with the tile;
+`cracked` counts turns until the tile crumbles, at which point it is
+refilled and settles like a played one (the report says how many
+crumbled). Two verbs in the vocabulary: `goldTiles` (count, value) and
+`crackTiles` (count, turns), both drawing playable, unselected, unmarked
+tiles one draw each. Content: the Midas Membrane trait gilds one tile
+at every turn start (+5); the Diatom Swarm cracks two tiles every third
+turn for three (the end of that turn already ticks once, as a lock is
+ticked, so the player sees 2, then 1, then the crumble). A shuffle or a
+scramble replaces cracked tiles with sound ones. Candidates (the bots
+and the missed-word line) count the best gold a word's letters can
+carry and `candidateIndices` spends those tiles first, so the mapped
+hit equals the candidate; the word line and the Attack button read
+`scoreSelection`, the exact hit for the tiles actually chosen. Tiles
+show a gold edge with `+5` or a dashed edge with the hourglass count;
+the How to play legend names both. Disclosed: on a small grid (a 390px
+phone) the badge is hidden as the lock and venom badges are, so the
+gold edge and the dashed edge carry the signal and the crack's count
+shows only on wider screens. Also fixed here: a long enemy name ran
+into its HP figure on the bar label.
+
+Balance, no retune: the crack special costs the strong bots a point or
+two and the casual bot one; all criteria pass on Amoeba and every cell
+sits inside ten points of it (Spore's mediocre rate stays under the
+band by design, as in step 3).
+
+`npx tsx scripts/sim.ts`, shipped:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    66.8% |           9 |       17.3 |       159 |       23 |   100 |   100 |    96 |    89 |    88 |    86 |    75 |    73 |    73 |
+| mediocre |  500 |    21.0% |           7 |       27.9 |       291 |        1 |   101 |    95 |    83 |    58 |    61 |    63 |    53 |    59 |    65 |
+|   solver |  500 |    87.6% |           9 |       13.1 |        64 |       16 |   100 |   101 |    98 |    95 |    94 |    93 |    89 |    86 |    84 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell aggro`, Predator:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    69.2% |           9 |       15.1 |       120 |       19 |    85 |    85 |    82 |    77 |    76 |    75 |    67 |    65 |    65 |
+| mediocre |  500 |    22.6% |           7 |       24.1 |       263 |        2 |    86 |    80 |    70 |    48 |    53 |    54 |    48 |    51 |    56 |
+|   solver |  500 |    88.8% |           9 |       11.3 |        25 |        9 |    85 |    86 |    84 |    82 |    81 |    80 |    77 |    75 |    74 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell defensive`, Diatom:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    70.4% |           9 |       19.8 |       234 |       38 |   115 |   115 |   112 |   105 |   104 |   103 |    91 |    87 |    85 |
+| mediocre |  500 |    29.6% |           9 |       35.9 |       483 |        5 |   116 |   113 |   103 |    79 |    81 |    82 |    65 |    71 |    74 |
+|   solver |  500 |    92.0% |           9 |       14.7 |       116 |       12 |   115 |   116 |   113 |   110 |   109 |   109 |   105 |   101 |   100 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell gambler`, Spore:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    83.2% |           9 |       13.8 |        80 |       20 |    90 |    91 |    88 |    84 |    84 |    83 |    78 |    75 |    74 |
+| mediocre |  500 |    17.8% |           6 |       26.5 |       268 |        1 |    91 |    85 |    73 |    49 |    54 |    55 |    48 |    57 |    61 |
+|   solver |  500 |    94.8% |           9 |       10.3 |         9 |        5 |    90 |    91 |    89 |    88 |    87 |    86 |    85 |    83 |    81 |
+
+  FAIL  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    60.0% |           9 |       18.5 |       181 |       33 |    86 |    85 |    82 |    76 |    75 |    74 |    65 |    63 |    64 |
+| mediocre |  500 |    26.2% |           8 |       30.4 |       400 |        3 |    87 |    83 |    74 |    56 |    60 |    62 |    53 |    58 |    61 |
+|   solver |  500 |    83.8% |           9 |       14.0 |       107 |       23 |    86 |    86 |    83 |    81 |    80 |    79 |    76 |    73 |    73 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+Gate: adversarial round on the engine and the save (below, once it reports).
+
 ### Variety wave, step 3: evolution (PR #64, 2026-09-09)
 
 Dean's answer 4: a trait pick after each boss, three offered. Twelve

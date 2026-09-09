@@ -7,6 +7,7 @@
   const RARE = ['K', 'J', 'X', 'Q', 'Z'].map((l) => `${l} ${LETTER_VALUE[l.toLowerCase()] ?? 0}`).join(', ');
   const VENOM_MARK = '\u2623';
   const LOCK_MARK = '\u{1F512}';
+  const CRACK_MARK = '\u23F3';
 </script>
 
 <section class="help">
@@ -29,6 +30,8 @@
       <li><span class="tile rare">Q</span><span>Rare letter, worth the most: {RARE}.</span></li>
       <li><span class="tile venom">G<small>{VENOM_MARK}2</small></span><span>Venomous: bites you for its number every turn until you play it. Shuffling cures it too.</span></li>
       <li><span class="tile locked">B<small>{LOCK_MARK}2</small></span><span>Locked for that many turns: a boss did that. You cannot use it.</span></li>
+      <li><span class="tile gold">R<small>+5</small></span><span>Gold: adds that much damage when you play it.</span></li>
+      <li><span class="tile cracked">N<small>{CRACK_MARK}2</small></span><span>Cracked: crumbles in that many turns and a fresh letter drops in. Play it first if you want it.</span></li>
       <li><span class="tile selected">S</span><span>Selected. It turns green when the letters spell a real word.</span></li>
     </ul>
 
@@ -148,6 +151,14 @@
     color: var(--tile-locked-ink);
     border-style: dashed;
     box-shadow: none;
+  }
+  .tile.gold {
+    border-color: var(--score);
+    color: var(--score);
+  }
+  .tile.cracked {
+    border-style: dashed;
+    color: var(--muted);
   }
   .tile.selected {
     background: var(--tile-select);

@@ -43,43 +43,53 @@ describe('persist', () => {
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: SAVE_VERSION + 1 }) });
     expect(createPersist(storage).load()).toBeNull();
     expect(storage.data.has(SAVE_KEY)).toBe(false);
-    expect(SAVE_VERSION).toBe(7);
+    expect(SAVE_VERSION).toBe(8);
     for (const old of [1, 2]) {
       const stale = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: old }) });
       expect(createPersist(stale).load()).toBeNull();
       expect(stale.data.has(SAVE_KEY)).toBe(false);
     }
-    // A v6 save (no traits on the player) loads as v7 with none (evolution, step 3).
+    // A v7 save (tiles without gold or cracked) loads as v8 with plain marks on every tile (grid rules, step 4).
+    const fightS = s.phase === 'fight' ? s : reduce(s, { type: 'pickItem', index: 0 }, ctx);
+    const encS = fightS.encounter as NonNullable<RunState['encounter']>;
+    const v7body = { ...fightS, encounter: { ...encS, grid: encS.grid.map((t) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'gold' && k !== 'cracked'))) } };
+    const fromV7 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v7body, v: 7 }) })).load();
+    expect(fromV7?.v).toBe(8);
+    expect(fromV7?.encounter?.grid.every((t) => t.gold === 0 && t.cracked === 0)).toBe(true);
+    expect(fromV7?.encounter?.grid.map((t) => t.letter)).toEqual(encS.grid.map((t) => t.letter));
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...fightS, v: 7 }) })).load()?.v).toBe(8); // v7 already carrying marks keeps them
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v7body) })).load()).toBeNull(); // v8 without the marks is dropped
+    // A v6 save (no traits on the player) loads as v8 with none (evolution, step 3).
     const oldPlayer = Object.fromEntries(Object.entries(s.player).filter(([k]) => k !== 'traits'));
     const v6body = { ...s, player: oldPlayer };
     const fromV6 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v6body, v: 6 }) })).load();
-    expect(fromV6?.v).toBe(7);
+    expect(fromV6?.v).toBe(8);
     expect(fromV6?.player.traits).toEqual([]);
     expect(fromV6?.rng).toEqual(s.rng);
     // A v5 save (no kinds, no event) loads as v7 with empty kinds: the rest of its run is fights (encounter types, step 2).
     const v5body = Object.fromEntries(Object.entries(v6body).filter(([k]) => k !== 'kinds' && k !== 'event')) as Omit<RunState, 'kinds' | 'event'>;
     const fromV5 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v5body, v: 5 }) })).load();
-    expect(fromV5?.v).toBe(7);
+    expect(fromV5?.v).toBe(8);
     expect(fromV5?.kinds).toEqual([]);
     expect(fromV5?.event).toBeNull();
     expect(fromV5?.player.traits).toEqual([]);
     expect(fromV5?.rng).toEqual(s.rng);
-    // A v3 save (no cell, no worst word) loads as v7: the balanced cell (Dean, 2026-09-08, question 3), empty worst stats, empty kinds, no traits.
+    // A v3 save (no cell, no worst word) loads as v8: the balanced cell (Dean, 2026-09-08, question 3), empty worst stats, empty kinds, no traits.
     const oldStats = Object.fromEntries(Object.entries(s.stats).filter(([k]) => k !== 'worstWord' && k !== 'worstWordDamage'));
     const v4body = { ...v5body, stats: oldStats };
     const v3body = Object.fromEntries(Object.entries(v4body).filter(([k]) => k !== 'cell')) as Omit<RunState, 'cell' | 'kinds' | 'event'>;
     const v3 = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v3body, v: 3 }) });
     const loaded = createPersist(v3).load();
     expect(loaded).not.toBeNull();
-    expect(loaded?.v).toBe(7);
+    expect(loaded?.v).toBe(8);
     expect(loaded?.cell).toBe('balanced');
     expect(loaded?.stats.worstWord).toBe('');
     expect(loaded?.stats.worstWordDamage).toBe(0);
     expect(loaded?.kinds).toEqual([]);
     expect(loaded?.rng).toEqual(s.rng);
-    // A v4 save (cell, no worst word) loads as v7 too.
+    // A v4 save (cell, no worst word) loads as v8 too.
     const fromV4 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v4body, v: 4 }) })).load();
-    expect(fromV4?.v).toBe(7);
+    expect(fromV4?.v).toBe(8);
     expect(fromV4?.cell).toBe(s.cell);
     expect(fromV4?.stats).toEqual(s.stats);
     // Blobs that claim a version whose shape they do not have are not migrated: dropped.
@@ -87,6 +97,7 @@ describe('persist', () => {
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 4 }) })).load()).toBeNull(); // v4 with worst stats
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 5 }) })).load()).toBeNull(); // v5 with kinds
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 6 }) })).load()).toBeNull(); // v6 with traits
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 7 }) })).load()?.v).toBe(8); // v7 between fights: nothing to migrate but the number
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull(); // v7 without a cell
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v5body) })).load()).toBeNull(); // v7 without kinds
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v6body) })).load()).toBeNull(); // v7 without traits
@@ -115,7 +126,7 @@ describe('persist', () => {
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...staleRest, offer: ['gone-item'] }) })).load()?.offer).toBeNull();
     expect(dropUnknownIds('x')).toBe('x');
     expect(dropUnknownIds({ v: 7 })).toEqual({ v: 7 });
-    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 7, cell: 'balanced', kinds: [], event: null, player: { ...oldPlayer, traits: [] }, stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
+    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 8, cell: 'balanced', kinds: [], event: null, player: { ...oldPlayer, traits: [] }, stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
     // The kinds must be known kinds and the event a string or null; an event phase needs its event.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: ['fight', 'boss'] }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: 'fight' }) })).load()).toBeNull();

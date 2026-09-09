@@ -49,7 +49,7 @@ export function drawLetter(rng: Rng, bias: LetterBias = 1): [string, Rng] {
 }
 
 export function plainTile(letter: string): Tile {
-  return { letter, lockedTurns: 0, venom: 0 };
+  return { letter, lockedTurns: 0, venom: 0, gold: 0, cracked: 0 };
 }
 
 /** Letters of tiles that can currently be played. */
