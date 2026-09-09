@@ -36,12 +36,13 @@
   // Every word on this grid with its damage under the current items, from the engine's own
   // scorer, so the preview matches what Attack will do. Memoised on the grid: a tap changes
   // the selection, not the grid, and solving ~1000 words per tap would be wasteful.
-  let candCache: { grid: readonly unknown[] | null; hp: number; items: number; list: Candidate[] } = { grid: null, hp: 0, items: 0, list: [] };
+  // Keyed on traits too (gate S3, PR #64): a trait that changed mid-fight would otherwise show a stale preview.
+  let candCache: { grid: readonly unknown[] | null; hp: number; items: number; traits: number; list: Candidate[] } = { grid: null, hp: 0, items: 0, traits: 0, list: [] };
   const candidates = $derived.by(() => {
     const grid = enc?.grid ?? null;
-    if (candCache.grid === grid && candCache.hp === run.player.hp && candCache.items === run.player.items.length) return candCache.list;
+    if (candCache.grid === grid && candCache.hp === run.player.hp && candCache.items === run.player.items.length && candCache.traits === run.player.traits.length) return candCache.list;
     const list = grid ? candidateWords(run, ctx) : [];
-    candCache = { grid, hp: run.player.hp, items: run.player.items.length, list };
+    candCache = { grid, hp: run.player.hp, items: run.player.items.length, traits: run.player.traits.length, list };
     return list;
   });
   /**
@@ -265,7 +266,7 @@
 
     </div>
     <div class="side tail">
-    <ItemsPanel items={run.player.items} />
+    <ItemsPanel items={run.player.items} traits={run.player.traits} />
     <p class="kbd">Type letters to select, Backspace to undo, Enter to attack, Esc to clear.</p>
     </div>
   </section>

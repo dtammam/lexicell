@@ -1,3 +1,4 @@
+import { CONTENT } from '../content/index';
 import { DEFAULT_CELL_ID, SAVE_VERSION } from '../engine/reducer';
 import type { RunState } from '../engine/types';
 
@@ -42,7 +43,7 @@ export interface Persist {
   clear(): void;
 }
 
-const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'rest', 'event', 'summary']);
+const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'rest', 'event', 'evolve', 'summary']);
 const KINDS: ReadonlySet<unknown> = new Set(['fight', 'elite', 'rest', 'event']);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -89,11 +90,15 @@ function looksLikeRunState(value: unknown): value is RunState {
     isNum(v.player.hp) &&
     isNum(v.player.maxHp) &&
     Array.isArray(v.player.items) &&
+    Array.isArray(v.player.traits) &&
+    v.player.traits.every((t) => typeof t === 'string') &&
     isNum(v.player.shield) &&
     isNum(v.player.freeShuffles) &&
     encounterOk &&
     (v.phase !== 'fight' || v.encounter !== null) &&
     (v.offer === null || Array.isArray(v.offer)) &&
+    // A pick or an evolve screen needs something to pick (gate S4, PR #64): the reducer never writes an empty one.
+    ((v.phase !== 'pick' && v.phase !== 'evolve') || (Array.isArray(v.offer) && v.offer.length > 0)) &&
     (v.outcome === null || typeof v.outcome === 'string') &&
     (v.lastTurn === null || isRecord(v.lastTurn)) &&
     (v.rejected === null || typeof v.rejected === 'string') &&
@@ -106,9 +111,33 @@ function looksLikeRunState(value: unknown): value is RunState {
   );
 }
 
+const KNOWN_ITEMS: ReadonlySet<string> = new Set(CONTENT.items.map((i) => i.id));
+const KNOWN_TRAITS: ReadonlySet<string> = new Set(CONTENT.traits.map((t) => t.id));
+
+/**
+ * An id the content no longer has is dropped from a save at load (gate, PR #64): the engine's
+ * lookups throw on an unknown item or trait id, which would throw on the next hook of a run saved
+ * across a content change and leave it stuck. A held item or trait that is gone is simply gone; an
+ * evolve offer keeps its known traits, and a mid-evolve save whose offered traits are all gone is
+ * dropped by the shape check (its offer would be empty).
+ */
+export function dropUnknownIds(value: unknown): unknown {
+  if (!isRecord(value) || !isRecord(value.player)) return value;
+  const player = value.player;
+  const items = Array.isArray(player.items) ? player.items.filter((id) => KNOWN_ITEMS.has(id as string)) : player.items;
+  const traits = Array.isArray(player.traits) ? player.traits.filter((id) => KNOWN_TRAITS.has(id as string)) : player.traits;
+  let offer = value.offer;
+  if (value.phase === 'evolve' && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_TRAITS.has(id as string));
+  else if ((value.phase === 'pick' || value.phase === 'rest') && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_ITEMS.has(id as string));
+  // A rest with nothing left to offer is what startRest writes as null (heal alone), not an empty list.
+  if (value.phase === 'rest' && Array.isArray(offer) && offer.length === 0) offer = null;
+  return { ...value, player: { ...player, items, traits }, offer };
+}
+
 /**
  * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
- * the empty worst-word stats (stats HUD). Anything else passes through and meets the shape check.
+ * the empty worst-word stats (stats HUD), v5 gains empty kinds and no event (encounter types), v6
+ * gains no traits (evolution). Anything else passes through and meets the shape check.
  */
 export function migrate(value: unknown): unknown {
   let v: unknown = value;
@@ -118,6 +147,8 @@ export function migrate(value: unknown): unknown {
   }
   // v5 -> v6 (encounter types): no kinds were placed, so the rest of the run is fights; no event on screen.
   if (isRecord(v) && v.v === 5 && !('kinds' in v)) v = { ...v, v: 6, kinds: [], event: null };
+  // v6 -> v7 (evolution): no traits picked yet.
+  if (isRecord(v) && v.v === 6 && isRecord(v.player) && !('traits' in v.player)) v = { ...v, v: 7, player: { ...v.player, traits: [] } };
   return v;
 }
 
@@ -139,7 +170,7 @@ export function createPersist(storage: StorageLike, key: string = SAVE_KEY): Per
         return null;
       }
       // v3 -> v4 (starting cells, Dean, 2026-09-08, question 3): a v3 save is the balanced cell.
-      const migrated = migrate(parsed);
+      const migrated = dropUnknownIds(migrate(parsed));
       if (!looksLikeRunState(migrated) || migrated.v !== SAVE_VERSION) {
         storage.removeItem(key);
         return null;

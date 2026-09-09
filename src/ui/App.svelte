@@ -16,6 +16,7 @@
   import CellPick from './CellPick.svelte';
   import Event from './Event.svelte';
   import ReleaseNotes from './ReleaseNotes.svelte';
+  import Evolve from './Evolve.svelte';
   import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
 
@@ -196,6 +197,8 @@
       <Pick {run} {dispatch} />
     {:else if run.phase === 'event'}
       <Event {run} {dispatch} />
+    {:else if run.phase === 'evolve'}
+      <Evolve {run} {dispatch} />
     {:else}
       <Summary {run} onNewRun={newRun} onHistory={toHistory} />
     {/if}

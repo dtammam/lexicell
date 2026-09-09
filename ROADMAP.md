@@ -80,6 +80,111 @@ persist refuses every other version (tracker #3 closed).
 
 ## Shipped
 
+### Variety wave, step 3: evolution (PR #64, 2026-09-09)
+
+Dean's answer 4: a trait pick after each boss, three offered. Twelve
+traits in `src/content/traits.ts` (item hooks with a name and a line of
+flavor, no rarity, not in the item pool: Thick Membrane, Predatory,
+Long Reach, Regenerative, Venom Glands, Chitin Shell, Photosynthesis,
+Fast Twitch, Vowel Sense, Rare Taste, Adrenal, Colonial). When a boss
+falls short of the last slot the run enters `evolve`: three traits the
+player lacks, drawn one at a time without replacement; `pickTrait`
+keeps one on `player.traits` (save v7; a v6 save migrates with none)
+and the item offer the win owes follows. Traits gather after the
+starting cell and before the items in every hook, so an order-sensitive
+verb sees them second. The evolve screen, the items strip and sheet
+(traits first), the summary and Help know them. The bots take the
+trait whose hooks score highest.
+
+Balance: on curve G the two traits lifted greedy 61.8 to 73.8, mediocre
+21.6 to 26.2, and Spore's greedy to 90.2, past the cap. Curve H grows
+acts 2 and 3 to absorb them (act 2 hp 1.4 / 1.6 / 1.4, damage 1.05 /
+1.25 / 1.35; act 3 hp 2.7 / 3.0 / 2.4, damage 2.0 / 2.2 / 2.3). Spore
+at 95 HP was tried and reverted: it lifted greedy to 88.2 and mediocre
+only to 19.8, so HP is the wrong lever for a cell whose bonus never
+touches a 4-5 letter word. Disclosed: Spore's mediocre rate sits two
+points under the band by design, inside the ten-point rule (4.2 from
+Amoeba).
+
+`npx tsx scripts/sim.ts`, curve H, shipped:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    68.2% |           9 |       17.2 |       167 |       36 |   100 |   100 |    96 |    89 |    88 |    86 |    75 |    73 |    72 |
+| mediocre |  500 |    22.2% |           7 |       28.5 |       330 |        2 |   101 |    95 |    83 |    58 |    61 |    64 |    53 |    60 |    64 |
+|   solver |  500 |    87.6% |           9 |       13.0 |        63 |       26 |   100 |   101 |    98 |    95 |    94 |    93 |    89 |    87 |    85 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell aggro`, Predator:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    66.8% |           9 |       15.1 |       117 |       18 |    85 |    85 |    82 |    77 |    76 |    75 |    67 |    64 |    64 |
+| mediocre |  500 |    23.2% |           7 |       24.1 |       235 |        2 |    86 |    80 |    70 |    48 |    52 |    53 |    46 |    51 |    53 |
+|   solver |  500 |    87.4% |           9 |       11.3 |        24 |       21 |    85 |    86 |    84 |    82 |    81 |    80 |    77 |    74 |    73 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell defensive`, Diatom:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    73.0% |           9 |       20.0 |       250 |       34 |   115 |   115 |   112 |   105 |   105 |   103 |    91 |    86 |    86 |
+| mediocre |  500 |    29.2% |           9 |       36.4 |       513 |        2 |   116 |   113 |   103 |    79 |    81 |    84 |    65 |    71 |    77 |
+|   solver |  500 |    91.6% |           9 |       14.7 |       123 |       22 |   115 |   116 |   113 |   110 |   109 |   109 |   105 |   102 |    99 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell gambler`, Spore:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    84.8% |           9 |       14.0 |        84 |       20 |    90 |    91 |    88 |    84 |    84 |    83 |    78 |    75 |    74 |
+| mediocre |  500 |    18.0% |           6 |       26.6 |       276 |        1 |    91 |    85 |    73 |    50 |    54 |    56 |    50 |    57 |    60 |
+|   solver |  500 |    95.8% |           9 |       10.3 |        10 |       13 |    90 |    91 |    89 |    88 |    87 |    86 |    85 |    83 |    81 |
+
+  FAIL  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    63.4% |           9 |       18.4 |       182 |       41 |    86 |    85 |    82 |    76 |    75 |    74 |    66 |    64 |    66 |
+| mediocre |  500 |    24.4% |           8 |       30.4 |       391 |        2 |    87 |    83 |    75 |    56 |    60 |    63 |    52 |    56 |    61 |
+|   solver |  500 |    81.2% |           9 |       14.1 |       119 |       22 |    86 |    86 |    83 |    81 |    80 |    79 |    76 |    73 |    73 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+Gate (adversarial, one round, REQUEST CHANGES then fixed): a trait id
+content later drops would have thrown from every hook of a saved run
+(the event-id class from step 2, and the same has been true of item ids
+all along); persist now drops any item or trait id content no longer
+has at load, from the player and from a pick or evolve offer, and
+refuses a pick or evolve with nothing left to pick. Four tests did not
+bind what they claimed (cell-before-trait order, the trait argument on
+the damage, encounter-end and tile-draw hooks) and chooseTrait had none;
+all bound now. The fight's preview cache keys on traits too. Measured by
+the gate: 17,569 replayed steps with 0 mismatches, 607 real v6 saves
+migrated and finished, 26 mutants killed, the curve G claim (greedy 73.8
+with traits) reproduced exactly. Disclosed: a forged evolve save with a
+null offer is dropped rather than repaired.
+
 ### Variety wave, step 2: encounter types (PR #62, 2026-09-09)
 
 Dean's answer 3: one elite, one rest and one event inside the nine,

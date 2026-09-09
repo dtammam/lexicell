@@ -30,6 +30,10 @@
  *
  * pickItem: the item's onPick effects fire once, player-side only (no encounter exists).
  *
+ * Evolution (variety wave step 3): when a boss falls short of the last slot, three traits the
+ * player lacks are offered (phase 'evolve'); pickTrait keeps one for the run on player.traits,
+ * gathered after the cell and before the items in every hook, then the item offer follows.
+ *
  * Slots (variety wave step 2): newRun places one elite, one rest and one event among the non-boss
  * slots after the first, drawn from the run RNG (three draws) before the starting kit. An elite
  * slot is a fight against the next act's pool at this slot's scale (act 3: an act-3 enemy scaled
@@ -44,11 +48,11 @@
 import type { Dictionary } from './dictionary';
 import { resolveEffects, type ConditionContext, type Effect } from './effects';
 import { freshGrid, isDead, playableIndices, refill, settle, type LetterBias } from './grid';
-import { cellDef, collectEffects, itemDef } from './hooks';
+import { cellDef, collectEffects, itemDef, traitDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { GRID_SIZE, type Content, type Encounter, type EncounterKind, type EnemyDef, type EventDef, type Rarity, type RunState, type Tile, type TurnReport } from './types';
+import { GRID_SIZE, type Content, type Encounter, type EncounterKind, type EnemyDef, type EventDef, type Rarity, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -65,15 +69,17 @@ export type Action =
   | { readonly type: 'shuffle' }
   /* Variety wave step 2: the rest screen's heal (its pick is pickItem), and an event's choice. */
   | { readonly type: 'restHeal' }
-  | { readonly type: 'eventChoice'; readonly index: number };
+  | { readonly type: 'eventChoice'; readonly index: number }
+  /* Variety wave step 3: the trait pick after a boss. */
+  | { readonly type: 'pickTrait'; readonly index: number };
 
 /**
- * 6 since encounter types (RunState.kinds, event; variety wave step 2); a v5 save is MIGRATED by
- * persist.ts with empty kinds (the rest of its run is fights) and no event. 5 was the stats HUD
+ * 7 since evolution (player.traits; variety wave step 3); a v6 save is MIGRATED by persist.ts with
+ * no traits. 6 was encounter types (kinds, event; v5 migrates with empty kinds), 5 the stats HUD
  * (worstWord), 4 starting cells, 3 the effects wave (v2 dropped), 2 the tuning wave (v1 dropped);
- * v3 and v4 migrate forward too.
+ * v3 to v6 all migrate forward.
  */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 /** The cell a run gets when none is named: the game as it was before cells. */
 export const DEFAULT_CELL_ID = 'balanced';
 export const OFFER_SIZE = 3;
@@ -104,14 +110,14 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
   const maxHp = cell.maxHp;
   const [kinds, rng] = placeKinds(createRng(seed), ctx.content);
   const state: RunState = {
-    v: 6,
+    v: 7,
     cell: cell.id,
     kinds,
     rng,
     phase: 'fight',
     encounterIndex: 0,
     event: null,
-    player: { hp: maxHp, maxHp, items: [...cell.startingItems], shield: 0, freeShuffles: 0 },
+    player: { hp: maxHp, maxHp, items: [...cell.startingItems], traits: [], shield: 0, freeShuffles: 0 },
     encounter: null,
     offer: null,
     outcome: null,
@@ -148,6 +154,8 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return restHeal(state, ctx);
     case 'eventChoice':
       return eventChoice(state, action.index, ctx);
+    case 'pickTrait':
+      return pickTrait(state, action.index, ctx);
   }
 }
 
@@ -198,12 +206,12 @@ export function conditionCtx(state: RunState, ctx: EngineContext, word?: string)
 }
 
 /** onTileDraw effects folded into one per-letter multiplier: vowelWeight on the vowels, letterWeight on its letters. */
-function letterBias(state: RunState, ctx: EngineContext): LetterBias {
+export function letterBias(state: RunState, ctx: EngineContext): LetterBias {
   const bias: Record<string, number> = {};
   const bump = (letter: string, value: number) => {
     bias[letter] = (bias[letter] ?? 1) * value;
   };
-  for (const e of collectEffects('onTileDraw', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell)) {
+  for (const e of collectEffects('onTileDraw', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits)) {
     if (e.type === 'vowelWeight') for (const v of 'aeiou') bump(v, e.value);
     if (e.type === 'letterWeight') for (const l of new Set(e.letters)) if (l >= 'a' && l <= 'z') bump(l, e.value);
   }
@@ -485,7 +493,7 @@ function eventChoice(state: RunState, index: number, ctx: EngineContext): RunSta
  * first so a poison that finishes the enemy ends the fight before the venom bites.
  */
 function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): RunState {
-  const effects = collectEffects('onTurnStart', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell);
+  const effects = collectEffects('onTurnStart', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits);
   const a = applyEffects(state, effects, ctx);
   let s: RunState = {
     ...a.state,
@@ -557,7 +565,7 @@ function venomBite(state: RunState, venomMax: number): RunState {
 }
 
 function endEncounter(state: RunState, ctx: EngineContext): RunState {
-  const effects = collectEffects('onEncounterEnd', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell);
+  const effects = collectEffects('onEncounterEnd', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits);
   const a = applyEffects(state, effects, ctx);
   const s: RunState = {
     ...a.state,
@@ -565,8 +573,40 @@ function endEncounter(state: RunState, ctx: EngineContext): RunState {
   };
   const last = s.encounterIndex >= ctx.content.encounters.length - 1;
   if (last) return { ...s, phase: 'summary', outcome: 'won', encounter: null, offer: null };
+  // A boss falls: evolve (variety wave step 3), then the item pick as after any fight.
+  if (ctx.content.encounters[s.encounterIndex]?.boss) return makeEvolve(s, ctx);
   // An elite's offer carries a guaranteed rare (variety wave step 2).
   return makeOffer(s, ctx, kindAt(s, s.encounterIndex) === 'elite' ? 'rare' : undefined);
+}
+
+/**
+ * Evolution (variety wave step 3): three traits the player does not hold, drawn without
+ * replacement (one draw each); with fewer than one left, straight to the item offer.
+ */
+function makeEvolve(state: RunState, ctx: EngineContext): RunState {
+  const owned = new Set(state.player.traits);
+  let pool = ctx.content.traits.filter((t) => !owned.has(t.id));
+  const offer: string[] = [];
+  let rng = state.rng;
+  while (offer.length < OFFER_SIZE && pool.length > 0) {
+    let chosen: TraitDef;
+    [chosen, rng] = pick(rng, pool);
+    offer.push(chosen.id);
+    pool = pool.filter((t) => t.id !== chosen.id);
+  }
+  const s = withRng(state, rng);
+  if (offer.length === 0) return makeOffer({ ...s, encounter: null }, ctx);
+  return { ...s, phase: 'evolve', offer, encounter: null };
+}
+
+/** The trait joins player.traits (pick order), then the item offer the boss win owes. */
+function pickTrait(state: RunState, index: number, ctx: EngineContext): RunState {
+  if (state.phase !== 'evolve' || !state.offer) return reject(state, 'not evolving');
+  const id = state.offer[index];
+  if (id === undefined) return reject(state, 'bad trait index');
+  traitDef(ctx.content, id); // throws on an unknown id
+  const s: RunState = { ...state, rejected: null, player: { ...state.player, traits: [...state.player.traits, id] }, offer: null };
+  return makeOffer(s, ctx);
 }
 
 /** An offer holds at most this many commons (Dean, 2026-09-08, question 2): a pick always has something in it. */
@@ -644,7 +684,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   if (!ctx.dictionary.has(word)) return reject(state, word.length < 3 ? 'too short' : 'not a word');
 
   // Player attack.
-  const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell);
+  const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell, state.player.traits);
   const score = scoreWord(word, effects, ctx.content.tuning);
   // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. The preview
   // (candidates.ts) applies the same rule, so the number it shows is the number that lands; the
@@ -722,7 +762,7 @@ function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { s
       s = { ...s, encounter: { ...enc2, enemy: { ...enc2.enemy, stunned: enc2.enemy.stunned - 1 } } };
       report = { ...report, stunned: true };
     } else {
-      const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx), s.cell);
+      const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx), s.cell, s.player.traits);
       // The roll (variety wave): one RNG draw inside the range, threaded like every other draw.
       const [lo, hi] = hitRange(enc2.enemy.damage, enemyDef.variance);
       let dmg = lo;
@@ -825,7 +865,8 @@ function shuffle(state: RunState, ctx: EngineContext): RunState {
 }
 
 function pickItem(state: RunState, index: number, ctx: EngineContext): RunState {
-  // A rest's offer is picked the same way (variety wave step 2); taking it forgoes the heal.
+  // A rest's offer is picked the same way (variety wave step 2); taking it forgoes the heal. An
+  // evolve offer holds traits, not items: pickItem there is rejected (pickTrait takes it).
   if ((state.phase !== 'pick' && state.phase !== 'rest') || !state.offer) return reject(state, 'not picking');
   const id = state.offer[index];
   if (id === undefined) return reject(state, 'bad offer index');

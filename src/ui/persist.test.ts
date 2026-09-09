@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
+import { CONTENT } from '../content/index';
 import { newRun, reduce, SAVE_VERSION } from '../engine/reducer';
 import type { RunState } from '../engine/types';
-import { createPersist, migrate, RUN_STATE_KEYS, SAVE_KEY, type StorageLike } from './persist';
+import { createPersist, dropUnknownIds, migrate, RUN_STATE_KEYS, SAVE_KEY, type StorageLike } from './persist';
 
 const ctx = nodeContext();
 
@@ -42,44 +43,79 @@ describe('persist', () => {
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: SAVE_VERSION + 1 }) });
     expect(createPersist(storage).load()).toBeNull();
     expect(storage.data.has(SAVE_KEY)).toBe(false);
-    expect(SAVE_VERSION).toBe(6);
+    expect(SAVE_VERSION).toBe(7);
     for (const old of [1, 2]) {
       const stale = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: old }) });
       expect(createPersist(stale).load()).toBeNull();
       expect(stale.data.has(SAVE_KEY)).toBe(false);
     }
-    // A v5 save (no kinds, no event) loads as v6 with empty kinds: the rest of its run is fights (encounter types, step 2).
-    const v5body = Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'kinds' && k !== 'event')) as Omit<RunState, 'kinds' | 'event'>;
+    // A v6 save (no traits on the player) loads as v7 with none (evolution, step 3).
+    const oldPlayer = Object.fromEntries(Object.entries(s.player).filter(([k]) => k !== 'traits'));
+    const v6body = { ...s, player: oldPlayer };
+    const fromV6 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v6body, v: 6 }) })).load();
+    expect(fromV6?.v).toBe(7);
+    expect(fromV6?.player.traits).toEqual([]);
+    expect(fromV6?.rng).toEqual(s.rng);
+    // A v5 save (no kinds, no event) loads as v7 with empty kinds: the rest of its run is fights (encounter types, step 2).
+    const v5body = Object.fromEntries(Object.entries(v6body).filter(([k]) => k !== 'kinds' && k !== 'event')) as Omit<RunState, 'kinds' | 'event'>;
     const fromV5 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v5body, v: 5 }) })).load();
-    expect(fromV5?.v).toBe(6);
+    expect(fromV5?.v).toBe(7);
     expect(fromV5?.kinds).toEqual([]);
     expect(fromV5?.event).toBeNull();
+    expect(fromV5?.player.traits).toEqual([]);
     expect(fromV5?.rng).toEqual(s.rng);
-    // A v3 save (no cell, no worst word) loads as v6: the balanced cell (Dean, 2026-09-08, question 3), empty worst stats, empty kinds.
+    // A v3 save (no cell, no worst word) loads as v7: the balanced cell (Dean, 2026-09-08, question 3), empty worst stats, empty kinds, no traits.
     const oldStats = Object.fromEntries(Object.entries(s.stats).filter(([k]) => k !== 'worstWord' && k !== 'worstWordDamage'));
     const v4body = { ...v5body, stats: oldStats };
     const v3body = Object.fromEntries(Object.entries(v4body).filter(([k]) => k !== 'cell')) as Omit<RunState, 'cell' | 'kinds' | 'event'>;
     const v3 = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v3body, v: 3 }) });
     const loaded = createPersist(v3).load();
     expect(loaded).not.toBeNull();
-    expect(loaded?.v).toBe(6);
+    expect(loaded?.v).toBe(7);
     expect(loaded?.cell).toBe('balanced');
     expect(loaded?.stats.worstWord).toBe('');
     expect(loaded?.stats.worstWordDamage).toBe(0);
     expect(loaded?.kinds).toEqual([]);
     expect(loaded?.rng).toEqual(s.rng);
-    // A v4 save (cell, no worst word) loads as v6 too.
+    // A v4 save (cell, no worst word) loads as v7 too.
     const fromV4 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v4body, v: 4 }) })).load();
-    expect(fromV4?.v).toBe(6);
+    expect(fromV4?.v).toBe(7);
     expect(fromV4?.cell).toBe(s.cell);
     expect(fromV4?.stats).toEqual(s.stats);
     // Blobs that claim a version whose shape they do not have are not migrated: dropped.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 3 }) })).load()).toBeNull(); // v3 with a cell
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 4 }) })).load()).toBeNull(); // v4 with worst stats
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 5 }) })).load()).toBeNull(); // v5 with kinds
-    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull(); // v6 without a cell
-    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v5body) })).load()).toBeNull(); // v6 without kinds
-    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 6, cell: 'balanced', kinds: [], event: null, stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 6 }) })).load()).toBeNull(); // v6 with traits
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull(); // v7 without a cell
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v5body) })).load()).toBeNull(); // v7 without kinds
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v6body) })).load()).toBeNull(); // v7 without traits
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, player: { ...s.player, traits: 'thick-membrane' } }) })).load()).toBeNull();
+    // A non-string entry is an unknown id: dropped from the list, the save kept (gate W1's filter runs before the shape check).
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, player: { ...s.player, traits: [7] } }) })).load()?.player.traits).toEqual([]);
+    const evolve = { ...s, phase: 'evolve', encounter: null, offer: ['predatory'] };
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(evolve) })).load()).toEqual(evolve);
+    // Ids content no longer has are dropped at load (gate W1, PR #64): a held trait or item, an offered one; an
+    // evolve offer with nothing known left is a dropped save, as is a pick or evolve with an empty offer.
+    const stale = { ...s, player: { ...s.player, items: ['gone-item', 'sharp-pen'], traits: ['gone-trait', 'predatory'] } };
+    const cleaned = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(stale) })).load();
+    expect(cleaned?.player.items).toEqual(['sharp-pen']);
+    expect(cleaned?.player.traits).toEqual(['predatory']);
+    const staleOffer = { ...evolve, offer: ['gone-trait', 'adrenal'] };
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(staleOffer) })).load()?.offer).toEqual(['adrenal']);
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...evolve, offer: ['gone-trait'] }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...evolve, offer: [] }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, phase: 'pick', encounter: null, offer: null }) })).load()).toBeNull();
+    const two = CONTENT.items.slice(0, 2).map((i) => i.id);
+    const stalePick = { ...s, phase: 'pick', encounter: null, offer: ['gone-item', ...two] };
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(stalePick) })).load()?.offer).toEqual(two);
+    // A rest offer is filtered too (gate residual): a stale id would make its button throw; all gone becomes the heal alone.
+    const staleRest = { ...s, phase: 'rest', encounter: null, offer: ['gone-item', ...two] };
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(staleRest) })).load()?.offer).toEqual(two);
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...staleRest, offer: ['gone-item'] }) })).load()?.offer).toBeNull();
+    expect(dropUnknownIds('x')).toBe('x');
+    expect(dropUnknownIds({ v: 7 })).toEqual({ v: 7 });
+    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 7, cell: 'balanced', kinds: [], event: null, player: { ...oldPlayer, traits: [] }, stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
     // The kinds must be known kinds and the event a string or null; an event phase needs its event.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: ['fight', 'boss'] }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: 'fight' }) })).load()).toBeNull();

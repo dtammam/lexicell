@@ -2,19 +2,33 @@
   import ItemIcon from './ItemIcon.svelte';
   import { itemDef } from './lookup';
 
-  // A tap on the item strip opens the sheet; every carried item with its name, rarity and text.
-  let { items }: { items: readonly string[] } = $props();
+  import { traitDef } from './lookup';
+
+  // A tap on the item strip opens the sheet; every carried item with its name, rarity and text,
+  // and the evolution traits (variety wave step 3) above them.
+  let { items, traits = [] }: { items: readonly string[]; traits?: readonly string[] } = $props();
   let open = $state.raw(false);
 </script>
 
-{#if items.length > 0}
+{#if items.length > 0 || traits.length > 0}
   <div class="panel">
   <button class="strip" onclick={() => { open = !open; }} aria-expanded={open}>
     <span class="icons">{#each items as id, i (`${id}-${i}`)}<ItemIcon {id} size={24} />{/each}</span>
-    <span class="label">Items ({items.length}): {items.map((id) => itemDef(id).name).join(', ')}</span>
+    <!-- The trailing space rides inside the interpolation: as template whitespace Svelte trimmed it ("Venom Glands.Items"). -->
+    <span class="label">{#if traits.length > 0}{`Traits: ${traits.map((id) => traitDef(id).name).join(', ')}. `}{/if}Items ({items.length}): {items.map((id) => itemDef(id).name).join(', ')}</span>
   </button>
   {#if open}
     <ul class="sheet">
+      {#each traits as id (id)}
+        {@const t = traitDef(id)}
+        <li class="trait">
+          <span class="text">
+            <span class="name">{t.name} <small class="trait">trait</small></span>
+            <span class="desc">{t.description}</span>
+            <span class="flavor">{t.flavor}</span>
+          </span>
+        </li>
+      {/each}
       {#each items as id, i (`${id}-${i}`)}
         {@const item = itemDef(id)}
         <li>
@@ -126,5 +140,8 @@
   small.mythic {
     color: var(--mythic);
     text-shadow: 0 0 6px var(--mythic);
+  }
+  small.trait {
+    color: var(--score);
   }
 </style>

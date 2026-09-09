@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 65, pr: 63, sha: 'pending', date: '2026-09-09', title: 'Release notes', notes: 'This page. Every build since the first commit, newest on top, in plain words. Scroll down for the archaeology.' },
+  { build: 66, pr: 64, sha: 'pending', date: '2026-09-09', title: 'Evolution', notes: 'Beat a boss and your body changes. Three traits are offered, you keep one for the run: a thicker membrane, venom glands, a taste for rare letters, an adrenal rush below 40% HP. A trait is always on and applies before your organelles.' },
+  { build: 65, pr: 63, sha: '5aade7a', date: '2026-09-09', title: 'Release notes', notes: 'This page. Every build since the first commit, newest on top, in plain words. Scroll down for the archaeology.' },
   { build: 64, pr: 62, sha: 'ab36539', date: '2026-09-09', title: 'Elites, rests and events', notes: 'Nine encounters are no longer nine fights. Each run hides one elite (a creature from the next act, with a rare organelle for beating it), one quiet pool where you heal or take an organelle, and one small trade you can take or leave. The seed decides where they fall.' },
   { build: 63, pr: 61, sha: '1a9e1cf', date: '2026-09-09', title: 'Twelve enemies, three bosses, damage ranges', notes: 'Four enemies per act and a boss for each, with traits: armour halves short words, regen heals between turns, hunger hits harder every turn. Enemy hits now roll inside a range you can read on the intent line. Fights that drag past turn twenty get an enrage clock.' },
   { build: 62, pr: 60, sha: '257fd04', date: '2026-09-09', title: 'The variety plan', notes: 'Testers were finishing runs and asking for more. Nine levers went on paper in the order Dean chose: enemies, ranges, encounter types, evolution, grid rules, Normal and Endless modes, curses, a share card, a daily seed.' },

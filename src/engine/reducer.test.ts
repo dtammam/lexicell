@@ -4,8 +4,8 @@ import { CONTENT } from '../content/index';
 import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { candidateIndices, candidateWords, type Candidate } from './candidates';
 import { gatherEffects } from './hooks';
-import { isDead, refill, settle } from './grid';
-import { hitRange, kindAt, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
+import { biasFor, isDead, refill, settle } from './grid';
+import { hitRange, kindAt, letterBias, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { scoreWord } from './scoring';
 import { createRng, pick } from './rng';
 import { tilesForWord } from './solver';
@@ -57,6 +57,10 @@ function greedyRun(seed: number, c: EngineContext = ctx, pickIndex = 0): { final
       step({ type: 'eventChoice', index: 0 });
       continue;
     }
+    if (s.phase === 'evolve') {
+      step({ type: 'pickTrait', index: 0 });
+      continue;
+    }
     const best = candidateWords(s, c).sort((a, b) => b.damage - a.damage)[0];
     if (!best) throw new Error(`seed ${seed}: no candidate word: dead grid reached the bot`);
     for (const i of candidateIndices(s, best.word) ?? []) step({ type: 'toggleTile', index: i });
@@ -88,7 +92,7 @@ function assertInvariants(s: RunState, c: EngineContext) {
   } else {
     expect(s.encounter).toBeNull();
   }
-  if (s.phase === 'pick') expect(s.offer?.length).toBeGreaterThan(0);
+  if (s.phase === 'pick' || s.phase === 'evolve') expect(s.offer?.length).toBeGreaterThan(0);
   if (s.phase === 'event') expect(s.event).not.toBeNull();
   if (s.phase !== 'event') expect(s.event).toBeNull();
   if (s.phase === 'summary') expect(s.outcome).not.toBeNull();
@@ -99,7 +103,7 @@ describe('newRun', () => {
   it('starts in a fight with full HP, no items, a live grid', () => {
     const s = newRun(1, ctx);
     expect(s.phase).toBe('fight');
-    expect(s.player).toEqual({ hp: 100, maxHp: 100, items: [], shield: 0, freeShuffles: 0 });
+    expect(s.player).toEqual({ hp: 100, maxHp: 100, items: [], traits: [], shield: 0, freeShuffles: 0 });
     expect(s.encounterIndex).toBe(0);
     expect(s.encounter?.turn).toBe(1);
     expect(s.encounter?.enemy.hp).toBeGreaterThan(0);
@@ -1159,7 +1163,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(6);
+      expect(a.final.v).toBe(7);
     }
   });
 });
@@ -1313,6 +1317,143 @@ describe('variety wave step 1: the enrage clock', () => {
   });
 });
 
+describe('variety wave step 3: evolution (save v7)', () => {
+  const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+  const traitIds = new Set(CONTENT.traits.map((t) => t.id));
+
+  /** A fight against a boss at slot `index` on the brink of death, entered through the real slot. */
+  function bossBrink(seed: number, index: number): RunState {
+    const { states } = greedyRun(seed, flat);
+    const st = states.find((x) => x.encounterIndex === index && x.phase === 'fight' && x.encounter?.turn === 1);
+    if (!st) throw new Error(`seed ${seed} never reached slot ${index}`);
+    const enc = st.encounter as Encounter;
+    return { ...st, encounter: { ...enc, enemy: { ...enc.enemy, hp: 1 } } };
+  }
+  function kill(s: RunState): RunState {
+    const w = candidateWords(s, flat)[0];
+    if (!w) throw new Error('no word');
+    return play(s, w.word, flat);
+  }
+
+  it('newRun holds no traits; a boss win short of the last opens an evolve offer of three distinct unowned traits, then the item pick', () => {
+    expect(newRun(1, flat).player.traits).toEqual([]);
+    for (let seed = 0; seed < 8; seed++) {
+      let s: RunState;
+      try {
+        s = bossBrink(seed, 2);
+      } catch {
+        continue;
+      }
+      const won = kill(s);
+      expect(won.phase).toBe('evolve');
+      expect(won.encounter).toBeNull();
+      expect(won.offer).toHaveLength(3);
+      expect(new Set(won.offer).size).toBe(3);
+      for (const id of won.offer ?? []) expect(traitIds.has(id), id).toBe(true);
+      // Three draws, one per trait, on top of what the win itself spent.
+      // A bad index first, so the good pick has a stale rejection to clear (gate S2).
+      const refused = reduce(won, { type: 'pickTrait', index: 9 }, flat);
+      expect(refused.rejected).toBe('bad trait index');
+      const picked = reduce(refused, { type: 'pickTrait', index: 1 }, flat);
+      expect(picked.player.traits).toEqual([won.offer?.[1]]);
+      expect(picked.rejected).toBeNull();
+      expect(picked.phase).toBe('pick');
+      expect(picked.offer).toHaveLength(3);
+      expect(picked.encounterIndex).toBe(2);
+      for (const id of picked.offer ?? []) expect(traitIds.has(id), id).toBe(false); // items now
+      const held = picked.player.traits;
+      // pickItem on the evolve screen is refused; pickTrait off it too.
+      expect(reduce(won, { type: 'pickItem', index: 0 }, flat).rejected).toBe('not picking');
+      expect(reduce(picked, { type: 'pickTrait', index: 0 }, flat).rejected).toBe('not evolving');
+      expect(reduce(won, { type: 'pickTrait', index: 3 }, flat).rejected).toBe('bad trait index');
+      expect(held).toHaveLength(1);
+      return;
+    }
+    throw new Error('no seed under 8 reached the act-1 boss');
+  });
+
+  it('the second boss offers traits the player does not hold; the last boss ends the run with no evolve', () => {
+    const s = newRun(2, flat);
+    // Force: at the act-2 boss holding one trait, the offer excludes it.
+    const enc = s.encounter as Encounter;
+    const atBoss5: RunState = { ...s, encounterIndex: 5, player: { ...s.player, traits: ['predatory'] }, encounter: { ...enc, enemy: { ...enc.enemy, id: 'leviathan-larva', hp: 1 } }, stats: { ...s.stats, hpAtEncounterStart: [100, 100, 100, 100, 100, 100] } };
+    const won = kill(atBoss5);
+    expect(won.phase).toBe('evolve');
+    expect(won.offer).not.toContain('predatory');
+    expect(won.offer).toHaveLength(3);
+    // With only two traits left in content, the offer is two; with none, the item pick follows straight away.
+    const few = nodeContext({ ...flat.content, traits: CONTENT.traits.slice(0, 3) });
+    const wonTwo = play(atBoss5, candidateWords(atBoss5, few)[0]?.word ?? '', few);
+    expect(wonTwo.phase).toBe('evolve');
+    expect(wonTwo.offer).toHaveLength(2);
+    const none = nodeContext({ ...flat.content, traits: [] });
+    const bareBoss: RunState = { ...atBoss5, player: { ...atBoss5.player, traits: [] } };
+    const wonNone = play(bareBoss, candidateWords(bareBoss, none)[0]?.word ?? '', none);
+    expect(wonNone.phase).toBe('pick');
+    // The final boss: a win, not an evolve.
+    const atBoss8: RunState = { ...atBoss5, encounterIndex: 8, encounter: { ...enc, enemy: { ...enc.enemy, id: 'abyssal-mat', hp: 1 } } };
+    const finished = kill(atBoss8);
+    expect(finished.phase).toBe('summary');
+    expect(finished.outcome).toBe('won');
+  });
+
+  it('a trait fires in its hook and gathers after the cell and before the items (order is load-bearing)', () => {
+    // Predatory: +15% on every word; on a fresh grid the preview and the hit both carry it.
+    const s = newRun(4, flat);
+    const enc = s.encounter as Encounter;
+    const bare: RunState = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, hp: 100000, maxHp: 100000, damage: 0 } } };
+    const word = candidateWords(bare, flat)[0];
+    if (!word) throw new Error('no word');
+    const withTrait: RunState = { ...bare, player: { ...bare.player, traits: ['predatory'] } };
+    const preview = candidateWords(withTrait, flat).find((c) => c.word === word.word);
+    const hit = play(withTrait, word.word, flat);
+    expect(hit.lastTurn?.mult).toBeCloseTo(1.15, 5);
+    expect(preview?.damage).toBe(hit.lastTurn?.damage);
+    expect(hit.lastTurn?.damage).toBe(Math.floor(word.damage * 1.15));
+    // Cell, then trait, then item (gate W2): Predator (-1: every hit hurts 1 more), Thick Membrane (2), Thick Skin (4).
+    const order = gatherEffects('onDamageTaken', ['thick-skin'], CONTENT, 'aggro', ['thick-membrane']).map((e) => (e.type === 'reduceDamage' ? e.value : NaN));
+    expect(order).toEqual([-1, 2, 4]);
+    // Wired into the hit (gate W3): a 10 hit with Thick Membrane held costs 8.
+    const membrane: RunState = { ...bare, player: { ...bare.player, hp: 50, traits: ['thick-membrane'] }, encounter: { ...(bare.encounter as Encounter), enemy: { ...(bare.encounter as Encounter).enemy, damage: 10 } } };
+    const struck = reduce(membrane, { type: 'shuffle' }, flat);
+    expect(struck.player.hp).toBe(42);
+    expect(struck.lastTurn?.enemyDamage).toBe(8);
+    // Wired into the encounter end and the draw (gate W4): Chitin Shell shields 10 and Photosynthesis heals 12 on a win;
+    // Rare Taste weights j, q, x and z at 1.5 in the letter bias.
+    const winner: RunState = { ...bare, player: { ...bare.player, hp: 50, traits: ['chitin-shell', 'photosynthesis'] }, encounter: { ...(bare.encounter as Encounter), enemy: { ...(bare.encounter as Encounter).enemy, hp: 1 } } };
+    const won = play(winner, word.word, flat);
+    expect(won.player.shield).toBe(10);
+    expect(won.player.hp).toBe(62);
+    const tasteful: RunState = { ...bare, player: { ...bare.player, traits: ['rare-taste'] } };
+    expect(biasFor(letterBias(tasteful, flat), 'q')).toBeCloseTo(1.5, 5);
+    expect(biasFor(letterBias(bare, flat), 'q')).toBeCloseTo(1, 5);
+    // An unknown trait id throws where an unknown item would.
+    expect(() => gatherEffects('onWordScored', [], CONTENT, undefined, ['no-such-trait'])).toThrow(/unknown trait/);
+    // Regenerative heals 2 at turn start.
+    const hurt: RunState = { ...bare, player: { ...bare.player, hp: 50, traits: ['regenerative'] } };
+    const next = reduce(hurt, { type: 'shuffle' }, flat);
+    expect(next.player.hp).toBe(52);
+  });
+
+  it('a run with evolutions replays byte-identical and stays JSON-plain; the traits show in the final state', () => {
+    let seen = 0;
+    for (let seed = 0; seed < 12 && seen < 2; seed++) {
+      const a = greedyRun(seed, flat);
+      const b = greedyRun(seed, flat);
+      expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
+      expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
+      expect(a.final.v).toBe(7);
+      const evolves = a.states.filter((st) => st.phase === 'evolve').length;
+      if (a.final.outcome === 'won') {
+        expect(evolves).toBe(2);
+        expect(a.final.player.traits).toHaveLength(2);
+        seen++;
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+});
+
 describe('variety wave step 2: encounter types (save v6)', () => {
   const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
   const rarePlus = new Set(['rare', 'mythic']);
@@ -1336,7 +1477,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       // The same kinds land in the run, and the run's RNG has spent the three draws before the kit.
       const run = newRun(seed, flat);
       expect(run.kinds).toEqual(kinds);
-      expect(run.v).toBe(6);
+      expect(run.v).toBe(7);
       expect(run.event).toBeNull();
     }
     for (const kind of ['elite', 'rest', 'event']) expect([...(seen[kind] ?? [])].sort(), kind).toEqual(NON_BOSS_AFTER_FIRST);
@@ -1529,9 +1670,13 @@ describe('variety wave step 2: encounter types (save v6)', () => {
   it('a migrated v5 save (empty kinds) plays the rest of its run as fights', () => {
     let s: RunState = { ...newRun(3, flat), kinds: [] };
     for (let guard = 0; guard < 2000 && s.phase !== 'summary'; guard++) {
-      expect(['fight', 'pick']).toContain(s.phase);
+      expect(['fight', 'pick', 'evolve']).toContain(s.phase);
       if (s.phase === 'pick') {
         s = reduce(s, { type: 'pickItem', index: 0 }, flat);
+        continue;
+      }
+      if (s.phase === 'evolve') {
+        s = reduce(s, { type: 'pickTrait', index: 0 }, flat);
         continue;
       }
       const best = candidateWords(s, flat).sort((a, b) => b.damage - a.damage)[0];
@@ -1548,7 +1693,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(a.log).toEqual(b.log);
       const kinds = a.states.map((st) => st.phase).filter((p) => p === 'rest' || p === 'event');
-      expect(a.final.v).toBe(6);
+      expect(a.final.v).toBe(7);
       // Over the four seeds at least one run passes through a rest or an event before the summary.
       if (kinds.length > 0) return;
     }
@@ -1801,6 +1946,10 @@ describe('starting cells (save v4)', () => {
           }
           if (s.phase === 'event') {
             s = reduce(s, { type: 'eventChoice', index: 0 }, cc);
+            continue;
+          }
+          if (s.phase === 'evolve') {
+            s = reduce(s, { type: 'pickTrait', index: 0 }, cc);
             continue;
           }
           const best = candidateWords(s, cc).sort((a, b) => b.damage - a.damage)[0];

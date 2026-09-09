@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { candidateIndices, candidateWords } from '../src/engine/candidates';
 import { newRun } from '../src/engine/reducer';
-import { GREEDY_MAX_LENGTH, makeBot, nextAction, spendingVenom } from './lib/bots';
+import { chooseTrait, GREEDY_MAX_LENGTH, makeBot, nextAction, spendingVenom } from './lib/bots';
 import { nodeContext } from './lib/context';
 import { simulate, simulateRun, summarise } from './lib/simulate';
 import { contentFor, exitCriteria, parseArgs, renderTable } from './sim';
@@ -31,6 +31,15 @@ describe('bots', () => {
     expect(m?.word.length).toBeGreaterThanOrEqual(4);
     expect(m?.word.length).toBeLessThanOrEqual(5);
     expect(nextAction(makeBot('greedy', 1), s, ctx)?.at(-1)).toEqual({ type: 'submitWord' });
+  });
+
+  it('chooseTrait takes the highest-scoring hooks and keeps the first on a tie (gate W5, PR #64)', () => {
+    const ctx = nodeContext();
+    const at = (offer: string[]) => ({ ...newRun(1, ctx), phase: 'evolve' as const, encounter: null, offer });
+    expect(chooseTrait(at(['thick-membrane', 'predatory', 'venom-glands']), ctx)).toBe(0); // 2 / 2 / 2
+    expect(chooseTrait(at(['adrenal', 'vowel-sense']), ctx)).toBe(1); // 1 / 4
+    expect(chooseTrait(at(['vowel-sense', 'adrenal']), ctx)).toBe(0);
+    expect(chooseTrait({ ...at([]), offer: null }, ctx)).toBe(0);
   });
 
   it('greedy falls back to the best available when nothing fits the cap', () => {
