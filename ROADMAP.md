@@ -34,9 +34,9 @@ cells).
   measurable; the 3000-run tables catch degenerate and never-picked
   items only.
 - **Run history with export**: built (PR #51), reviewer round pending.
-- **Clarity feedback batch**: five of seven shipped (PR #55). Left: cells
-  more cellular (the sprite pass, with per-cell sprites) and a stats HUD
-  with best and worst word (the worst word needs a new stat).
+- **Clarity feedback batch**: six of seven shipped (PRs #55, #56). Left:
+  cells more cellular with a sprite per starting cell (the sprite pass,
+  in progress).
 - **Run history with export**: shipped (PR #51); plan in completed/.
 - **Clarity feedback batch** (a tester via Dean, 2026-09-08): names
   shown twice on the fight screen; a busy backdrop; no clear cue that
@@ -408,6 +408,15 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #56 (2026-09-09): stats HUD. RunStats gains the worst word; save
+  v5 with a v4 migration (v3 saves chain through); a BEST / WORST row in
+  the arena and the worst word on the summary. Gate: a migrated save
+  showed an empty WORST 0 until the next word (now a dash); ties keep the
+  first word and zero-damage words count for neither stat, both bound;
+  persist now type-checks the stats the screens render. Disclosed: a
+  migrated run's worst word covers only words played after the update;
+  history entries and the CSV carry the best word only (adding the worst
+  is a HISTORY_VERSION decision, not taken).
 - PR #55 (2026-09-08): clarity. Enemy intent line, names once on the
   bars, a veil over the backdrop, the report steps in per turn, grafts
   glow when they fire for the selected word; prose face to DotGothic16

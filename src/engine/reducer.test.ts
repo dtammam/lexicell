@@ -1123,7 +1123,77 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(4);
+      expect(a.final.v).toBe(5);
+    }
+  });
+});
+
+describe('stats HUD: the worst word (save v5)', () => {
+  it('the first word sets the worst, a weaker word replaces it, a stronger one leaves it', () => {
+    let s = newRun(21, ctx);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, hp: 100000, maxHp: 100000, damage: 0 } } };
+    expect(s.stats.worstWord).toBe('');
+    const first = candidateWords(s, ctx).sort((a, b) => b.damage - a.damage)[0];
+    if (!first) throw new Error('no word');
+    s = play(s, first.word, ctx);
+    expect(s.stats).toMatchObject({ worstWord: first.word, worstWordDamage: first.damage, bestWord: first.word, bestWordDamage: first.damage });
+    const weakest = candidateWords(s, ctx).sort((a, b) => a.damage - b.damage)[0];
+    if (!weakest) throw new Error('no word');
+    s = play(s, weakest.word, ctx);
+    expect(s.stats.worstWordDamage).toBe(Math.min(first.damage, weakest.damage));
+    expect(s.stats.bestWordDamage).toBe(Math.max(first.damage, weakest.damage));
+    const before = s.stats;
+    const mid = candidateWords(s, ctx).find((c) => c.damage > before.worstWordDamage && c.damage < before.bestWordDamage);
+    if (mid) {
+      s = play(s, mid.word, ctx);
+      expect(s.stats.worstWord).toBe(before.worstWord);
+      expect(s.stats.bestWord).toBe(before.bestWord);
+    }
+  });
+
+  it('a tie keeps the first word, and a zero-damage word counts for neither best nor worst (gate W3, S4)', () => {
+    let s = newRun(0, ctx);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, hp: 100000, maxHp: 100000, damage: 0 } } };
+    const cands = candidateWords(s, ctx);
+    const first = cands[0];
+    if (!first) throw new Error('no word');
+    s = play(s, first.word, ctx);
+    const tie = candidateWords(s, ctx).find((c) => c.damage === first.damage && c.word !== first.word);
+    if (tie) {
+      s = play(s, tie.word, ctx);
+      expect(s.stats.worstWord).toBe(first.word);
+    }
+    // Zero damage: a multiplier stack at exactly 0 (Spore's 3-letter half, Paralytic -0.3, Wellspring -0.2).
+    const zero = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    let z = newRun(0, zero, 'gambler');
+    if (z.phase !== 'fight') throw new Error('fight');
+    const zenc = z.encounter as Encounter;
+    z = { ...z, player: { ...z.player, items: ['paralytic', 'wellspring'] }, encounter: { ...zenc, enemy: { ...zenc.enemy, hp: 100000, maxHp: 100000, damage: 0 } } };
+    const three = candidateWords(z, zero).find((c) => c.word.length === 3);
+    if (!three) return;
+    expect(three.damage).toBe(0);
+    z = play(z, three.word, zero);
+    expect(z.lastTurn?.damage).toBe(0);
+    expect(z.stats.bestWord).toBe('');
+    expect(z.stats.worstWord).toBe('');
+    expect(z.stats.turns).toBe(1);
+    // A zero word AFTER a damaging word leaves both worst fields on the damaging word (gate S1).
+    const damaging = candidateWords(z, zero).find((c) => c.damage > 0);
+    const zeroAgain = () => candidateWords(z, zero).find((c) => c.damage === 0);
+    if (damaging) {
+      z = play(z, damaging.word, zero);
+      const kept = z.stats;
+      const zw = zeroAgain();
+      if (zw) {
+        z = play(z, zw.word, zero);
+        expect(z.stats.worstWord).toBe(kept.worstWord);
+        expect(z.stats.worstWordDamage).toBe(kept.worstWordDamage);
+        expect(z.stats.worstWordDamage).toBeGreaterThan(0);
+      }
     }
   });
 });

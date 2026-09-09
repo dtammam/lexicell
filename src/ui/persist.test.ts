@@ -37,29 +37,45 @@ describe('persist', () => {
     expect(createPersist(fakeStorage()).load()).toBeNull();
   });
 
-  it('drops a blob with the wrong version (v1, v2, the future) and MIGRATES a v3 save to v4 as the balanced cell', () => {
+  it('drops a blob with the wrong version (v1, v2, the future) and MIGRATES v3 and v4 saves forward', () => {
     const s = newRun(3, ctx);
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: SAVE_VERSION + 1 }) });
     expect(createPersist(storage).load()).toBeNull();
     expect(storage.data.has(SAVE_KEY)).toBe(false);
-    expect(SAVE_VERSION).toBe(4);
+    expect(SAVE_VERSION).toBe(5);
     for (const old of [1, 2]) {
       const stale = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: old }) });
       expect(createPersist(stale).load()).toBeNull();
       expect(stale.data.has(SAVE_KEY)).toBe(false);
     }
-    // A v3 save (no cell field) loads as v4 with the balanced cell (Dean, 2026-09-08, question 3).
-    const v3body = Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'cell')) as Omit<RunState, 'cell'>;
+    // A v3 save (no cell, no worst word) loads as v5: the balanced cell (Dean, 2026-09-08, question 3) and empty worst stats.
+    const oldStats = Object.fromEntries(Object.entries(s.stats).filter(([k]) => k !== 'worstWord' && k !== 'worstWordDamage'));
+    const v4body = { ...s, stats: oldStats };
+    const v3body = Object.fromEntries(Object.entries(v4body).filter(([k]) => k !== 'cell')) as Omit<RunState, 'cell'>;
     const v3 = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v3body, v: 3 }) });
     const loaded = createPersist(v3).load();
     expect(loaded).not.toBeNull();
-    expect(loaded?.v).toBe(4);
+    expect(loaded?.v).toBe(5);
     expect(loaded?.cell).toBe('balanced');
+    expect(loaded?.stats.worstWord).toBe('');
+    expect(loaded?.stats.worstWordDamage).toBe(0);
     expect(loaded?.rng).toEqual(s.rng);
-    // A v3 blob that already carries a cell, or a v4 blob without one, is not migrated: dropped.
-    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 3 }) })).load()).toBeNull();
-    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull();
-    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 4, cell: 'balanced' });
+    // A v4 save (cell, no worst word) loads as v5 too.
+    const fromV4 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v4body, v: 4 }) })).load();
+    expect(fromV4?.v).toBe(5);
+    expect(fromV4?.cell).toBe(s.cell);
+    expect(fromV4?.stats).toEqual(s.stats);
+    // Blobs that claim a version whose shape they do not have are not migrated: dropped.
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 3 }) })).load()).toBeNull(); // v3 with a cell
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 4 }) })).load()).toBeNull(); // v4 with worst stats
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull(); // v5 without a cell
+    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 5, cell: 'balanced', stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
+    // The stats the screens render are type-checked (gate W1): a v5 blob whose stats lack or mistype them is dropped.
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: oldStats }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, worstWord: 7 } }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, bestWord: 7 } }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, bestWordDamage: '9' } }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, worstWordDamage: '9' } }) })).load()).toBeNull();
     // The cell must be a string (gate S1); an unknown id is the render boundary's job, like an unknown item.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, cell: 7 }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, cell: null }) })).load()).toBeNull();

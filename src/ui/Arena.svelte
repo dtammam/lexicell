@@ -79,6 +79,14 @@
       <span>Encounter {run.encounterIndex + 1} / 9</span>
       <span>Turn {enc.turn}</span>
     </div>
+    <!-- Stats HUD (tester, 2026-09-08): the run's best and worst word so far. -->
+    {#if run.stats.bestWord || run.stats.worstWord}
+      <div class="row stats">
+        <span class="best">BEST {run.stats.bestWord ? `${run.stats.bestWord.toUpperCase()} ${run.stats.bestWordDamage}` : '-'}</span>
+        <!-- A save migrated from before this stat has no worst word until the next one is played. -->
+        <span class="worst">WORST {run.stats.worstWord ? `${run.stats.worstWord.toUpperCase()} ${run.stats.worstWordDamage}` : '-'}</span>
+      </div>
+    {/if}
     <div class="stage">
       {#key run.stats.turns}
         <figure class="fighter you" class:shake={taken > 0}>
@@ -432,6 +440,15 @@
   }
   .badge.stun {
     color: var(--select);
+  }
+  .row.stats {
+    margin-top: -2px;
+  }
+  .row.stats .best {
+    color: var(--score);
+  }
+  .row.stats .worst {
+    color: var(--muted);
   }
   .intent {
     margin: 0;
