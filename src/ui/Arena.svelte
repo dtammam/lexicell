@@ -141,7 +141,8 @@
       {/key}
     </div>
     <!-- Names live on the bars only (tester: they appeared several times on one screen). -->
-    <p class="intent" class:threat={intent.includes('hits')}>{intent}{#if traitWords}<span class="traits"> {traitWords}</span>{/if}</p>
+    <!-- The space is part of the interpolated text: as template whitespace Svelte trimmed it and the phone read "hits 8-12regen 1". -->
+    <p class="intent" class:threat={intent.includes('hits')}>{intent}{#if traitWords}<span class="traits">{` ${traitWords}`}</span>{/if}</p>
     <div class="bars">
       <div class="bar-label">
         <strong>You</strong>
