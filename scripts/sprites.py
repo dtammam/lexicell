@@ -27,6 +27,18 @@ PALETTE = {
     "flagellate": ((120, 110, 220), (190, 180, 255), (40, 35, 90)),
     "polyp": ((230, 160, 70), (255, 220, 160), (100, 60, 20)),
     "colony": ((190, 70, 140), (255, 160, 220), (80, 20, 60)),
+    # Variety wave (2026-09-09): three act pools and three bosses.
+    "rotifer": ((200, 200, 90), (250, 250, 170), (80, 80, 20)),
+    "hydroid": ((90, 190, 120), (170, 250, 200), (25, 70, 40)),
+    "diatom-swarm": ((140, 200, 230), (220, 245, 255), (40, 80, 110)),
+    "anemone": ((240, 120, 170), (255, 200, 225), (110, 30, 70)),
+    "nudibranch": ((250, 150, 60), (255, 220, 150), (110, 50, 10)),
+    "lamprey": ((150, 130, 110), (220, 200, 180), (60, 45, 35)),
+    "siphonophore": ((120, 210, 255), (220, 245, 255), (30, 80, 120)),
+    "tardigrade-king": ((170, 160, 120), (240, 230, 190), (70, 60, 30)),
+    "cuttle": ((200, 100, 220), (245, 200, 255), (80, 30, 100)),
+    "leviathan-larva": ((90, 120, 200), (180, 200, 255), (30, 40, 100)),
+    "abyssal-mat": ((70, 60, 110), (150, 140, 200), (25, 20, 50)),
     "unknown": ((120, 120, 140), (190, 190, 210), (50, 50, 60)),
 }
 
@@ -741,7 +753,13 @@ def item_icon(rarity: str, rows: list[str]) -> Image.Image:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    specs = {"player": (60, 0), "player-1": (56, 0), "player-2": (78, 2), "player-3": (96, 4), "amoeba": (70, 0), "flagellate": (52, 0), "polyp": (84, 0), "colony": (110, 0), "unknown": (64, 0)}
+    specs = {
+        "player": (60, 0), "player-1": (56, 0), "player-2": (78, 2), "player-3": (96, 4),
+        "amoeba": (70, 0), "flagellate": (52, 0), "polyp": (84, 0), "rotifer": (58, 2),
+        "hydroid": (64, 3), "diatom-swarm": (90, 0), "anemone": (76, 4), "nudibranch": (66, 1),
+        "lamprey": (48, 0), "siphonophore": (100, 2), "tardigrade-king": (96, 4), "cuttle": (72, 5),
+        "colony": (110, 0), "leviathan-larva": (118, 3), "abyssal-mat": (126, 0), "unknown": (64, 0),
+    }
     for name, (cells, limbs) in specs.items():
         sprite(name, cells, limbs=limbs).save(OUT / f"{name}.png", optimize=True)
         print(f"wrote {name}.png ({cells} cells, {limbs} limbs)")

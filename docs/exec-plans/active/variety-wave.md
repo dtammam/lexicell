@@ -88,6 +88,12 @@ as glyphs, outcome; a copy-seed button; New run can take a pasted seed.
 The day's seed on the title, one run per day recorded in history with a
 daily flag.
 
+## Progress
+
+- Step 1 (PR #61): built. Curve G; mediocre 22.6%, greedy 68.4%, solver
+  87.8%, criteria pass. The enrage clock was not in the plan: the sim
+  found a stalemate and it is the honest fix.
+
 ## Acceptance per step
 
 Criteria pass on the balanced cell; every cell within 10 points of it;

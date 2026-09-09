@@ -583,7 +583,7 @@ describe('App', () => {
     render(App);
     await click(await findByText('Continue', 15000));
     await findByText('Enc 1/9');
-    expect(getByText('Next: hits 6')).toBeTruthy();
+    expect(getByText(/^Next: hits 4-8/)).toBeTruthy(); // Amoeba: 6 with 30% variance rolls 4 to 8
     expect(document.querySelectorAll('figcaption')).toHaveLength(0);
     expect(document.querySelectorAll('.arena .bar-label strong')).toHaveLength(2);
     expect(document.querySelector('.arena .veil')).not.toBeNull();
@@ -653,7 +653,7 @@ describe('App', () => {
   it('the arena backdrop picks a pattern by enemy and carries the act', async () => {
     await startRun();
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { encounter: { enemy: { id: string } } };
-    const patterns: Record<string, string> = { amoeba: 'dots', flagellate: 'stripes', polyp: 'cells', colony: 'rings' };
+    const patterns: Record<string, string> = { amoeba: 'dots', flagellate: 'stripes', polyp: 'cells', rotifer: 'rings', colony: 'rings' };
     const bg = document.querySelector<HTMLElement>('.arena .bg');
     expect(bg?.dataset.pattern).toBe(patterns[saved.encounter.enemy.id]);
     expect(bg?.querySelectorAll('.layer')).toHaveLength(3);

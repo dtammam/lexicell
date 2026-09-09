@@ -1,7 +1,7 @@
 <script lang="ts">
   import { CONTENT } from '../content/index';
   import { resolveEffects } from '../engine/effects';
-  import { conditionCtx, type EngineContext } from '../engine/reducer';
+  import { conditionCtx, hitRange, type EngineContext } from '../engine/reducer';
   import type { RunState } from '../engine/types';
   import ItemIcon from './ItemIcon.svelte';
   import { enemyName, itemDef } from './lookup';
@@ -19,7 +19,11 @@
   const enc = $derived(run.encounter);
   const act = $derived(Math.floor(run.encounterIndex / 3) + 1);
   /** Earthbound-style battle backdrop: a pattern per enemy, a palette per act, slow drift. */
-  const PATTERNS: Readonly<Record<string, string>> = { amoeba: 'dots', flagellate: 'stripes', polyp: 'cells', colony: 'rings' };
+  const PATTERNS: Readonly<Record<string, string>> = {
+    amoeba: 'dots', flagellate: 'stripes', polyp: 'cells', rotifer: 'rings', colony: 'rings',
+    hydroid: 'cells', 'diatom-swarm': 'dots', anemone: 'rings', nudibranch: 'stripes', 'leviathan-larva': 'stripes',
+    lamprey: 'stripes', siphonophore: 'rings', 'tardigrade-king': 'dots', cuttle: 'cells', 'abyssal-mat': 'cells',
+  };
   const pattern = $derived(PATTERNS[enc?.enemy.id ?? ''] ?? 'dots');
   const dealt = $derived(run.lastTurn?.damage ?? 0);
   const taken = $derived(run.lastTurn?.enemyDamage ?? 0);
@@ -44,8 +48,21 @@
     const special = def.special && enc.turn % def.special.every === 0 ? def.special.effects[0] : undefined;
     // Kept short: the line must fit one row of the wide HUD face on a 390px phone.
     const specialText = special?.type === 'lockTiles' ? `+lock ${special.count}` : special?.type === 'venomTiles' ? `+venom ${special.count}` : special?.type === 'scramble' ? '+scramble' : special ? '+special' : '';
-    const hit = !attacks ? 'rests' : stunned > 0 ? 'stunned' : `hits ${enc.enemy.damage}`;
+    const [lo, hi] = hitRange(enc.enemy.damage, def.variance);
+    const hit = !attacks ? 'rests' : stunned > 0 ? 'stunned' : hi > lo ? `hits ${lo}-${hi}` : `hits ${lo}`;
     return `Next: ${hit}${specialText ? ` ${specialText}` : ''}`;
+  });
+
+  /** The enemy's traits in a word each (variety wave), shown under the intent. */
+  const traitWords = $derived.by(() => {
+    if (!enc) return '';
+    const t = [...CONTENT.enemies, ...CONTENT.bosses].find((e) => e.id === enc.enemy.id)?.traits;
+    if (!t) return '';
+    const words: string[] = [];
+    if (t.armour) words.push(`armour ${t.armour}`);
+    if (t.regen) words.push(`regen ${t.regen}`);
+    if (t.hunger) words.push(`hunger +${t.hunger}`);
+    return words.join(' ');
   });
 
   /** Organelles whose onWordScored effects would fire for the selected word light up on the body. */
@@ -122,7 +139,7 @@
       {/key}
     </div>
     <!-- Names live on the bars only (tester: they appeared several times on one screen). -->
-    <p class="intent" class:threat={intent.includes('hits')}>{intent}</p>
+    <p class="intent" class:threat={intent.includes('hits')}>{intent}{#if traitWords}<span class="traits"> {traitWords}</span>{/if}</p>
     <div class="bars">
       <div class="bar-label">
         <strong>You</strong>
@@ -474,6 +491,9 @@
   }
   .intent.threat {
     color: var(--harm);
+  }
+  .intent .traits {
+    color: var(--muted);
   }
   .graft.live :global(img) {
     filter: drop-shadow(0 0 4px var(--score)) drop-shadow(0 0 1px var(--score));

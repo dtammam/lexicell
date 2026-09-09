@@ -80,6 +80,44 @@ persist refuses every other version (tracker #3 closed).
 
 ## Shipped
 
+### Variety wave, step 1: enemies and damage ranges (PR #61, 2026-09-09)
+
+Dean's brief: testers finish runs and share screenshots; vary it up.
+Twelve enemies in three act pools (four per act: a plain hitter, a slow
+heavy hitter, a hazard maker, a trait carrier) and one boss per act,
+each boss with a special and a trait. Three enemy traits in the engine:
+armour (words shorter than N deal half), regen (heals N at its turn
+start, never above max), hunger (its damage grows N a turn). Every hit
+rolls in a range from the run RNG (round(d(1-v)) to round(d(1+v))), so
+a seed still replays exactly; the intent line shows the range and the
+traits. An enrage clock in tuning: past turn 20 every enemy hits 1
+harder each turn, because seed 197 stalemated the sim (a regenerating
+armoured enemy against a healing bot, 5000 steps and no end). No save
+change: traits act on hp and damage the enemy already carries, the
+roll uses the run RNG. Sprites for all fifteen. 245 tests.
+
+Balance: on curve F the new roster won the mediocre bot 8.8% and greedy
+40.0%. Curve G softens acts 2 and 3; the act-2 boss lost 20 HP and 0.2
+damage scale; Rotifer regen 3 to 2, Siphonophore 5 to 3, Colony 2 to 1,
+Abyssal Mat armour 6 to 5 and regen 4 to 2, Diatom Swarm armour 5 to 4,
+Tardigrade King 6 to 5.
+
+`npx tsx scripts/sim.ts` on curve G, shipped:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    68.4% |           9 |       21.0 |       159 |       22 |   100 |   100 |    97 |    90 |    90 |    89 |    80 |    74 |    73 |
+| mediocre |  500 |    22.6% |           7 |       32.9 |       312 |        1 |   101 |    94 |    80 |    56 |    54 |    54 |    54 |    58 |    63 |
+|   solver |  500 |    87.8% |           9 |       15.8 |        62 |        6 |   100 |   100 |   100 |    97 |    97 |    97 |    92 |    90 |    86 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+Per-cell tables follow in the same PR once their runs finish. Gate:
+adversarial round on the engine (below, once it reports).
+
 ### Starting cells (PR #53, 2026-09-08)
 
 Dean's five answers: agree with all. Five cells in `src/content/cells.ts`,

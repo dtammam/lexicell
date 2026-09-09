@@ -18,16 +18,24 @@ describe('content bundle', () => {
     });
   });
 
-  it('has three enemies and one boss with unique ids and sane numbers', () => {
-    expect(CONTENT.enemies).toHaveLength(3);
-    expect(CONTENT.bosses).toHaveLength(1);
+  it('has twelve enemies in three act pools and one boss per act, unique ids, sane numbers, a sprite each', () => {
+    expect(CONTENT.enemies).toHaveLength(12);
+    expect(CONTENT.bosses).toHaveLength(3);
+    for (const act of [1, 2, 3]) {
+      expect(CONTENT.enemies.filter((e) => e.act === act), `act ${act}`).toHaveLength(4);
+      expect(CONTENT.bosses.filter((e) => e.act === act), `boss act ${act}`).toHaveLength(1);
+    }
     const all = [...CONTENT.enemies, ...CONTENT.bosses];
     expect(new Set(all.map((e) => e.id)).size).toBe(all.length);
     for (const e of all) {
       expect(e.hp, e.id).toBeGreaterThan(0);
       expect(e.damage, e.id).toBeGreaterThan(0);
       expect(e.attackEvery, e.id).toBeGreaterThanOrEqual(1);
+      expect(e.variance, e.id).toBeGreaterThanOrEqual(0);
+      expect(e.variance, e.id).toBeLessThanOrEqual(0.6);
       if (e.special) expect(e.special.every, e.id).toBeGreaterThanOrEqual(1);
+      if (e.traits?.armour) expect(e.traits.armour, e.id).toBeLessThanOrEqual(7); // a 7-letter word always lands in full
+      expect(existsSync(`public/sprites/${e.id}.png`), e.id).toBe(true);
     }
   });
 
@@ -79,9 +87,14 @@ describe('content bundle', () => {
     for (const c of CONTENT.cells) for (const act of [1, 2, 3]) expect(existsSync(`public/sprites/cell-${c.id}-${act}.png`), `${c.id} act ${act}`).toBe(true);
   });
 
-  it('the boss has a distinct mechanic', () => {
-    expect(CONTENT.bosses[0]?.special?.effects.some((e) => e.type === 'lockTiles')).toBe(true);
-    expect(CONTENT.enemies.find((e) => e.id === 'polyp')?.special?.effects.some((e) => e.type === 'venomTiles')).toBe(true);
-    for (const e of CONTENT.enemies) if (e.id !== 'polyp') expect(e.special).toBeUndefined();
+  it('every boss has a special and a trait, and no enemy carries both a lock and a venom special', () => {
+    for (const b of CONTENT.bosses) {
+      expect(b.special, b.id).toBeDefined();
+      expect(b.traits && Object.keys(b.traits).length > 0, b.id).toBe(true);
+    }
+    for (const e of [...CONTENT.enemies, ...CONTENT.bosses]) {
+      const types = new Set((e.special?.effects ?? []).map((x) => x.type));
+      expect(types.has('lockTiles') && types.has('venomTiles'), e.id).toBe(false);
+    }
   });
 });

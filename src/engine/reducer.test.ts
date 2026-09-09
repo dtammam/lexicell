@@ -5,12 +5,15 @@ import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { candidateIndices, candidateWords } from './candidates';
 import { gatherEffects } from './hooks';
 import { isDead, refill, settle } from './grid';
-import { MAX_COMMONS_PER_OFFER, newRun, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
+import { hitRange, MAX_COMMONS_PER_OFFER, newRun, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
 import { tilesForWord } from './solver';
 import type { Content, Encounter, EnemyDef, ItemDef, RunState } from './types';
 
 /** Shipped content opens on a starting-kit pick; most tests here want the first fight directly. */
-const ctx = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+/** Flat hits (variance 0) so the arithmetic in these tests stays exact; the variety-wave block tests the roll. */
+const FLAT: Content = { ...CONTENT, enemies: CONTENT.enemies.map((e) => ({ ...e, variance: 0 })), bosses: CONTENT.bosses.map((e) => ({ ...e, variance: 0 })) };
+const REAL_ROLLS: Content = CONTENT;
+const ctx = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
 
 function play(state: RunState, word: string, c: EngineContext = ctx): RunState {
   const enc = state.encounter;
@@ -188,7 +191,7 @@ describe('full runs', () => {
   }, 30_000);
 
   it('the item pool changes outcomes: no items vs all items', () => {
-    const noItems: EngineContext = nodeContext({ ...CONTENT, items: [], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    const noItems: EngineContext = nodeContext({ ...FLAT, items: [], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
     const { final } = greedyRun(4, noItems);
     expect(final.player.items).toEqual([]);
     // With no items there is no pick phase: encounters chain directly.
@@ -197,7 +200,7 @@ describe('full runs', () => {
 });
 
 describe('starting kit (tuning.startingPicks)', () => {
-  const kit: EngineContext = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+  const kit: EngineContext = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
 
   it('opens on a pick, then starts encounter 0 with the chosen item and no index skip', () => {
     const s0 = newRun(5, kit);
@@ -216,7 +219,7 @@ describe('starting kit (tuning.startingPicks)', () => {
   });
 
   it('two starting picks chain two offers before the first fight', () => {
-    const kit2: EngineContext = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 2 } });
+    const kit2: EngineContext = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 2 } });
     let s = newRun(6, kit2);
     s = reduce(s, { type: 'pickItem', index: 0 }, kit2);
     expect(s.phase).toBe('pick');
@@ -240,7 +243,7 @@ describe('starting kit (tuning.startingPicks)', () => {
   it('a kit with an empty item pool skips the offer and still starts encounter 0', () => {
     // Binds makeOffer's empty-offer path to advance(): before the kit, it bumped encounterIndex directly,
     // which with a pick pending would skip encounter 0 and leave pendingPicks stuck at 1 for the whole run.
-    const bare: EngineContext = nodeContext({ ...CONTENT, items: [], tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const bare: EngineContext = nodeContext({ ...FLAT, items: [], tuning: { ...CONTENT.tuning, startingPicks: 1 } });
     const s0 = newRun(5, bare);
     expect(s0.phase).toBe('fight');
     expect(s0.encounterIndex).toBe(0);
@@ -254,7 +257,7 @@ describe('starting kit (tuning.startingPicks)', () => {
 
   it('three picks against a two-item pool: the pool runs out mid-kit and encounter 0 still starts', () => {
     const two = CONTENT.items.slice(0, 2);
-    const kit3: EngineContext = nodeContext({ ...CONTENT, items: two, tuning: { ...CONTENT.tuning, startingPicks: 3 } });
+    const kit3: EngineContext = nodeContext({ ...FLAT, items: two, tuning: { ...CONTENT.tuning, startingPicks: 3 } });
     let s = newRun(8, kit3);
     expect(s.phase).toBe('pick');
     expect(s.pendingPicks).toBe(3);
@@ -278,9 +281,9 @@ describe('starting kit (tuning.startingPicks)', () => {
   });
 
   it('newRun clamps a negative or fractional startingPicks rather than trusting content', () => {
-    const neg = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: -1 } });
+    const neg = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: -1 } });
     expect(newRun(5, neg).pendingPicks).toBe(0);
-    const frac = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1.5 } });
+    const frac = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 1.5 } });
     expect(newRun(5, frac).pendingPicks).toBe(1);
   });
 });
@@ -521,7 +524,7 @@ describe('shuffle (costs the turn)', () => {
   }
 
   it('is rejected outside a fight and leaves the state otherwise untouched', () => {
-    const kit = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const kit = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
     const s0 = newRun(5, kit);
     const s1 = reduce(s0, { type: 'shuffle' }, kit);
     expect(s1.rejected).toBe('not in a fight');
@@ -711,7 +714,7 @@ describe('mythic tier (PR #31 gate)', () => {
     // Binds RARITY_WEIGHT.mythic > 0: at weight 0 weightedPick throws on an all-mythic pool.
     const mythics = CONTENT.items.filter((i) => i.rarity === 'mythic');
     expect(mythics).toHaveLength(12);
-    const onlyMythic: EngineContext = nodeContext({ ...CONTENT, items: mythics, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const onlyMythic: EngineContext = nodeContext({ ...FLAT, items: mythics, tuning: { ...CONTENT.tuning, startingPicks: 1 } });
     const s = newRun(3, onlyMythic);
     expect(s.phase).toBe('pick');
     expect(s.offer).toHaveLength(3);
@@ -726,7 +729,7 @@ describe('mythic tier (PR #31 gate)', () => {
 describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save v3)', () => {
   /** A context with one extra test item on top of the shipped pool, starting in a fight. */
   function withItem(item: ItemDef, extra: Partial<Content> = {}): EngineContext {
-    return nodeContext({ ...CONTENT, ...extra, items: [...CONTENT.items, item], tuning: { ...CONTENT.tuning, startingPicks: 0, ...extra.tuning } });
+    return nodeContext({ ...FLAT, ...extra, items: [...CONTENT.items, item], tuning: { ...CONTENT.tuning, startingPicks: 0, ...extra.tuning } });
   }
   function fightWith(seed: number, c: EngineContext, ids: string[]): RunState {
     const s = newRun(seed, c);
@@ -907,7 +910,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       flavor: '',
       hooks: { onPick: [{ type: 'freeShuffle', value: 2 }, { type: 'maxHp', value: 10 }, { type: 'shield', value: 5 }, { type: 'poisonEnemy', value: 9 }, { type: 'stun', value: 9 }] },
     };
-    const c = nodeContext({ ...CONTENT, items: [kit], tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const c = nodeContext({ ...FLAT, items: [kit], tuning: { ...CONTENT.tuning, startingPicks: 1 } });
     const s0 = newRun(17, c);
     expect(s0.phase).toBe('pick');
     expect(s0.offer).toEqual(['t-kit']);
@@ -1002,7 +1005,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
     const perItem: ItemDef = { id: 't-per-item', name: 'I', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'perUnit', unit: 'item', then: [{ type: 'addFlat', value: 1 }] }] } };
     const perLock: ItemDef = { id: 't-per-lock', name: 'L', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'perUnit', unit: 'lockedTile', then: [{ type: 'addFlat', value: 5 }] }] } };
     const perVenom: ItemDef = { id: 't-per-venom', name: 'V', rarity: 'common', description: '', flavor: '', hooks: { onTurnStart: [{ type: 'perUnit', unit: 'venomedTile', then: [{ type: 'heal', value: 2 }] }] } };
-    const c = nodeContext({ ...CONTENT, items: [...CONTENT.items, blank('b1'), blank('b2'), perItem, perLock, perVenom], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    const c = nodeContext({ ...FLAT, items: [...CONTENT.items, blank('b1'), blank('b2'), perItem, perLock, perVenom], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
     // items: one scaler alone, then with two blanks: +2 more damage on the same word.
     const s0 = withEnemy(fightWith(24, c, ['t-per-item']));
     const word = anyWord(s0, c);
@@ -1034,7 +1037,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
   it('onPick fires for the item just picked, not the first item owned (gate W6)', () => {
     const quiet: ItemDef = { id: 't-quiet', name: 'Q', rarity: 'common', description: '', flavor: '', hooks: { onWordScored: [{ type: 'addFlat', value: 1 }] } };
     const grow: ItemDef = { id: 't-grow2', name: 'G', rarity: 'common', description: '', flavor: '', hooks: { onPick: [{ type: 'maxHp', value: 10 }] } };
-    const c = nodeContext({ ...CONTENT, items: [quiet, grow], tuning: { ...CONTENT.tuning, startingPicks: 2 } });
+    const c = nodeContext({ ...FLAT, items: [quiet, grow], tuning: { ...CONTENT.tuning, startingPicks: 2 } });
     const s0 = newRun(25, c);
     expect(s0.phase).toBe('pick');
     const quietFirst = s0.offer?.indexOf('t-quiet') ?? -1;
@@ -1079,7 +1082,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
     expect(offers).toBeGreaterThan(30);
     expect(three).toBe(0);
     // An all-common pool still fills the offer: the rule yields when nothing else is left.
-    const commonsOnly = nodeContext({ ...CONTENT, items: CONTENT.items.filter((i) => i.rarity === 'common'), tuning: { ...CONTENT.tuning, startingPicks: 1 } });
+    const commonsOnly = nodeContext({ ...FLAT, items: CONTENT.items.filter((i) => i.rarity === 'common'), tuning: { ...CONTENT.tuning, startingPicks: 1 } });
     expect(newRun(1, commonsOnly).offer).toHaveLength(3);
   }, 20000);
 
@@ -1117,7 +1120,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
         onTurnStart: [{ type: 'perUnit', unit: 'venomedTile', then: [{ type: 'damageEnemy', value: 2 }] }],
       },
     };
-    const c = nodeContext({ ...CONTENT, items: [everything, ...CONTENT.items], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    const c = nodeContext({ ...FLAT, items: [everything, ...CONTENT.items], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
     for (const seed of [1, 2, 3]) {
       const a = greedyRun(seed, c, 0);
       const b = greedyRun(seed, c, 0);
@@ -1125,6 +1128,106 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
       expect(a.final.v).toBe(5);
     }
+  });
+});
+
+describe('variety wave step 1: act pools, damage ranges, armour, regen, hunger', () => {
+  const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+  function fight(seed: number, c: EngineContext = flat, over: Partial<{ id: string; hp: number; damage: number }> = {}): RunState {
+    const s = newRun(seed, c);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    const id = over.id ?? enc.enemy.id;
+    return { ...s, encounter: { ...enc, enemy: { ...enc.enemy, id, hp: over.hp ?? 100000, maxHp: over.hp ?? 100000, damage: over.damage ?? enc.enemy.damage } } };
+  }
+
+  it('hitRange is inclusive, symmetric and floored at zero', () => {
+    expect(hitRange(6, 0.3)).toEqual([4, 8]);
+    expect(hitRange(6, 0)).toEqual([6, 6]);
+    expect(hitRange(1, 0.5)).toEqual([1, 2]);
+    expect(hitRange(0, 0.5)).toEqual([0, 0]);
+  });
+
+  it('each encounter draws its enemy from the act pool, bosses from the boss of that act', () => {
+    for (let seed = 0; seed < 8; seed++) {
+      const { states } = greedyRun(seed);
+      for (const st of states) {
+        if (!st.encounter) continue;
+        const def = CONTENT.encounters[st.encounterIndex];
+        const pool = def?.boss ? CONTENT.bosses : CONTENT.enemies;
+        const e = pool.find((x) => x.id === st.encounter?.enemy.id);
+        expect(e, st.encounter.enemy.id).toBeDefined();
+        expect(e?.act).toBe(def?.act);
+      }
+    }
+  }, 30000);
+
+  it('a hit rolls inside the range from the run RNG, and the roll is threaded (replay identical)', () => {
+    const real = nodeContext({ ...REAL_ROLLS, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    const seen = new Set<number>();
+    for (let seed = 0; seed < 30; seed++) {
+      let s = newRun(seed, real);
+      if (s.phase !== 'fight') continue;
+      const enc = s.encounter as Encounter;
+      s = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 6 } } };
+      const a = reduce(s, { type: 'shuffle' }, real);
+      const b = reduce(s, { type: 'shuffle' }, real);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+      const hit = a.lastTurn?.enemyDamage ?? -1;
+      expect(hit).toBeGreaterThanOrEqual(4);
+      expect(hit).toBeLessThanOrEqual(8);
+      seen.add(hit);
+      expect(a.rng.counter).toBeGreaterThan(s.rng.counter);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('armour halves words shorter than it, floored; the preview says what lands', () => {
+    const s = fight(3, flat, { id: 'diatom-swarm' }); // armour 5
+    const cands = candidateWords(s, flat);
+    const short = cands.find((c) => c.word.length < 5);
+    const long = cands.find((c) => c.word.length >= 5);
+    if (short) {
+      const after = play(s, short.word, flat);
+      expect(after.lastTurn?.damage).toBe(Math.floor(short.damage / 2));
+    }
+    if (long) {
+      const after = play(s, long.word, flat);
+      expect(after.lastTurn?.damage).toBe(long.damage);
+    }
+  });
+
+  it('regen heals the enemy at its turn start, never above max; hunger grows its damage every turn', () => {
+    const r = fight(4, flat, { id: 'rotifer', hp: 50 }); // regen 3
+    const hurt: RunState = { ...r, encounter: { ...(r.encounter as Encounter), enemy: { ...(r.encounter as Encounter).enemy, hp: 40 } } };
+    const r1 = reduce(hurt, { type: 'shuffle' }, flat);
+    expect((r1.encounter as Encounter).enemy.hp).toBe(42);
+    const full = reduce(r, { type: 'shuffle' }, flat);
+    expect((full.encounter as Encounter).enemy.hp).toBe(50);
+    const h = fight(5, flat, { id: 'lamprey', damage: 10 }); // hunger 2
+    const h1 = reduce(h, { type: 'shuffle' }, flat);
+    expect((h1.encounter as Encounter).enemy.damage).toBe(12);
+    expect(h1.lastTurn?.enemyDamage).toBe(10); // the hit lands at the pre-growth damage
+    const h2 = reduce(h1, { type: 'shuffle' }, flat);
+    expect((h2.encounter as Encounter).enemy.damage).toBe(14);
+    expect(h2.lastTurn?.enemyDamage).toBe(12);
+  });
+});
+
+describe('variety wave step 1: the enrage clock', () => {
+  it('past tuning.enrageAfter every enemy hits harder each turn, so a fight cannot stall', () => {
+    const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0, enrageAfter: 3, enragePerTurn: 2 } });
+    let s = newRun(6, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, player: { ...s.player, hp: 1000, maxHp: 1000 }, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 6 } } };
+    const hits: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      s = reduce(s, { type: 'shuffle' }, flat);
+      hits.push(s.lastTurn?.enemyDamage ?? -1);
+    }
+    // Turns 1-3 hit 6; the tick at the start of turn 4 and after adds 2 each: 8, 10, 12.
+    expect(hits).toEqual([6, 6, 6, 8, 10, 12]);
   });
 });
 
@@ -1168,7 +1271,7 @@ describe('stats HUD: the worst word (save v5)', () => {
       expect(s.stats.worstWord).toBe(first.word);
     }
     // Zero damage: a multiplier stack at exactly 0 (Spore's 3-letter half, Paralytic -0.3, Wellspring -0.2).
-    const zero = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    const zero = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
     let z = newRun(0, zero, 'gambler');
     if (z.phase !== 'fight') throw new Error('fight');
     const zenc = z.encounter as Encounter;
@@ -1276,7 +1379,7 @@ describe('starting cells (save v4)', () => {
   });
 
   it('starting items fire their onPick once, in order (gate W4)', () => {
-    const gifted = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 }, cells: [{ ...byId('balanced'), id: 'gifted', startingItems: ['growth-factor', 'kinesin'] }] });
+    const gifted = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 }, cells: [{ ...byId('balanced'), id: 'gifted', startingItems: ['growth-factor', 'kinesin'] }] });
     const g = newRun(4, gifted, 'gifted');
     expect(g.player.items).toEqual(['growth-factor', 'kinesin']);
     expect(g.player.maxHp).toBe(115); // Growth Factor: +15 max HP when taken
@@ -1286,7 +1389,7 @@ describe('starting cells (save v4)', () => {
 
   it('an unknown cell, or a cell naming an unknown starting item, throws', () => {
     expect(() => newRun(1, ctx, 'nope')).toThrow(/unknown cell/);
-    const bad = nodeContext({ ...CONTENT, cells: [{ ...byId('balanced'), id: 'bad', startingItems: ['no-such-item'] }] });
+    const bad = nodeContext({ ...FLAT, cells: [{ ...byId('balanced'), id: 'bad', startingItems: ['no-such-item'] }] });
     expect(() => newRun(1, bad, 'bad')).toThrow(/unknown item/);
   });
 
@@ -1302,8 +1405,8 @@ describe('starting cells (save v4)', () => {
   it('the tinkerer gets its extra starting pick; starting items are granted before the kit', () => {
     const t = newRun(4, ctx, 'tinkerer');
     expect(t.pendingPicks).toBe(ctx.content.tuning.startingPicks + 1);
-    expect(newRun(4, nodeContext(CONTENT), 'tinkerer').pendingPicks).toBe(CONTENT.tuning.startingPicks + 1);
-    const gifted = nodeContext({ ...CONTENT, cells: [{ ...byId('balanced'), id: 'gifted', startingItems: ['sharp-pen', 'lens'] }] });
+    expect(newRun(4, nodeContext(FLAT), 'tinkerer').pendingPicks).toBe(CONTENT.tuning.startingPicks + 1);
+    const gifted = nodeContext({ ...FLAT, cells: [{ ...byId('balanced'), id: 'gifted', startingItems: ['sharp-pen', 'lens'] }] });
     const g = newRun(4, gifted, 'gifted');
     expect(g.player.items).toEqual(['sharp-pen', 'lens']);
     for (const id of g.offer ?? []) expect(['sharp-pen', 'lens']).not.toContain(id);
@@ -1359,7 +1462,7 @@ describe('starting cells (save v4)', () => {
 
   it('every cell replays byte-identical and stays JSON-plain through a greedy run', () => {
     for (const c of cells) {
-      const cc = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+      const cc = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
       const run = (seed: number) => {
         let s = newRun(seed, cc, c.id);
         for (let guard = 0; guard < 2000 && s.phase !== 'summary'; guard++) {

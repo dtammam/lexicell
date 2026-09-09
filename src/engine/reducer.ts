@@ -33,7 +33,7 @@ import { cellDef, collectEffects, itemDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { GRID_SIZE, type Content, type Encounter, type RunState, type Tile, type TurnReport } from './types';
+import { GRID_SIZE, type Content, type Encounter, type EnemyDef, type RunState, type Tile, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -328,10 +328,16 @@ function scramble(state: RunState, ctx: EngineContext): RunState {
 
 // ---------- encounter lifecycle ----------
 
+/** The enemies of an act; falls back to the whole list so a content set without pools still runs. */
+function poolFor(list: readonly EnemyDef[], act: number): readonly EnemyDef[] {
+  const inAct = list.filter((e) => e.act === act);
+  return inAct.length > 0 ? inAct : list;
+}
+
 function startEncounter(state: RunState, ctx: EngineContext): RunState {
   const def = ctx.content.encounters[state.encounterIndex];
   if (!def) throw new Error(`no encounter def at index ${state.encounterIndex}`);
-  const pool = def.boss ? ctx.content.bosses : ctx.content.enemies;
+  const pool = poolFor(def.boss ? ctx.content.bosses : ctx.content.enemies, def.act);
   const [enemyDef, rng1] = pick(state.rng, pool);
   const maxHp = Math.round(enemyDef.hp * def.hpScale);
   const s1: RunState = withRng(state, rng1);
@@ -373,11 +379,29 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
     stats: { ...a.state.stats, damageDealt: a.state.stats.damageDealt + a.enemyDamage },
   };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
+  s = enemyTraitsTick(s, ctx);
   s = poisonTick(s);
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
   s = venomBite(s, ctx.content.tuning.venomMax);
   if (s.player.hp <= 0) return { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null };
   return s;
+}
+
+/**
+ * Regen heals the enemy (never above max) and hunger grows its damage, both at its turn start from
+ * turn 2 on; past tuning.enrageAfter every enemy's damage grows by tuning.enragePerTurn as well, so
+ * no fight can stall.
+ */
+function enemyTraitsTick(state: RunState, ctx: EngineContext): RunState {
+  const enc = state.encounter;
+  if (!enc || enc.turn <= 1) return state;
+  const t = enemyDefOf(ctx, enc.enemy.id).traits;
+  const tuning = ctx.content.tuning;
+  const enrage = enc.turn > tuning.enrageAfter ? tuning.enragePerTurn : 0;
+  const grow = (t?.hunger ?? 0) + enrage;
+  if (!t?.regen && grow === 0) return state;
+  const hp = t?.regen ? Math.min(enc.enemy.maxHp, enc.enemy.hp + t.regen) : enc.enemy.hp;
+  return { ...state, encounter: { ...enc, enemy: { ...enc.enemy, hp, damage: enc.enemy.damage + grow } } };
 }
 
 /** The enemy takes its poison, then the poison shrinks by one. */
@@ -487,7 +511,10 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   // Player attack.
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell);
   const score = scoreWord(word, effects, ctx.content.tuning);
-  const enemyHp = Math.max(0, enc.enemy.hp - score.damage);
+  // Armour (variety wave): a word shorter than the enemy's armour deals half, floored.
+  const armour = enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0;
+  const landed = word.length < armour ? Math.floor(score.damage / 2) : score.damage;
+  const enemyHp = Math.max(0, enc.enemy.hp - landed);
   let s: RunState = {
     ...state,
     rejected: null,
@@ -526,6 +553,19 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   return endTurn(after.state, ctx, after.report, enc.selection);
 }
 
+function enemyDefOf(ctx: EngineContext, id: string): EnemyDef {
+  const def = [...ctx.content.enemies, ...ctx.content.bosses].find((e) => e.id === id);
+  if (!def) throw new Error(`unknown enemy ${id}`);
+  return def;
+}
+
+/** The hit range an enemy rolls in: [round(d*(1-v)), round(d*(1+v))], inclusive. Shared with the intent line. */
+export function hitRange(damage: number, variance: number): readonly [number, number] {
+  const lo = Math.max(0, Math.round(damage * (1 - variance)));
+  const hi = Math.max(lo, Math.round(damage * (1 + variance)));
+  return [lo, hi];
+}
+
 /**
  * The enemy's half of a turn: attack on its cadence (reduced by onDamageTaken items),
  * then its special. Returns the summary state on a kill so callers stop there.
@@ -533,8 +573,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
 function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { state: RunState; report: TurnReport } {
   let s = state;
   const enc2 = s.encounter as Encounter;
-  const enemyDef = [...ctx.content.enemies, ...ctx.content.bosses].find((e) => e.id === enc2.enemy.id);
-  if (!enemyDef) throw new Error(`unknown enemy ${enc2.enemy.id}`);
+  const enemyDef = enemyDefOf(ctx, enc2.enemy.id);
   let enemyDamage = 0;
   if (enc2.turn % enemyDef.attackEvery === 0) {
     if (enc2.enemy.stunned > 0) {
@@ -543,7 +582,17 @@ function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { s
       report = { ...report, stunned: true };
     } else {
       const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx), s.cell);
-      let dmg = enc2.enemy.damage;
+      // The roll (variety wave): one RNG draw inside the range, threaded like every other draw.
+      const [lo, hi] = hitRange(enc2.enemy.damage, enemyDef.variance);
+      let dmg = lo;
+      if (hi > lo) {
+        let roll: number;
+        [roll, s] = ((): [number, RunState] => {
+          const [r, rng] = nextInt(s.rng, hi - lo + 1);
+          return [r, withRng(s, rng)];
+        })();
+        dmg = lo + roll;
+      }
       for (const e of taken) if (e.type === 'reduceDamage') dmg = Math.max(0, dmg - e.value);
       // The shield absorbs what reduction left, then HP takes the rest.
       const shielded = Math.min(s.player.shield, dmg);
