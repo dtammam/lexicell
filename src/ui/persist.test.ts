@@ -75,6 +75,7 @@ describe('persist', () => {
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, worstWord: 7 } }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, bestWord: 7 } }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, bestWordDamage: '9' } }) })).load()).toBeNull();
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, stats: { ...s.stats, worstWordDamage: '9' } }) })).load()).toBeNull();
     // The cell must be a string (gate S1); an unknown id is the render boundary's job, like an unknown item.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, cell: 7 }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, cell: null }) })).load()).toBeNull();

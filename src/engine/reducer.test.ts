@@ -1181,6 +1181,20 @@ describe('stats HUD: the worst word (save v5)', () => {
     expect(z.stats.bestWord).toBe('');
     expect(z.stats.worstWord).toBe('');
     expect(z.stats.turns).toBe(1);
+    // A zero word AFTER a damaging word leaves both worst fields on the damaging word (gate S1).
+    const damaging = candidateWords(z, zero).find((c) => c.damage > 0);
+    const zeroAgain = () => candidateWords(z, zero).find((c) => c.damage === 0);
+    if (damaging) {
+      z = play(z, damaging.word, zero);
+      const kept = z.stats;
+      const zw = zeroAgain();
+      if (zw) {
+        z = play(z, zw.word, zero);
+        expect(z.stats.worstWord).toBe(kept.worstWord);
+        expect(z.stats.worstWordDamage).toBe(kept.worstWordDamage);
+        expect(z.stats.worstWordDamage).toBeGreaterThan(0);
+      }
+    }
   });
 });
 
