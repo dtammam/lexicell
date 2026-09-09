@@ -167,12 +167,15 @@ export interface RunStats {
   readonly damageTaken: number;
   readonly bestWord: string;
   readonly bestWordDamage: number;
+  /** The weakest word played this run (lowest damage; ties keep the first). Empty until a word is played. v5. */
+  readonly worstWord: string;
+  readonly worstWordDamage: number;
   /** Player HP at the start of each encounter reached, index = encounterIndex. */
   readonly hpAtEncounterStart: readonly number[];
 }
 
 export interface RunState {
-  readonly v: 4;
+  readonly v: 5;
   readonly rng: Rng;
   /** The starting cell's id (content.cells). v4; v3 saves load as 'balanced'. */
   readonly cell: string;

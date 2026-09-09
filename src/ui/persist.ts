@@ -95,10 +95,17 @@ function looksLikeRunState(value: unknown): value is RunState {
   );
 }
 
-/** The one migration on record: a v3 blob gains `cell: 'balanced'` and becomes v4. Anything else passes through. */
+/**
+ * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
+ * the empty worst-word stats (stats HUD). Anything else passes through and meets the shape check.
+ */
 export function migrate(value: unknown): unknown {
-  if (!isRecord(value) || value.v !== 3 || 'cell' in value) return value;
-  return { ...value, v: 4, cell: DEFAULT_CELL_ID };
+  let v: unknown = value;
+  if (isRecord(v) && v.v === 3 && !('cell' in v)) v = { ...v, v: 4, cell: DEFAULT_CELL_ID };
+  if (isRecord(v) && v.v === 4 && isRecord(v.stats) && !('worstWord' in v.stats)) {
+    v = { ...v, v: 5, stats: { ...v.stats, worstWord: '', worstWordDamage: 0 } };
+  }
+  return v;
 }
 
 export function createPersist(storage: StorageLike, key: string = SAVE_KEY): Persist {

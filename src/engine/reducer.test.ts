@@ -1123,7 +1123,33 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(4);
+      expect(a.final.v).toBe(5);
+    }
+  });
+});
+
+describe('stats HUD: the worst word (save v5)', () => {
+  it('the first word sets the worst, a weaker word replaces it, a stronger one leaves it', () => {
+    let s = newRun(21, ctx);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, hp: 100000, maxHp: 100000, damage: 0 } } };
+    expect(s.stats.worstWord).toBe('');
+    const first = candidateWords(s, ctx).sort((a, b) => b.damage - a.damage)[0];
+    if (!first) throw new Error('no word');
+    s = play(s, first.word, ctx);
+    expect(s.stats).toMatchObject({ worstWord: first.word, worstWordDamage: first.damage, bestWord: first.word, bestWordDamage: first.damage });
+    const weakest = candidateWords(s, ctx).sort((a, b) => a.damage - b.damage)[0];
+    if (!weakest) throw new Error('no word');
+    s = play(s, weakest.word, ctx);
+    expect(s.stats.worstWordDamage).toBe(Math.min(first.damage, weakest.damage));
+    expect(s.stats.bestWordDamage).toBe(Math.max(first.damage, weakest.damage));
+    const before = s.stats;
+    const mid = candidateWords(s, ctx).find((c) => c.damage > before.worstWordDamage && c.damage < before.bestWordDamage);
+    if (mid) {
+      s = play(s, mid.word, ctx);
+      expect(s.stats.worstWord).toBe(before.worstWord);
+      expect(s.stats.bestWord).toBe(before.bestWord);
     }
   });
 });
