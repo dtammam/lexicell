@@ -59,6 +59,11 @@ describe('persist', () => {
     expect(fromV7?.encounter?.grid.map((t) => t.letter)).toEqual(encS.grid.map((t) => t.letter));
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...fightS, v: 7 }) })).load()?.v).toBe(8); // v7 already carrying marks keeps them
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v7body) })).load()).toBeNull(); // v8 without the marks is dropped
+    // Marks are non-negative integers (gate S2): a negative, a fraction or a string on any tile drops the blob.
+    for (const bad of [{ gold: -50 }, { gold: 2.5 }, { cracked: -1 }, { venom: '2' }, { lockedTurns: 1.5 }]) {
+      const grid = encS.grid.map((t, i) => (i === 3 ? { ...t, ...bad } : t));
+      expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...fightS, encounter: { ...encS, grid } }) })).load(), JSON.stringify(bad)).toBeNull();
+    }
     // A v6 save (no traits on the player) loads as v8 with none (evolution, step 3).
     const oldPlayer = Object.fromEntries(Object.entries(s.player).filter(([k]) => k !== 'traits'));
     const v6body = { ...s, player: oldPlayer };
