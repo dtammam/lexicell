@@ -37,15 +37,37 @@ export interface ItemDef {
   readonly hooks: Partial<Record<Hook, readonly Effect[]>>;
 }
 
+/**
+ * Enemy traits (variety wave, 2026-09-09). Stats that act on state the enemy already carries, so
+ * they need no save change: armour halves short words, regen heals at its turn start, hunger
+ * grows its damage every turn. Read from content by id; never copied into state.
+ */
+export interface EnemyTraits {
+  /** Words shorter than this many letters deal half damage to it. */
+  readonly armour?: number;
+  /** HP it regains at the start of each turn, never above its max. */
+  readonly regen?: number;
+  /** Damage it gains at the start of each turn, without limit; kill it fast. */
+  readonly hunger?: number;
+}
+
 export interface EnemyDef {
   readonly id: string;
   readonly name: string;
+  /** Which act's pool it belongs to; startEncounter draws from the act's pool. */
+  readonly act: 1 | 2 | 3;
   /** Base HP before the encounter curve scales it. */
   readonly hp: number;
   /** Base damage per attack before the encounter curve scales it. */
   readonly damage: number;
+  /**
+   * A hit rolls in [round(d*(1-v)), round(d*(1+v))] from the run RNG (variety wave): the same seed
+   * still replays exactly, and the intent line shows the range. 0 = the flat hit.
+   */
+  readonly variance: number;
   /** Attack on every Nth enemy turn (1 = every turn). */
   readonly attackEvery: number;
+  readonly traits?: EnemyTraits;
   /** Optional distinct mechanic (bosses). Fires on every Nth enemy turn, after the attack. */
   readonly special?: { readonly every: number; readonly effects: readonly Effect[] };
 }
@@ -91,6 +113,12 @@ export interface Tuning {
   readonly shieldMax: number;
   /** A perUnit-scaled addMult never resolves above this multiplier (0.1 x 12 items would be x2.2 on everything). */
   readonly perUnitMultCap: number;
+  /**
+   * Enrage (variety wave): from this turn on, every enemy's damage grows by enragePerTurn each
+   * turn, so no fight can stall (a regenerating enemy against a healing player stalemated the sim).
+   */
+  readonly enrageAfter: number;
+  readonly enragePerTurn: number;
 }
 
 export interface Content {

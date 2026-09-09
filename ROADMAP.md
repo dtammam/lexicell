@@ -80,6 +80,126 @@ persist refuses every other version (tracker #3 closed).
 
 ## Shipped
 
+### Variety wave, step 1: enemies and damage ranges (PR #61, 2026-09-09)
+
+Dean's brief: testers finish runs and share screenshots; vary it up.
+Twelve enemies in three act pools (four per act: a plain hitter, a slow
+heavy hitter, a hazard maker, a trait carrier) and one boss per act,
+each boss with a special and a trait. Three enemy traits in the engine:
+armour (words shorter than N deal half), regen (heals N at its turn
+start, never above max), hunger (its damage grows N a turn). Every hit
+rolls in a range from the run RNG (round(d(1-v)) to round(d(1+v))), so
+a seed still replays exactly; the intent line shows the range and the
+traits. An enrage clock in tuning: past turn 20 every enemy hits 1
+harder each turn. It went in when seed 197 stalemated the sim on the
+pre-retune roster (a regenerating armoured enemy against a healing bot,
+5000 steps and no end); on the shipped content that seed ends on its
+own (the gate replayed it with enrage off: won at encounter 9 in 56
+turns), and over 500 seeds enrage engaged in 9 of 3458 mediocre fights
+and no greedy fight, so it is a backstop, not a lever. It only
+guarantees an end while the enemy attacks: two stun items that fire on
+alternating turns lock an enemy for good (tracker #8). The damage
+preview applies the enemy's armour, so the number shown is the number
+that lands. No save change: traits act on hp and damage the enemy
+already carries, the roll uses the run RNG. Sprites for all fifteen.
+
+Balance: on curve F the new roster won the mediocre bot 8.8% and greedy
+40.0%. Curve G softens acts 2 and 3; the act-2 boss lost 20 HP and 0.2
+damage scale; Rotifer regen 3 to 2, Siphonophore 5 to 3, Colony 2 to 1,
+Abyssal Mat armour 6 to 5 and regen 4 to 2, Diatom Swarm armour 5 to 4,
+Tardigrade King 6 to 5.
+
+`npx tsx scripts/sim.ts` on curve G, shipped (re-run after the gate's preview fix; the bots now see armour):
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    68.6% |           9 |       21.0 |       158 |       18 |   100 |   100 |    97 |    90 |    90 |    89 |    80 |    74 |    73 |
+| mediocre |  500 |    22.6% |           7 |       32.9 |       312 |        1 |   101 |    94 |    80 |    56 |    54 |    54 |    54 |    58 |    63 |
+|   solver |  500 |    88.0% |           9 |       15.8 |        62 |        5 |   100 |   100 |   100 |    97 |    97 |    97 |    92 |    90 |    86 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+The other cells on the new roster, first measured with the cell numbers
+shipped in PR #53: Predator 24.8%, Diatom 38.2%, Spore 20.4% with greedy
+at 86.6%, Mycelium 36.6%; Diatom and Mycelium sat outside the ten-point
+band around Amoeba's 22.6% and Spore's greedy rate was near the cap.
+Retuned: Diatom 115 HP and 2 less per hit (was 120 and 3), Spore +50% on
+6+ letters (was +60%), Mycelium 85 HP and -20% damage (was 90 and -15%).
+Shipped per-cell tables:
+
+`npx tsx scripts/sim.ts --cell aggro`, Predator:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    70.2% |           9 |       18.2 |        91 |        8 |    85 |    85 |    83 |    77 |    77 |    76 |    69 |    64 |    64 |
+| mediocre |  500 |    24.8% |           7 |       27.8 |       248 |        0 |    86 |    79 |    66 |    46 |    45 |    47 |    49 |    52 |    55 |
+|   solver |  500 |    90.2% |           9 |       13.7 |        18 |        7 |    85 |    85 |    85 |    84 |    84 |    84 |    81 |    79 |    76 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell defensive`, Diatom:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    71.0% |           9 |       24.4 |       231 |       17 |   115 |   115 |   113 |   106 |   106 |   105 |    94 |    87 |    84 |
+| mediocre |  500 |    31.2% |           8 |       41.9 |       454 |        1 |   116 |   113 |   102 |    78 |    75 |    72 |    63 |    65 |    66 |
+|   solver |  500 |    91.4% |           9 |       17.6 |        99 |        9 |   115 |   115 |   115 |   112 |   112 |   112 |   107 |   104 |   100 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell gambler`, Spore:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    82.0% |           9 |       16.7 |        76 |        3 |    90 |    90 |    89 |    85 |    86 |    85 |    80 |    76 |    74 |
+| mediocre |  500 |    20.2% |           6 |       31.2 |       266 |        1 |    91 |    84 |    71 |    49 |    48 |    50 |    51 |    54 |    57 |
+|   solver |  500 |    98.0% |           9 |       12.5 |         7 |        1 |    90 |    90 |    91 |    90 |    91 |    91 |    89 |    88 |    87 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|   greedy |  500 |    62.2% |           9 |       22.1 |       174 |       23 |    86 |    85 |    83 |    76 |    76 |    74 |    67 |    64 |    64 |
+| mediocre |  500 |    32.0% |           8 |       34.7 |       368 |        2 |    87 |    83 |    73 |    55 |    56 |    57 |    59 |    60 |    62 |
+|   solver |  500 |    83.0% |           9 |       16.8 |        82 |       11 |    86 |    86 |    85 |    82 |    83 |    82 |    78 |    75 |    74 |
+
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+Gate (adversarial, one round, REQUEST CHANGES then fixed): the damage
+preview ignored armour (`candidateWords` scored the raw word, so the
+Best line and the bots saw 11 where 5 landed against Tardigrade King);
+fixed in the engine, the same rule in both places. Seven mutants
+survived the first tests (a dropped roll RNG, hunger growing at the
+encounter start, an off-by-one armour boundary, a range whose top never
+lands, the traits tick moved before poison or before the onTurnStart
+death check, the intent line reading the base damage); each now has a
+binding test. Regen ticks before poison (a Siphonophore at 1 HP with
+poison 3 survives the turn): pinned by test and in the reducer header,
+Dean's call if it should flip. The enrage story in this entry was
+corrected as above, and the plan's hunger definition matched to what
+shipped (it grows every turn, not only unhit turns). Determinism held:
+23,235 replayed steps, 0 mismatches. Open: `bestWordDamage` records
+the word's score while `damageDealt` records what landed, the overkill
+convention from before armour; Mycelium's mediocre rate sits at the
+edge of the ten-point band.
+
 ### Starting cells (PR #53, 2026-09-08)
 
 Dean's five answers: agree with all. Five cells in `src/content/cells.ts`,

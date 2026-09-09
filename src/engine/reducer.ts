@@ -5,15 +5,21 @@
  *
  * Turn order, fixed:
  *   player submits word
- *     -> onWordScored effects (scoring first, then heal/damage extras)
+ *     -> scoring; armour halves it (floored) when the word is shorter than the enemy's armour
+ *     -> onWordScored effects (heal/damage extras; lifesteal reads what landed)
  *     -> enemy takes damage; if dead: onEncounterEnd, then pick or win
  *   enemy turn
  *     -> attack on its cadence: a stun consumes itself and skips the hit; otherwise
- *        onDamageTaken (reduceDamage first), then the shield absorbs, then hp
+ *        the hit is rolled inside hitRange(damage, variance) with one RNG draw (none when the
+ *        range is a single value), then onDamageTaken (reduceDamage first), then the shield
+ *        absorbs, then hp
  *     -> special on its cadence (bosses)
  *     -> if player dead: lose
  *   refill used tiles (onTileDraw vowelWeight / letterWeight), settle columns (gravity), tick locks, dead-grid scramble
  *   next turn: onTurnStart effects; if enemy dead: same as above
+ *     -> enemy traits tick from turn 2: regen heals it (never above max), hunger and the enrage
+ *        clock grow its damage. Regen goes before poison, so a regenerating enemy can out-heal
+ *        the poison on it (pinned by test; Dean's call if it should flip)
  *     -> poison ticks on the enemy (value, then value-1 ...); if enemy dead: same as above
  *     -> venom bites the player; if player dead: lose
  *
@@ -33,7 +39,7 @@ import { cellDef, collectEffects, itemDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { GRID_SIZE, type Content, type Encounter, type RunState, type Tile, type TurnReport } from './types';
+import { GRID_SIZE, type Content, type Encounter, type EnemyDef, type RunState, type Tile, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -328,10 +334,16 @@ function scramble(state: RunState, ctx: EngineContext): RunState {
 
 // ---------- encounter lifecycle ----------
 
+/** The enemies of an act; falls back to the whole list so a content set without pools still runs. */
+function poolFor(list: readonly EnemyDef[], act: number): readonly EnemyDef[] {
+  const inAct = list.filter((e) => e.act === act);
+  return inAct.length > 0 ? inAct : list;
+}
+
 function startEncounter(state: RunState, ctx: EngineContext): RunState {
   const def = ctx.content.encounters[state.encounterIndex];
   if (!def) throw new Error(`no encounter def at index ${state.encounterIndex}`);
-  const pool = def.boss ? ctx.content.bosses : ctx.content.enemies;
+  const pool = poolFor(def.boss ? ctx.content.bosses : ctx.content.enemies, def.act);
   const [enemyDef, rng1] = pick(state.rng, pool);
   const maxHp = Math.round(enemyDef.hp * def.hpScale);
   const s1: RunState = withRng(state, rng1);
@@ -373,11 +385,30 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
     stats: { ...a.state.stats, damageDealt: a.state.stats.damageDealt + a.enemyDamage },
   };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
+  s = enemyTraitsTick(s, ctx);
   s = poisonTick(s);
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
   s = venomBite(s, ctx.content.tuning.venomMax);
   if (s.player.hp <= 0) return { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null };
   return s;
+}
+
+/**
+ * Regen heals the enemy (never above max) and hunger grows its damage, both at its turn start from
+ * turn 2 on; past tuning.enrageAfter every enemy's damage grows by tuning.enragePerTurn as well, so
+ * no fight in which the enemy attacks can stall. (A permanent stun lock is the one gap; tracker #8.)
+ * Runs after the onTurnStart effects and their death check: an enemy they killed stays dead.
+ */
+function enemyTraitsTick(state: RunState, ctx: EngineContext): RunState {
+  const enc = state.encounter;
+  if (!enc || enc.turn <= 1) return state;
+  const t = enemyDefOf(ctx, enc.enemy.id).traits;
+  const tuning = ctx.content.tuning;
+  const enrage = enc.turn > tuning.enrageAfter ? tuning.enragePerTurn : 0;
+  const grow = (t?.hunger ?? 0) + enrage;
+  if (!t?.regen && grow === 0) return state;
+  const hp = t?.regen ? Math.min(enc.enemy.maxHp, enc.enemy.hp + t.regen) : enc.enemy.hp;
+  return { ...state, encounter: { ...enc, enemy: { ...enc.enemy, hp, damage: enc.enemy.damage + grow } } };
 }
 
 /** The enemy takes its poison, then the poison shrinks by one. */
@@ -487,7 +518,11 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   // Player attack.
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell);
   const score = scoreWord(word, effects, ctx.content.tuning);
-  const enemyHp = Math.max(0, enc.enemy.hp - score.damage);
+  // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. The preview
+  // (candidates.ts) applies the same rule, so the number it shows is the number that lands; the
+  // best/worst word stats record the word's own score, as they did with overkill before armour.
+  const landed = armourHit(word, score.damage, enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0);
+  const enemyHp = Math.max(0, enc.enemy.hp - landed);
   let s: RunState = {
     ...state,
     rejected: null,
@@ -526,6 +561,24 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   return endTurn(after.state, ctx, after.report, enc.selection);
 }
 
+export function enemyDefOf(ctx: EngineContext, id: string): EnemyDef {
+  const def = [...ctx.content.enemies, ...ctx.content.bosses].find((e) => e.id === id);
+  if (!def) throw new Error(`unknown enemy ${id}`);
+  return def;
+}
+
+/** What a word's score does to an armoured enemy: half, floored, when the word is shorter than the armour. */
+export function armourHit(word: string, damage: number, armour: number): number {
+  return word.length < armour ? Math.floor(damage / 2) : damage;
+}
+
+/** The hit range an enemy rolls in: [round(d*(1-v)), round(d*(1+v))], inclusive. Shared with the intent line. */
+export function hitRange(damage: number, variance: number): readonly [number, number] {
+  const lo = Math.max(0, Math.round(damage * (1 - variance)));
+  const hi = Math.max(lo, Math.round(damage * (1 + variance)));
+  return [lo, hi];
+}
+
 /**
  * The enemy's half of a turn: attack on its cadence (reduced by onDamageTaken items),
  * then its special. Returns the summary state on a kill so callers stop there.
@@ -533,8 +586,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
 function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { state: RunState; report: TurnReport } {
   let s = state;
   const enc2 = s.encounter as Encounter;
-  const enemyDef = [...ctx.content.enemies, ...ctx.content.bosses].find((e) => e.id === enc2.enemy.id);
-  if (!enemyDef) throw new Error(`unknown enemy ${enc2.enemy.id}`);
+  const enemyDef = enemyDefOf(ctx, enc2.enemy.id);
   let enemyDamage = 0;
   if (enc2.turn % enemyDef.attackEvery === 0) {
     if (enc2.enemy.stunned > 0) {
@@ -543,7 +595,17 @@ function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { s
       report = { ...report, stunned: true };
     } else {
       const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx), s.cell);
-      let dmg = enc2.enemy.damage;
+      // The roll (variety wave): one RNG draw inside the range, threaded like every other draw.
+      const [lo, hi] = hitRange(enc2.enemy.damage, enemyDef.variance);
+      let dmg = lo;
+      if (hi > lo) {
+        let roll: number;
+        [roll, s] = ((): [number, RunState] => {
+          const [r, rng] = nextInt(s.rng, hi - lo + 1);
+          return [r, withRng(s, rng)];
+        })();
+        dmg = lo + roll;
+      }
       for (const e of taken) if (e.type === 'reduceDamage') dmg = Math.max(0, dmg - e.value);
       // The shield absorbs what reduction left, then HP takes the rest.
       const shielded = Math.min(s.player.shield, dmg);

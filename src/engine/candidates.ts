@@ -1,6 +1,7 @@
 /**
  * Every playable word on the current grid with the damage it would deal
- * under the player's current items. Bots choose from this; a UI hint can too.
+ * under the player's current items and this enemy's armour (variety wave gate: the preview
+ * must say what lands). Bots choose from this; a UI hint can too.
  * Pure: reads state and context, changes nothing.
  *
  * Tile indices are resolved separately (candidateIndices) because only the
@@ -10,7 +11,7 @@
 import { playableIndices, playableLetters } from './grid';
 import { gatherEffects } from './hooks';
 import { resolveEffects } from './effects';
-import { conditionCtx, type EngineContext } from './reducer';
+import { armourHit, conditionCtx, enemyDefOf, type EngineContext } from './reducer';
 import { scoreWord } from './scoring';
 import { tilesForWord } from './solver';
 import type { RunState } from './types';
@@ -28,10 +29,11 @@ export function candidateWords(state: RunState, ctx: EngineContext): Candidate[]
   // Anything that reads the word (a condition or a perUnit) must be resolved per word.
   const conditional = raw.some((e) => e.type === 'condition' || e.type === 'perUnit');
   const fixed = conditional ? null : resolveEffects(raw, base);
+  const armour = enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0;
   const out: Candidate[] = [];
   for (const word of ctx.solver.solve(playableLetters(enc.grid))) {
     const effects = fixed ?? resolveEffects(raw, { ...base, word });
-    out.push({ word, damage: scoreWord(word, effects, ctx.content.tuning).damage });
+    out.push({ word, damage: armourHit(word, scoreWord(word, effects, ctx.content.tuning).damage, armour) });
   }
   return out;
 }
