@@ -20,6 +20,8 @@
     <dd>{run.stats.turns}</dd>
     <dt>Best word</dt>
     <dd>{run.stats.bestWord ? `${run.stats.bestWord.toUpperCase()} (${run.stats.bestWordDamage})` : 'none'}</dd>
+    <dt>Worst word</dt>
+    <dd>{run.stats.worstWord ? `${run.stats.worstWord.toUpperCase()} (${run.stats.worstWordDamage})` : 'none'}</dd>
     <dt>Damage dealt / taken</dt>
     <dd>{run.stats.damageDealt} / {run.stats.damageTaken}</dd>
     <dt>Items</dt>

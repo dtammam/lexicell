@@ -50,11 +50,11 @@ export type Action =
   | { readonly type: 'shuffle' };
 
 /**
- * 4 since starting cells (RunState.cell); a v3 save is MIGRATED by persist.ts, not dropped: it
- * loads as the balanced cell (Dean, 2026-09-08, question 3). 3 was the effects wave (v2 dropped),
- * 2 the tuning wave (v1 dropped).
+ * 5 since the stats HUD (RunStats.worstWord, worstWordDamage); v4 and v3 saves are MIGRATED by
+ * persist.ts (worst fields empty; a v3 save also gains the balanced cell). 4 was starting cells,
+ * 3 the effects wave (v2 dropped), 2 the tuning wave (v1 dropped).
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 /** The cell a run gets when none is named: the game as it was before cells. */
 export const DEFAULT_CELL_ID = 'balanced';
 export const OFFER_SIZE = 3;
@@ -84,7 +84,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
   for (const id of cell.startingItems) itemDef(ctx.content, id);
   const maxHp = cell.maxHp;
   const state: RunState = {
-    v: 4,
+    v: 5,
     cell: cell.id,
     rng: createRng(seed),
     phase: 'fight',
@@ -96,7 +96,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
     lastTurn: null,
     rejected: null,
     pendingPicks: Math.max(0, Math.floor(ctx.content.tuning.startingPicks) + Math.max(0, Math.floor(cell.extraPicks))),
-    stats: { turns: 0, damageDealt: 0, damageTaken: 0, bestWord: '', bestWordDamage: 0, hpAtEncounterStart: [] },
+    stats: { turns: 0, damageDealt: 0, damageTaken: 0, bestWord: '', bestWordDamage: 0, worstWord: '', worstWordDamage: 0, hpAtEncounterStart: [] },
   };
   // A starting item is a picked item: its onPick fires here, once, in order (gate W4, cells round).
   let s: RunState = state;
@@ -498,6 +498,11 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
       damageDealt: state.stats.damageDealt + (enc.enemy.hp - enemyHp),
       bestWord: score.damage > state.stats.bestWordDamage ? word : state.stats.bestWord,
       bestWordDamage: Math.max(score.damage, state.stats.bestWordDamage),
+      // The worst word is the lowest-damage word played that did any damage; the first sets it, a
+      // weaker one replaces it, a tie keeps the first. Zero-damage words (a multiplier stack at 0)
+      // count for neither best nor worst, so the two stats agree on what a word is (stats HUD, 2026-09-09).
+      worstWord: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? word : state.stats.worstWord,
+      worstWordDamage: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? score.damage : state.stats.worstWordDamage,
     },
   };
   const extras = applyEffects(s, effects, ctx, enc.enemy.hp - enemyHp);
