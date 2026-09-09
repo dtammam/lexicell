@@ -642,6 +642,13 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #63 (2026-09-09): release notes. Dean: every merge since the first
+  commit, visible in the game, newest on top, with PR and build numbers
+  and plain human notes, maintained over time. `src/ui/release-notes.ts`
+  holds 81 entries (80 merges plus itself); a Release notes button on the
+  title opens a scrolling list with a link to each PR; the test keeps
+  builds and PRs descending with no gaps and refuses em dashes; CLAUDE.md
+  rule 6: every PR adds its entry at the top before merging.
 - PR #59 (2026-09-09): phone fit, second pass, for the after-a-word state:
   one stat per arena row, WORD DAMAGE as the hit line, definition and
   missed word on one line, shorter stage. Rendered at 390x780 both before
