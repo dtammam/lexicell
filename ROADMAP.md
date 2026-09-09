@@ -33,6 +33,10 @@ cells).
   10,000-run per-item table to make the two-point reskin rule
   measurable; the 3000-run tables catch degenerate and never-picked
   items only.
+- **Run history with export**: built (PR #51), reviewer round pending.
+- **Clarity feedback batch**: five of seven shipped (PR #55). Left: cells
+  more cellular (the sprite pass, with per-cell sprites) and a stats HUD
+  with best and worst word (the worst word needs a new stat).
 - **Run history with export**: shipped (PR #51); plan in completed/.
 - **Clarity feedback batch** (a tester via Dean, 2026-09-08): names
   shown twice on the fight screen; a busy backdrop; no clear cue that
@@ -404,6 +408,10 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #55 (2026-09-08): clarity. Enemy intent line, names once on the
+  bars, a veil over the backdrop, the report steps in per turn, grafts
+  glow when they fire for the selected word; prose face to DotGothic16
+  (Dean could not read the cell descriptions in Pixelify Sans).
 - PR #52 (2026-09-08): the mark. The Bookends wordmark and square mark
   from scripts/logo.py; favicon, apple-touch and PWA icons regenerated;
   title screen shows the wordmark; manifest and theme colour on the

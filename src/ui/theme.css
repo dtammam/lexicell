@@ -13,6 +13,12 @@
   src: url('/fonts/press-start-2p.woff2') format('woff2');
 }
 @font-face {
+  font-family: 'DotGothic16';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/dotgothic16.woff2') format('woff2');
+}
+@font-face {
   font-family: 'Pixelify Sans';
   font-weight: 400 700;
   font-display: swap;
@@ -68,9 +74,12 @@
   --font-head: 'Pixelify Sans', system-ui, sans-serif;
   --head: 24px;
   --name: 20px;
+  /* Prose (Dean, 2026-09-08, testing the cell picker: "+25% damage, but every hit..." in Pixelify Sans
+     at 16px was not legible): DotGothic16, a dot-matrix face with an even, open lowercase. Still
+     pixel; readable in a sentence full of numbers. Headings and names keep Pixelify Sans at 20+. */
   /* Running text is Pixelify Sans (Dean, 2026-09-08: the normal text was too normal): a pixel
      face with a real lowercase that stays readable at 16px. Never below 16px. */
-  --font-ui: 'Pixelify Sans', system-ui, -apple-system, sans-serif;
+  --font-ui: 'DotGothic16', system-ui, -apple-system, sans-serif;
   --text: 16px;
   /* Readable type (Dean, 2026-09-08, a tester found the pixel faces ambiguous): a per-device toggle
      swaps every face for the system sans; the tokens below are what it swaps to. */
@@ -115,7 +124,8 @@ body {
   background: var(--ground);
   color: var(--ink);
   font-family: var(--font-ui);
-  /* Pixelify Sans joins "fi" into one shape ("find" read as "And" to a tester): no ligatures, a hair of tracking. */
+  line-height: 1.5;
+  /* No ligatures in prose (Pixelify Sans once joined "fi" into one shape), a hair of tracking. */
   font-variant-ligatures: none;
   letter-spacing: 0.01em;
   -webkit-tap-highlight-color: transparent;

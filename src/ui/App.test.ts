@@ -572,6 +572,36 @@ describe('App', () => {
     expect(getByText('You won')).toBeTruthy();
   }, 30000);
 
+  it('clarity: the enemy shows its next move, names appear once, the backdrop has a veil, and organelles light up for a word they fire on', async () => {
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = blob.encounter as NonNullable<RunState['encounter']>;
+    // An every-turn attacker with an unconditional +damage organelle carried.
+    const seeded: RunState = { ...blob, player: { ...blob.player, items: ['sharp-pen'] }, encounter: { ...enc, turn: 1, enemy: { ...enc.enemy, id: 'amoeba', damage: 6 } } };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await findByText('Encounter 1 / 9');
+    expect(getByText('Next: hits for 6')).toBeTruthy();
+    expect(document.querySelectorAll('figcaption')).toHaveLength(0);
+    expect(document.querySelectorAll('.arena .bar-label strong')).toHaveLength(2);
+    expect(document.querySelector('.arena .veil')).not.toBeNull();
+    // Nothing selected: the graft is quiet. Three letters selected: Flagellum (+8 on every word) lights up.
+    expect(document.querySelector('.graft.live')).toBeNull();
+    const letters = enc.grid.map((t) => t.letter);
+    const word = ctx.solver.solve(letters).filter((w) => w.length >= 3)[0] as string;
+    const idx = tilesForWord(word, letters, letters.map((_, i) => i)) ?? [];
+    for (const i of idx) await click(tiles()[i] ?? null);
+    expect(document.querySelector('.graft.live')).not.toBeNull();
+    // A stunned enemy announces that it will not attack.
+    cleanup();
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...seeded, encounter: { ...seeded.encounter, enemy: { ...enc.enemy, id: 'amoeba', damage: 6, stunned: 1 } } }));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    expect(await findByText('Next: is stunned: no attack')).toBeTruthy();
+  }, 30000);
+
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
     for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {

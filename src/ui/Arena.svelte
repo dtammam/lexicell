@@ -1,11 +1,16 @@
 <script lang="ts">
+  import { CONTENT } from '../content/index';
+  import { resolveEffects } from '../engine/effects';
+  import { conditionCtx, type EngineContext } from '../engine/reducer';
   import type { RunState } from '../engine/types';
   import ItemIcon from './ItemIcon.svelte';
-  import { enemyName } from './lookup';
+  import { enemyName, itemDef } from './lookup';
 
   // You versus the thing: two sprites over a background band per act, HP bars, hit
   // flash and floating damage numbers keyed on the turn counter so they replay each turn.
-  let { run }: { run: RunState } = $props();
+  // `word` is the current selection and `ctx` the engine context, so the grafts can show
+  // which organelles would fire for it (tester, 2026-09-08).
+  let { run, ctx = null, word = '' }: { run: RunState; ctx?: EngineContext | null; word?: string } = $props();
 
   // Vite's base ("/" in production, "/absproxy/5173/" on the LAN dev route) prefixes every asset URL.
   const base = import.meta.env.BASE_URL;
@@ -26,6 +31,34 @@
   const poison = $derived(enc?.enemy.poison ?? 0);
   const stunned = $derived(enc?.enemy.stunned ?? 0);
 
+  /**
+   * The enemy's next move, Slay the Spire style (tester, 2026-09-08), read from content and the
+   * turn counter with the same arithmetic the reducer uses: it attacks when turn % attackEvery
+   * is 0, its special fires when turn % every is 0, a stun eats the attack but not the special.
+   */
+  const intent = $derived.by(() => {
+    if (!enc) return '';
+    const def = [...CONTENT.enemies, ...CONTENT.bosses].find((e) => e.id === enc.enemy.id);
+    if (!def) return '';
+    const attacks = enc.turn % def.attackEvery === 0;
+    const special = def.special && enc.turn % def.special.every === 0 ? def.special.effects[0] : undefined;
+    const specialText = special?.type === 'lockTiles' ? `locks ${special.count} tiles` : special?.type === 'venomTiles' ? `venoms ${special.count} tile${special.count === 1 ? '' : 's'}` : special?.type === 'scramble' ? 'scrambles the grid' : special ? 'uses its special' : '';
+    const hit = !attacks ? 'rests this turn' : stunned > 0 ? 'is stunned: no attack' : `hits for ${enc.enemy.damage}`;
+    return `Next: ${hit}${specialText ? `, then ${specialText}` : ''}`;
+  });
+
+  /** Organelles whose onWordScored effects would fire for the selected word light up on the body. */
+  const live = $derived.by((): readonly number[] => {
+    if (!ctx || word.length < 3) return [];
+    const cctx = conditionCtx(run, ctx, word);
+    const out: number[] = [];
+    run.player.items.forEach((id, i) => {
+      const hooks = itemDef(id).hooks.onWordScored;
+      if (hooks && resolveEffects(hooks, cctx).length > 0) out.push(i);
+    });
+    return out;
+  });
+
   function fallback(e: Event) {
     const img = e.currentTarget as HTMLImageElement;
     if (!img.src.endsWith('sprites/unknown.png')) img.src = unknown;
@@ -38,6 +71,8 @@
       <div class="layer a"></div>
       <div class="layer b"></div>
       <div class="layer c"></div>
+      <!-- The veil (Dean, 2026-09-08: the backdrop is great, just too forward): the same layers, a step back. -->
+      <div class="veil"></div>
     </div>
     <div class="row">
       <span>Act {act}</span>
@@ -52,11 +87,10 @@
           <div class="body">
             <img src="{base}sprites/player-{act}.png" alt="You" onerror={fallback} />
             {#each run.player.items as id, i (`${id}-${i}`)}
-              <span class="graft" style="--slot: {i}"><ItemIcon {id} size={16} /></span>
+              <span class="graft" class:live={live.includes(i)} style="--slot: {i}"><ItemIcon {id} size={16} /></span>
             {/each}
           </div>
           {#if taken > 0}<span class="float taken">-{taken}</span>{/if}
-          <figcaption>You</figcaption>
         </figure>
         <span class="vs">vs</span>
         <figure class="fighter enemy" class:hit={dealt > 0}>
@@ -68,10 +102,11 @@
               {#if stunned > 0}<span class="badge stun" title="Stunned: skips this many attacks">{`\u2749${stunned}`}</span>{/if}
             </span>
           {/if}
-          <figcaption>{enemyName(enc.enemy.id)}</figcaption>
         </figure>
       {/key}
     </div>
+    <!-- Names live on the bars only (tester: they appeared several times on one screen). -->
+    <p class="intent" class:threat={intent.includes('hits')}>{intent}</p>
     <div class="bars">
       <div class="bar-label">
         <strong>You</strong>
@@ -133,6 +168,12 @@
     position: absolute;
     inset: -40%;
     will-change: transform;
+  }
+  .veil {
+    position: absolute;
+    inset: 0;
+    background: var(--bg0);
+    opacity: 0.55;
   }
   .layer.a {
     opacity: 0.75;
@@ -313,12 +354,6 @@
   .arena[data-pattern='rings'] .enemy img {
     animation: wobble 3.2s ease-in-out infinite;
   }
-  figcaption {
-    font-family: var(--font-hud);
-    font-size: var(--hud-s);
-    color: var(--ink);
-    text-shadow: 1px 1px 0 var(--shade), 0 0 6px var(--shade);
-  }
   .vs {
     align-self: center;
     font-family: var(--font-hud);
@@ -397,6 +432,28 @@
   }
   .badge.stun {
     color: var(--select);
+  }
+  .intent {
+    margin: 0;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    line-height: 1.2;
+    color: var(--muted);
+    text-align: right;
+  }
+  .intent.threat {
+    color: var(--harm);
+  }
+  .graft.live :global(img) {
+    filter: drop-shadow(0 0 4px var(--score)) drop-shadow(0 0 1px var(--score));
+  }
+  .graft.live {
+    animation: graft-live var(--dur-state) var(--ease-step) both;
+  }
+  @keyframes graft-live {
+    from {
+      transform: scale(1.4);
+    }
   }
   .enemy .fill {
     background: var(--harm);

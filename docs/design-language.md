@@ -70,13 +70,18 @@ the script and re-run it.
     glyph): HUD lines stay short, buttons may wrap to two lines, and
     the word line wraps rather than clips.
   - `--font-head` is Pixelify Sans: headings at `--head` (24 px),
-    item names at `--name` (20 px). `--font-ui` is Pixelify Sans for
-    prose at `--text` (16 px). One face with a lowercase, sized by
-    role.
+    item names at `--name` (20 px), where its character reads. It does
+    not carry prose: at 16 px a sentence full of numbers ("+25%
+    damage, but every hit you take hurts 1 more") was not legible to
+    Dean on the cell picker.
+  - `--font-ui` is DotGothic16 for prose at `--text` (16 px), line
+    height 1.5: descriptions, definitions, hints, the intro lines. A
+    dot-matrix face with an even, open lowercase; pixel in spirit,
+    readable in a paragraph.
 - No digit is ever set under 16 px. `--hud-s` is 16 px for that
   reason; there is no smaller HUD size. Digits are tabular wherever
   they line up.
-- Both faces are vendored under `public/fonts` with their Open Font
+- Three faces, all vendored under `public/fonts` with their Open Font
   License texts. Nothing loads from a third party.
 
 ## Shape
@@ -128,8 +133,9 @@ the script and re-run it.
 
 ## What "slop" looks like, so it stays out
 
-A component with its own hex values. A third font. A pixel face in
-bold, or at a size off its grid. A digit under 16 px. A paragraph in the pixel face. A pill
+A component with its own hex values. A fourth font. A pixel face in
+bold, or at a size off its grid. A digit under 16 px. Pixelify Sans in
+a paragraph. A paragraph in the pixel face. A pill
 button. A
 soft drop shadow. A gradient on a card. An easing curve on a state
 change. Text under 13 px in the UI face. Emoji as icons.
