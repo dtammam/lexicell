@@ -409,6 +409,10 @@ reworks the 72 anyway and lands with the UI PR (tracker #7).
 
 ### Small PRs under iteration mode (one line each, newest first)
 
+- PR #58 (2026-09-09): phone fit. Short status-row labels and intent
+  strings, a shorter first-fight hint, badges hidden on small grids; the
+  layout was overflowing a 390px phone and squeezing the grid. Verified
+  with a headless Chromium render at 390x780, the first real render check.
 - PR #57 (2026-09-09): the sprite pass. Cellular sprites (membrane,
   nucleus, organelle dots) and a body per starting cell per act, from
   scripts/sprites.py; the picker, intro and arena use them.

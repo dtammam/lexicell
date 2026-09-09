@@ -42,9 +42,10 @@
     if (!def) return '';
     const attacks = enc.turn % def.attackEvery === 0;
     const special = def.special && enc.turn % def.special.every === 0 ? def.special.effects[0] : undefined;
-    const specialText = special?.type === 'lockTiles' ? `locks ${special.count} tiles` : special?.type === 'venomTiles' ? `venoms ${special.count} tile${special.count === 1 ? '' : 's'}` : special?.type === 'scramble' ? 'scrambles the grid' : special ? 'uses its special' : '';
-    const hit = !attacks ? 'rests this turn' : stunned > 0 ? 'is stunned: no attack' : `hits for ${enc.enemy.damage}`;
-    return `Next: ${hit}${specialText ? `, then ${specialText}` : ''}`;
+    // Kept short: the line must fit one row of the wide HUD face on a 390px phone.
+    const specialText = special?.type === 'lockTiles' ? `+lock ${special.count}` : special?.type === 'venomTiles' ? `+venom ${special.count}` : special?.type === 'scramble' ? '+scramble' : special ? '+special' : '';
+    const hit = !attacks ? 'rests' : stunned > 0 ? 'stunned' : `hits ${enc.enemy.damage}`;
+    return `Next: ${hit}${specialText ? ` ${specialText}` : ''}`;
   });
 
   /** Organelles whose onWordScored effects would fire for the selected word light up on the body. */
@@ -74,9 +75,11 @@
       <!-- The veil (Dean, 2026-09-08: the backdrop is great, just too forward): the same layers, a step back. -->
       <div class="veil"></div>
     </div>
+    <!-- Short labels: in Press Start 2P (one em per glyph) "Encounter 1 / 9" alone is 240px and the row
+         wrapped on a 390px phone, which squeezed the grid to its floor (Dean's screenshot, 2026-09-09). -->
     <div class="row">
       <span>Act {act}</span>
-      <span>Encounter {run.encounterIndex + 1} / 9</span>
+      <span>Enc {run.encounterIndex + 1}/9</span>
       <span>Turn {enc.turn}</span>
     </div>
     <!-- Stats HUD (tester, 2026-09-08): the run's best and worst word so far. -->
@@ -293,6 +296,7 @@
   .bar-label {
     display: flex;
     justify-content: space-between;
+    white-space: nowrap;
     font-family: var(--font-hud);
     font-size: var(--hud-s);
     letter-spacing: 0.05em;
