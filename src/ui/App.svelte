@@ -15,6 +15,7 @@
   import History from './History.svelte';
   import CellPick from './CellPick.svelte';
   import Event from './Event.svelte';
+  import ReleaseNotes from './ReleaseNotes.svelte';
   import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
 
@@ -35,7 +36,7 @@
   // The state before the latest action; Fight uses it to say what the grid held before a word was played.
   let prev: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
-  let screen: 'title' | 'cells' | 'intro' | 'run' | 'items' | 'help' | 'history' = $state.raw('title');
+  let screen: 'title' | 'cells' | 'intro' | 'run' | 'items' | 'help' | 'history' | 'notes' = $state.raw('title');
   // Run history (Dean, 2026-09-08): finished and abandoned runs, per device, under their own key.
   let history: readonly HistoryEntry[] = $state.raw(loadHistory(storage));
   const BUILD = `${__BUILD_NUMBER__} · ${__BUILD_SHA__}`;
@@ -117,6 +118,9 @@
   function toItems() {
     screen = 'items';
   }
+  function toNotes() {
+    screen = 'notes';
+  }
   function toHelp() {
     screen = 'help';
   }
@@ -176,12 +180,14 @@
       <Compendium onBack={toTitle} />
     {:else if screen === 'help'}
       <Help onBack={toTitle} readable={settings.readable} onToggleReadable={toggleReadable} />
+    {:else if screen === 'notes'}
+      <ReleaseNotes onBack={toTitle} />
     {:else if screen === 'history'}
       <History runs={history} onBack={fromHistory} onClear={onClearHistory} />
     {:else if screen === 'cells'}
       <CellPick onPick={onCellPick} onBack={toTitle} />
     {:else if screen === 'title' || !run}
-      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} onHistory={toHistory} />
+      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} onHistory={toHistory} onNotes={toNotes} />
     {:else if screen === 'intro'}
       <Intro {onBegin} cell={run?.cell ?? 'balanced'} />
     {:else if run.phase === 'fight'}

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { candidateWords } from '../engine/candidates';
 import { CONTENT } from '../content/index';
+import { RELEASE_NOTES } from './release-notes';
 import type { RunState } from '../engine/types';
 import { newRun } from '../engine/reducer';
 import { LETTER_VALUE } from '../engine/scoring';
@@ -670,6 +671,21 @@ describe('App', () => {
     await findByText('Enc 1/9');
     expect(document.querySelector('.arena .bar-label:nth-of-type(3) strong')?.textContent ?? document.querySelectorAll('.arena .bar-label strong')[1]?.textContent).toMatch(/^Elite /);
   }, 30000);
+
+  it('Release notes opens from the title, lists every build newest first with a PR link, and Back returns', async () => {
+    render(App);
+    await click(await findByText('Release notes', 15000));
+    expect(await findByText(/Every build since the first commit/)).toBeTruthy();
+    const items = document.querySelectorAll('.notes li');
+    expect(items.length).toBe(RELEASE_NOTES.length);
+    expect(items[0]?.querySelector('.stamp')?.textContent).toBe(`build\u00a0${RELEASE_NOTES[0]?.build} · PR\u00a0#${RELEASE_NOTES[0]?.pr}`);
+    expect(items[0]?.querySelector('.date')?.textContent).toBe(RELEASE_NOTES[0]?.date);
+    expect(items[0]?.querySelector('.stamp a')?.getAttribute('href')).toBe(`https://github.com/dtammam/lexicell/pull/${RELEASE_NOTES[0]?.pr}`);
+    expect(items[items.length - 1]?.querySelector('h3')?.textContent).toBe('First commit');
+    expect(items[items.length - 1]?.querySelector('.stamp a')).toBeNull();
+    await click(getButton('Back'));
+    expect(await findByText('New run')).toBeTruthy();
+  });
 
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
