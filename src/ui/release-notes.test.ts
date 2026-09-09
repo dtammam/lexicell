@@ -9,7 +9,8 @@ describe('release notes', () => {
     let lastPr = Infinity;
     let lastDate = '9999-99-99';
     for (const n of RELEASE_NOTES) {
-      expect(shas.has(n.sha), n.sha).toBe(false);
+      // Two PRs in flight at once may both be 'pending' (a stacked step); real shas never repeat.
+      if (n.sha !== 'pending') expect(shas.has(n.sha), n.sha).toBe(false);
       shas.add(n.sha);
       expect(n.sha === 'pending' || /^[0-9a-f]{7}$/.test(n.sha), n.sha).toBe(true);
       expect(n.date <= lastDate, `${n.sha} out of date order`).toBe(true);

@@ -21,6 +21,7 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  { build: 68, pr: 66, sha: 'pending', date: '2026-09-09', title: 'Endless mode', notes: 'Pick Normal or Endless with your cell. Normal is the nine encounters you know. Endless keeps going past the ninth: the deep sends its creatures on a curve that grows every fight, a boss every third, an evolution after each, until the deep takes you. History records how far you got.' },
   { build: 67, pr: 65, sha: 'pending', date: '2026-09-09', title: 'Gold tiles and cracked tiles', notes: 'The grid learns two new tricks. A gold tile adds damage when you play it (the Midas Membrane trait makes one each turn). A cracked tile is on a timer: play it before it crumbles and a fresh letter drops in its place. The Diatom Swarm cracks two tiles every third turn.' },
   { build: 66, pr: 64, sha: '38ef168', date: '2026-09-09', title: 'Evolution', notes: 'Beat a boss and your body changes. Three traits are offered, you keep one for the run: a thicker membrane, venom glands, a taste for rare letters, an adrenal rush below 40% HP. A trait is always on and applies before your organelles.' },
   { build: 65, pr: 63, sha: '5aade7a', date: '2026-09-09', title: 'Release notes', notes: 'This page. Every build since the first commit, newest on top, in plain words. Scroll down for the archaeology.' },

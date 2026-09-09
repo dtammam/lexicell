@@ -1,6 +1,6 @@
 /** Run N seeded games with a bot and summarise. Pure over (bot, ctx, seeds); no printing here. */
 import { newRun, reduce, type EngineContext } from '../../src/engine/reducer';
-import type { RunState } from '../../src/engine/types';
+import type { RunMode, RunState } from '../../src/engine/types';
 import { makeBot, nextAction, type BotName } from './bots';
 
 export interface RunResult {
@@ -18,12 +18,13 @@ export interface RunResult {
   readonly items: readonly string[];
 }
 
-export function simulateRun(botName: BotName, seed: number, ctx: EngineContext, cell?: string): RunResult {
+export function simulateRun(botName: BotName, seed: number, ctx: EngineContext, cell?: string, mode?: RunMode): RunResult {
   const bot = makeBot(botName, seed);
-  let state: RunState = newRun(seed, ctx, cell);
+  let state: RunState = newRun(seed, ctx, cell, mode);
   let scrambles = 0;
   let shuffles = 0;
-  for (let guard = 0; guard < 5000; guard++) {
+  // Endless (step 5) runs until the player falls; the guard is per action, so a long deep run needs room.
+  for (let guard = 0; guard < 50000; guard++) {
     const actions = nextAction(bot, state, ctx);
     if (!actions) break;
     for (const a of actions) state = reduce(state, a, ctx);
@@ -86,8 +87,8 @@ export function summarise(bot: BotName, results: readonly RunResult[]): Summary 
   };
 }
 
-export function simulate(bot: BotName, ctx: EngineContext, runs: number, seedBase = 0, cell?: string): Summary {
+export function simulate(bot: BotName, ctx: EngineContext, runs: number, seedBase = 0, cell?: string, mode?: RunMode): Summary {
   const results: RunResult[] = [];
-  for (let i = 0; i < runs; i++) results.push(simulateRun(bot, seedBase + i, ctx, cell));
+  for (let i = 0; i < runs; i++) results.push(simulateRun(bot, seedBase + i, ctx, cell, mode));
   return summarise(bot, results);
 }

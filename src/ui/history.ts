@@ -34,6 +34,8 @@ export interface HistoryEntry {
   readonly build: string;
   /** Starting cell id; absent on entries written before cells existed. */
   readonly cell?: string;
+  /** Run mode (step 5); absent on entries written before modes existed, which were all normal. */
+  readonly mode?: string;
 }
 
 interface HistoryFile {
@@ -65,7 +67,8 @@ export function looksLikeEntry(v: unknown): v is HistoryEntry {
     Array.isArray(v.items) &&
     v.items.every((i) => typeof i === 'string') &&
     typeof v.build === 'string' &&
-    (v.cell === undefined || typeof v.cell === 'string')
+    (v.cell === undefined || typeof v.cell === 'string') &&
+    (v.mode === undefined || typeof v.mode === 'string')
   );
 }
 
@@ -138,7 +141,8 @@ export function entryFrom(state: RunState, outcome: HistoryOutcome, endedAt: str
     startedAt,
     endedAt,
     outcome,
-    encounterReached: Math.min(9, state.encounterIndex + 1),
+    // Normal caps at 9 (a win sits on the ninth); Endless counts as far as the run got.
+    encounterReached: state.mode === 'endless' ? state.encounterIndex + 1 : Math.min(9, state.encounterIndex + 1),
     turns: state.stats.turns,
     damageDealt: state.stats.damageDealt,
     damageTaken: state.stats.damageTaken,
@@ -147,6 +151,7 @@ export function entryFrom(state: RunState, outcome: HistoryOutcome, endedAt: str
     items: [...state.player.items],
     build,
     cell: state.cell,
+    mode: state.mode,
   };
 }
 
@@ -154,7 +159,7 @@ export function exportJson(runs: readonly HistoryEntry[]): string {
   return JSON.stringify({ v: HISTORY_VERSION, exportedAt: new Date().toISOString(), runs }, null, 2);
 }
 
-const CSV_HEAD = ['seed', 'startedAt', 'endedAt', 'outcome', 'encounterReached', 'turns', 'damageDealt', 'damageTaken', 'bestWord', 'bestWordDamage', 'items', 'build', 'cell'];
+const CSV_HEAD = ['seed', 'startedAt', 'endedAt', 'outcome', 'encounterReached', 'turns', 'damageDealt', 'damageTaken', 'bestWord', 'bestWordDamage', 'items', 'build', 'cell', 'mode'];
 
 function csvCell(v: string | number | null): string {
   const s = v === null ? '' : String(v);
@@ -166,7 +171,7 @@ export function exportCsv(runs: readonly HistoryEntry[]): string {
   const lines = [CSV_HEAD.join(',')];
   for (const r of runs) {
     lines.push(
-      [r.seed, r.startedAt, r.endedAt, r.outcome, r.encounterReached, r.turns, r.damageDealt, r.damageTaken, r.bestWord, r.bestWordDamage, r.items.join(';'), r.build, r.cell ?? '']
+      [r.seed, r.startedAt, r.endedAt, r.outcome, r.encounterReached, r.turns, r.damageDealt, r.damageTaken, r.bestWord, r.bestWordDamage, r.items.join(';'), r.build, r.cell ?? '', r.mode ?? 'normal']
         .map(csvCell)
         .join(','),
     );

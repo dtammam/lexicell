@@ -36,6 +36,11 @@
  * player lacks are offered (phase 'evolve'); pickTrait keeps one for the run on player.traits,
  * gathered after the cell and before the items in every hook, then the item offer follows.
  *
+ * Modes (variety wave step 5): Normal ends on the ninth slot's boss; Endless continues past it
+ * on a generated curve (encounterDefFor) with the act-3 pools, a boss every third slot, an
+ * evolve after each, and one detour per block of three drawn as the block is reached
+ * (extendKinds); it ends only when the player falls.
+ *
  * Slots (variety wave step 2): newRun places one elite, one rest and one event among the non-boss
  * slots after the first, drawn from the run RNG (three draws) before the starting kit. An elite
  * slot is a fight against the next act's pool at this slot's scale (act 3: an act-3 enemy scaled
@@ -54,7 +59,7 @@ import { cellDef, collectEffects, itemDef, traitDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { GRID_SIZE, type Content, type Encounter, type EncounterKind, type EnemyDef, type EventDef, type Rarity, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
+import { GRID_SIZE, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -63,7 +68,7 @@ export interface EngineContext {
 }
 
 export type Action =
-  | { readonly type: 'newRun'; readonly seed: number; readonly cell?: string }
+  | { readonly type: 'newRun'; readonly seed: number; readonly cell?: string; readonly mode?: RunMode }
   | { readonly type: 'toggleTile'; readonly index: number }
   | { readonly type: 'clearSelection' }
   | { readonly type: 'submitWord' }
@@ -76,12 +81,14 @@ export type Action =
   | { readonly type: 'pickTrait'; readonly index: number };
 
 /**
- * 8 since grid rules (Tile.gold, Tile.cracked; variety wave step 4); a v7 save is MIGRATED by
- * persist.ts with plain tiles. 7 was evolution (player.traits), 6 encounter types (kinds, event),
- * 5 the stats HUD (worstWord), 4 starting cells, 3 the effects wave (v2 dropped), 2 the tuning
- * wave (v1 dropped); v3 to v7 all migrate forward.
+ * 9 since modes (RunState.mode; variety wave step 5); a v8 save is MIGRATED by persist.ts as
+ * normal. 8 was grid rules (Tile.gold, Tile.cracked), 7 evolution (player.traits), 6 encounter
+ * types (kinds, event), 5 the stats HUD (worstWord), 4 starting cells, 3 the effects wave (v2
+ * dropped), 2 the tuning wave (v1 dropped); v3 to v8 all migrate forward.
  */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
+/** The mode a run gets when none is named. */
+export const DEFAULT_MODE: RunMode = 'normal';
 /** The cell a run gets when none is named: the game as it was before cells. */
 export const DEFAULT_CELL_ID = 'balanced';
 export const OFFER_SIZE = 3;
@@ -108,14 +115,15 @@ const EMPTY_REPORT: TurnReport = {
 
 // ---------- entry points ----------
 
-export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAULT_CELL_ID): RunState {
+export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAULT_CELL_ID, mode: RunMode = DEFAULT_MODE): RunState {
   const cell = cellDef(ctx.content, cellId); // throws on an unknown id
   for (const id of cell.startingItems) itemDef(ctx.content, id);
   const maxHp = cell.maxHp;
   const [kinds, rng] = placeKinds(createRng(seed), ctx.content);
   const state: RunState = {
-    v: 8,
+    v: 9,
     cell: cell.id,
+    mode,
     kinds,
     rng,
     phase: 'fight',
@@ -143,7 +151,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
 export function reduce(state: RunState, action: Action, ctx: EngineContext): RunState {
   switch (action.type) {
     case 'newRun':
-      return newRun(action.seed, ctx, action.cell ?? DEFAULT_CELL_ID);
+      return newRun(action.seed, ctx, action.cell ?? DEFAULT_CELL_ID, action.mode ?? DEFAULT_MODE);
     case 'toggleTile':
       return toggleTile(state, action.index);
     case 'clearSelection':
@@ -185,6 +193,50 @@ export function placeKinds(rng: Rng, content: Content): [EncounterKind[], Rng] {
 /** The kind of the slot at `index`; past the placed array (a migrated v5 save) it is a fight. */
 export function kindAt(state: RunState, index: number): EncounterKind {
   return state.kinds[index] ?? 'fight';
+}
+
+/**
+ * The curve at `index`. Inside the content's list it is that slot. Past it (Endless, step 5) the
+ * deep is generated: act 3's pools, a boss every third slot (index % 3 === 2, as the content lays
+ * them out), the last act's fight or boss scale grown by tuning.endlessHpGrowth /
+ * endlessDamageGrowth per slot past the end. Pure: the same index gives the same def, so a save
+ * needs nothing new to continue.
+ */
+export function encounterDefFor(content: Content, index: number): EncounterDef {
+  const list = content.encounters;
+  const own = list[index];
+  if (own) return own;
+  const lastAct = Math.max(...list.map((e) => e.act)) as 1 | 2 | 3;
+  const boss = index % 3 === 2;
+  const base = [...list].reverse().find((e) => e.act === lastAct && e.boss === boss) ?? list[list.length - 1];
+  if (!base) throw new Error('no encounters in content');
+  const past = index - (list.length - 1);
+  const hpScale = base.hpScale * Math.pow(content.tuning.endlessHpGrowth, past);
+  const damageScale = base.damageScale * Math.pow(content.tuning.endlessDamageGrowth, past);
+  return { act: lastAct, boss, hpScale, damageScale };
+}
+
+/** Whether winning the slot at `index` ends the run: only in Normal, on the content's last slot. */
+function endsAt(state: RunState, content: Content, index: number): boolean {
+  return state.mode !== 'endless' && index >= content.encounters.length - 1;
+}
+
+/**
+ * Endless slots get their kinds as the run reaches them (step 5): entering the first slot of a
+ * generated block of three (two fights, then the boss), one draw picks which of the two
+ * non-boss slots is special and one draw picks its kind from elite, rest, event or a plain
+ * fight, so every block past the ninth holds at most one detour.
+ */
+function extendKinds(state: RunState, ctx: EngineContext, index: number): RunState {
+  if (index < ctx.content.encounters.length || state.kinds.length > index) return state;
+  const blockStart = index - (index % 3);
+  const kinds: EncounterKind[] = [...state.kinds];
+  while (kinds.length < blockStart) kinds.push('fight');
+  const [which, rng1] = nextInt(state.rng, 2);
+  const [k, rng] = nextInt(rng1, 4);
+  const special = (['elite', 'rest', 'event', 'fight'] as const)[k] ?? 'fight';
+  kinds.push(which === 0 ? special : 'fight', which === 1 ? special : 'fight', 'fight');
+  return { ...withRng(state, rng), kinds };
 }
 
 // ---------- helpers ----------
@@ -428,9 +480,9 @@ function poolFor(list: readonly EnemyDef[], act: number): readonly EnemyDef[] {
   return inAct.length > 0 ? inAct : list;
 }
 
-function startEncounter(state: RunState, ctx: EngineContext): RunState {
-  const def = ctx.content.encounters[state.encounterIndex];
-  if (!def) throw new Error(`no encounter def at index ${state.encounterIndex}`);
+function startEncounter(state0: RunState, ctx: EngineContext): RunState {
+  const state = extendKinds(state0, ctx, state0.encounterIndex);
+  const def = encounterDefFor(ctx.content, state.encounterIndex);
   const kind = def.boss ? 'fight' : kindAt(state, state.encounterIndex);
   const arrived: RunState = { ...state, stats: { ...state.stats, hpAtEncounterStart: [...state.stats.hpAtEncounterStart, state.player.hp] } };
   if (kind === 'rest') return startRest(arrived, ctx);
@@ -607,10 +659,10 @@ function endEncounter(state: RunState, ctx: EngineContext): RunState {
     ...a.state,
     lastTurn: { ...(a.state.lastTurn ?? EMPTY_REPORT), enemyDefeated: true, healed: (a.state.lastTurn?.healed ?? 0) + a.healed },
   };
-  const last = s.encounterIndex >= ctx.content.encounters.length - 1;
-  if (last) return { ...s, phase: 'summary', outcome: 'won', encounter: null, offer: null };
+  // Normal ends with the last content slot; Endless never ends on a win (step 5).
+  if (endsAt(s, ctx.content, s.encounterIndex)) return { ...s, phase: 'summary', outcome: 'won', encounter: null, offer: null };
   // A boss falls: evolve (variety wave step 3), then the item pick as after any fight.
-  if (ctx.content.encounters[s.encounterIndex]?.boss) return makeEvolve(s, ctx);
+  if (encounterDefFor(ctx.content, s.encounterIndex).boss) return makeEvolve(s, ctx);
   // An elite's offer carries a guaranteed rare (variety wave step 2).
   return makeOffer(s, ctx, kindAt(s, s.encounterIndex) === 'elite' ? 'rare' : undefined);
 }

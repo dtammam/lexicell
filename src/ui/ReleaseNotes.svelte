@@ -16,7 +16,8 @@
   </header>
   <p class="hint">Every build since the first commit, newest first. Scroll down for the archaeology.</p>
   <ol class="list">
-    {#each RELEASE_NOTES as n (n.sha)}
+    <!-- Keyed by PR (unique) or sha: two entries can both be 'pending' while two PRs are in flight. -->
+    {#each RELEASE_NOTES as n (n.pr === null ? n.sha : n.pr)}
       <li>
         {#if n.pr !== null}
           <p class="stamp"><a href="{REPO}/pull/{n.pr}" target="_blank" rel="noopener">{stamp(n)}</a></p>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Action, EngineContext } from '../engine/reducer';
-  import type { RunState } from '../engine/types';
+  import type { RunMode, RunState } from '../engine/types';
   import { loadContext } from './context';
   import Fight from './Fight.svelte';
   import Intro from './Intro.svelte';
@@ -92,14 +92,14 @@
     screen = 'cells';
   }
   /** Cell chosen: replace whatever run existed (Title asked first when one did), then the intro. */
-  function onCellPick(cellId: string) {
+  function onCellPick(cellId: string, mode: RunMode) {
     if (!ctx) return;
     // Abandoning a live run records it as such (Dean, question 1); a run that already ended was recorded then.
     const live = store?.state ?? persist.load();
     if (live && live.phase !== 'summary') record(live, 'abandoned');
     persist.clear();
     if (!store) openStore(ctx);
-    store?.dispatch({ type: 'newRun', seed: seed(), cell: cellId });
+    store?.dispatch({ type: 'newRun', seed: seed(), cell: cellId, mode });
     screen = 'intro';
   }
   function onBegin() {
@@ -111,7 +111,7 @@
   }
   /** Summary: New run keeps the same cell for a quick retry; the title's New run goes through the picker. */
   function newRun() {
-    dispatch(run ? { type: 'newRun', seed: seed(), cell: run.cell } : { type: 'newRun', seed: seed() });
+    dispatch(run ? { type: 'newRun', seed: seed(), cell: run.cell, mode: run.mode } : { type: 'newRun', seed: seed() });
   }
   function toTitle() {
     screen = 'title';

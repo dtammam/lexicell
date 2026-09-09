@@ -18,6 +18,8 @@
 
   const enc = $derived(run.encounter);
   const act = $derived(Math.floor(run.encounterIndex / 3) + 1);
+  /** Sprites and palettes exist for three acts; Endless (step 5) keeps the deep's look past them. */
+  const actLook = $derived(Math.min(3, act));
   /** An elite slot (variety wave step 2): the next act's enemy, a guaranteed rare on the win. */
   const elite = $derived(run.kinds[run.encounterIndex] === 'elite');
   /** Earthbound-style battle backdrop: a pattern per enemy, a palette per act, slow drift. */
@@ -86,7 +88,7 @@
 </script>
 
 {#if enc}
-  <div class="arena act-{act}" data-act={act} data-pattern={pattern}>
+  <div class="arena act-{actLook}" data-act={actLook} data-pattern={pattern}>
     <div class="bg" data-pattern={pattern} aria-hidden="true">
       <div class="layer a"></div>
       <div class="layer b"></div>
@@ -98,7 +100,7 @@
          wrapped on a 390px phone, which squeezed the grid to its floor (Dean's screenshot, 2026-09-09). -->
     <div class="row">
       <span>Act {act}</span>
-      <span>Enc {run.encounterIndex + 1}/9</span>
+      <span>{run.mode === 'endless' ? `Enc ${run.encounterIndex + 1}` : `Enc ${run.encounterIndex + 1}/9`}</span>
       <span>Turn {enc.turn}</span>
     </div>
     <!-- Stats HUD (tester, 2026-09-08): the run's best and worst word so far. -->
@@ -120,7 +122,7 @@
           <!-- You evolve per act: one cell, then more body, then limbs; and every organelle you pick is
                grafted onto the body (Dean, 2026-09-08), so the build is visible on the creature. -->
           <div class="body">
-            <img src="{base}sprites/cell-{run.cell}-{act}.png" alt="You" onerror={fallback} />
+            <img src="{base}sprites/cell-{run.cell}-{actLook}.png" alt="You" onerror={fallback} />
             {#each run.player.items as id, i (`${id}-${i}`)}
               <span class="graft" class:live={live.includes(i)} style="--slot: {i}"><ItemIcon {id} size={16} /></span>
             {/each}

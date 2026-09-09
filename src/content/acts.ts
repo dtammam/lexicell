@@ -31,6 +31,10 @@ export const TUNING: Tuning = {
   restHeal: 0.3,
   eliteHpScale: 1.3,
   eliteDamageScale: 1.15,
+  // Endless (variety wave step 5, 2026-09-09): each slot past the ninth grows the act-3 scale by
+  // these factors, compounding, so the deep gets deeper until the player falls.
+  endlessHpGrowth: 1.1,
+  endlessDamageGrowth: 1.06,
 };
 
 export const ENCOUNTERS: readonly EncounterDef[] = [

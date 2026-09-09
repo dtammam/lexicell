@@ -20,6 +20,7 @@ export const SAVE_KEY = 'lexicell.run';
 export const RUN_STATE_KEYS: readonly string[] = [
   'v',
   'cell',
+  'mode',
   'kinds',
   'rng',
   'phase',
@@ -45,6 +46,7 @@ export interface Persist {
 
 const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'rest', 'event', 'evolve', 'summary']);
 const KINDS: ReadonlySet<unknown> = new Set(['fight', 'elite', 'rest', 'event']);
+const MODES: ReadonlySet<unknown> = new Set(['normal', 'endless']);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -78,6 +80,7 @@ function looksLikeRunState(value: unknown): value is RunState {
   return (
     isNum(v.v) &&
     typeof v.cell === 'string' &&
+    MODES.has(v.mode) &&
     Array.isArray(v.kinds) &&
     v.kinds.every((k) => KINDS.has(k)) &&
     // An event id only while an event is on screen (gate S4): forged pairs are dropped.
@@ -138,7 +141,7 @@ export function dropUnknownIds(value: unknown): unknown {
 /**
  * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
  * the empty worst-word stats (stats HUD), v5 gains empty kinds and no event (encounter types), v6
- * gains no traits (evolution), v7 gains plain gold and cracked marks on every tile (grid rules). Anything else passes through and meets the shape check.
+ * gains no traits (evolution), v7 gains plain gold and cracked marks on every tile (grid rules), v8 gains mode 'normal' (modes). Anything else passes through and meets the shape check.
  */
 export function migrate(value: unknown): unknown {
   let v: unknown = value;
@@ -156,6 +159,8 @@ export function migrate(value: unknown): unknown {
     const grid = isRecord(enc) && Array.isArray(enc.grid) ? enc.grid.map((t: unknown) => (isRecord(t) ? { gold: 0, cracked: 0, ...t } : t)) : null;
     v = { ...v, v: 8, encounter: isRecord(enc) && grid ? { ...enc, grid } : enc };
   }
+  // v8 -> v9 (modes): every earlier run was a normal one.
+  if (isRecord(v) && v.v === 8 && !('mode' in v)) v = { ...v, v: 9, mode: 'normal' };
   return v;
 }
 

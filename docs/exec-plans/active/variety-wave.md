@@ -112,6 +112,12 @@ daily flag.
   `goldTiles` and `crackTiles`, the Midas Membrane trait and the Diatom Swarm's crack special, gold-aware
   candidates and an exact `scoreSelection` preview. Dead letter deferred as planned. No retune: balanced
   greedy 66.8%, mediocre 21.0%, solver 87.6%; cells 17.8 (Spore, by design) to 29.6 mediocre, greedy max 83.2%.
+- Step 5 (PR #66): built on top of step 4. `RunState.mode` (save v9, v8 migrates as normal), chosen with the
+  cell; `encounterDefFor` generates slots past the ninth from the act-3 fight/boss scale grown by
+  `endlessHpGrowth` 1.1 and `endlessDamageGrowth` 1.06 per slot, a boss every third, an evolve after each;
+  `extendKinds` draws one detour per block of three as the block is reached; Endless never wins, history
+  keeps the encounter reached uncapped. Normal tables unchanged (the mode adds no draw); Endless measured
+  by the median encounter reached.
 
 ## Acceptance per step
 
