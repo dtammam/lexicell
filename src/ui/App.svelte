@@ -210,10 +210,13 @@
 </main>
 
 <style>
-  /* Dean's rule (2026-09-08): the game never scrolls. The page is exactly one viewport tall. */
+  /* Dean's rule (2026-09-08): the game never scrolls. The page is exactly one viewport tall.
+     svh, not dvh (2026-09-10): on iOS Safari with the address bar and toolbar shown, dvh tracks
+     the dynamic viewport, so the fight spilled behind the bottom toolbar. svh is the SMALL
+     viewport (chrome visible), the height that is always on screen; the layout fits inside it. */
   main {
     box-sizing: border-box;
-    height: 100dvh;
+    height: 100svh;
     max-width: 480px;
     margin: 0 auto;
     padding: var(--s2) var(--s3);
@@ -227,7 +230,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 0 0 var(--s2);
+    margin: 0 0 var(--s1);
   }
   h1 {
     font-family: var(--font-hud);

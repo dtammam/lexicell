@@ -270,7 +270,8 @@
     min-height: 100%;
     display: flex;
     flex-direction: column;
-    gap: var(--s2);
+    /* Tight vertical rhythm so the tallest fight fits the small viewport (2026-09-10). */
+    gap: var(--s1);
   }
   /* In portrait the two wrappers vanish and their children stack as before; landscape uses them. */
   .side,
@@ -357,8 +358,8 @@
     font-weight: 400;
     font-size: var(--hud-l);
     letter-spacing: 0.05em;
-    min-height: 2rem;
-    line-height: 2rem;
+    min-height: 1.6rem;
+    line-height: 1.6rem;
     color: var(--ink);
   }
   .word-text {
