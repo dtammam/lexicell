@@ -474,7 +474,7 @@ describe('App', () => {
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(false);
     await click(getButton('Readable type: off'));
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(true);
-    expect(JSON.parse(localStorage.getItem('lexicell.settings') ?? 'null')).toEqual({ readable: true });
+    expect(JSON.parse(localStorage.getItem('lexicell.settings') ?? 'null')).toEqual({ readable: true, sound: true, volume: 0.7 });
     expect(getButton('Readable type: on')).toBeTruthy();
     await click(getButton('Back'));
     expect(await findByText('New run')).toBeTruthy();
