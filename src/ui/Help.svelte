@@ -42,6 +42,7 @@
     <p>Nine encounters in three acts, a boss at the end of each act. Your HP carries from fight to fight and never refills on its own. After each win you choose one organelle of three; they stack for the whole run. Lose your HP and the run ends.</p>
     <p>Each run also hides one elite (an enemy from the next act, a rare organelle guaranteed for beating it), one rest (heal, or take an organelle instead) and one event (a small trade, take it or leave it) among the fights. Where they fall is the seed's choice.</p>
     <p>Beat a boss and you evolve: three traits are offered and you keep one for the run. A trait is part of your body, always on, and it applies before your organelles.</p>
+    <p>Two modes, chosen with your cell. Normal ends with the ninth encounter and a win. Endless goes on past it: the deep's creatures on a curve that grows every fight, a boss every third, an evolution after each, until you fall. History keeps how far you got.</p>
 
     <h3>Reading</h3>
     <p>The pixel type is the game's voice. If it costs you letters, switch it off; the choice stays on this device.</p>

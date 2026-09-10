@@ -12,10 +12,12 @@
 </script>
 
 <section class="summary">
-  <h2 class:won>{won ? 'You won' : 'You died'}</h2>
+  <h2 class:won>{won ? 'You won' : run.mode === 'endless' ? 'The deep took you' : 'You died'}</h2>
   <dl>
+    <dt>Mode</dt>
+    <dd>{run.mode === 'endless' ? 'Endless' : 'Normal'}</dd>
     <dt>Encounters reached</dt>
-    <dd>{reached} / 9</dd>
+    <dd>{run.mode === 'endless' ? reached : `${reached} / 9`}</dd>
     <dt>Turns</dt>
     <dd>{run.stats.turns}</dd>
     <dt>Best word</dt>

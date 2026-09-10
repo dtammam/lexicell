@@ -60,7 +60,7 @@ export type Effect =
   /* Effects wave (2026-09-08), Dean's six agrees. */
   /** Poison the enemy: it takes `value` at the next turn start, then value-1, ... down to 0. Capped by tuning.poisonMax. */
   | { readonly type: 'poisonEnemy'; readonly value: number }
-  /** The enemy skips its next `value` attacks. */
+  /** The enemy skips its next `value` attacks; past tuning.enrageAfter rage breaks through and it attacks anyway. */
   | { readonly type: 'stun'; readonly value: number }
   /**
    * Add `value` shield, capped by tuning.shieldMax. Shield absorbs the enemy's ATTACK before HP

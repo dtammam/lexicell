@@ -5,11 +5,11 @@ import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { bestGold, candidateIndices, candidateWords, type Candidate } from './candidates';
 import { gatherEffects } from './hooks';
 import { biasFor, isDead, plainTile, refill, settle } from './grid';
-import { hitRange, kindAt, letterBias, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, scoreSelection, selectedWord, type Action, type EngineContext } from './reducer';
+import { encounterDefFor, hitRange, kindAt, letterBias, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, scoreSelection, selectedWord, type Action, type EngineContext } from './reducer';
 import { scoreWord } from './scoring';
 import { createRng, pick } from './rng';
 import { tilesForWord } from './solver';
-import type { Content, Encounter, EncounterDef as EncounterDefT, EnemyDef, EventChoice as EventChoiceT, ItemDef, RunState, Tile } from './types';
+import type { Content, Encounter, EncounterDef as EncounterDefT, EncounterKind as EncounterKindT, EnemyDef, EventChoice as EventChoiceT, ItemDef, RunState, Tile } from './types';
 
 /** Shipped content opens on a starting-kit pick; most tests here want the first fight directly. */
 /** Flat hits (variance 0) so the arithmetic in these tests stays exact; the variety-wave block tests the roll. */
@@ -83,7 +83,7 @@ function assertInvariants(s: RunState, c: EngineContext) {
   expect(s.player.hp).toBeGreaterThanOrEqual(0);
   expect(s.player.hp).toBeLessThanOrEqual(s.player.maxHp);
   expect(s.encounterIndex).toBeGreaterThanOrEqual(0);
-  expect(s.encounterIndex).toBeLessThan(9);
+  if (s.mode !== 'endless') expect(s.encounterIndex).toBeLessThan(9);
   if (s.phase === 'fight') {
     expect(s.encounter).not.toBeNull();
     expect(s.encounter?.grid).toHaveLength(16);
@@ -1163,7 +1163,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(8);
+      expect(a.final.v).toBe(9);
     }
   });
 });
@@ -1314,6 +1314,105 @@ describe('variety wave step 1: the enrage clock', () => {
     }
     // Turns 1-3 hit 6; the tick at the start of turn 4 and after adds 2 each: 8, 10, 12.
     expect(hits).toEqual([6, 6, 6, 8, 10, 12]);
+  });
+});
+
+describe('variety wave step 5: Normal and Endless (save v9)', () => {
+  const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+  /** Drive an endless run with a player topped up before every word, so it goes as deep as asked. */
+  function dive(seed: number, slots: number, c: EngineContext = flat): { states: RunState[]; final: RunState } {
+    let s = newRun(seed, c, 'balanced', 'endless');
+    const states: RunState[] = [s];
+    for (let guard = 0; guard < 4000 && s.phase !== 'summary' && s.encounterIndex < slots; guard++) {
+      if (s.phase === 'pick') s = reduce(s, { type: 'pickItem', index: 0 }, c);
+      else if (s.phase === 'rest') s = reduce(s, { type: 'restHeal' }, c);
+      else if (s.phase === 'event') s = reduce(s, { type: 'eventChoice', index: 1 }, c);
+      else if (s.phase === 'evolve') s = reduce(s, { type: 'pickTrait', index: 0 }, c);
+      else {
+        const topped: RunState = { ...s, player: { ...s.player, hp: s.player.maxHp } };
+        const best = candidateWords(topped, c).sort((a, b) => b.damage - a.damage)[0];
+        if (!best) throw new Error('dead grid');
+        s = play(topped, best.word, c);
+      }
+      states.push(s);
+    }
+    return { states, final: s };
+  }
+
+  it('newRun defaults to normal; the mode rides the action; the mode adds no draw; a normal run still wins on the ninth slot', () => {
+    expect(newRun(1, flat).mode).toBe('normal');
+    expect(reduce(newRun(1, flat), { type: 'newRun', seed: 2, mode: 'endless' }, flat).mode).toBe('endless');
+    expect(newRun(1, flat, 'balanced', 'endless').mode).toBe('endless');
+    const n = newRun(5, flat);
+    const e = newRun(5, flat, 'balanced', 'endless');
+    expect({ ...e, mode: 'normal' }).toEqual(n);
+    const { final } = greedyRun(0, flat);
+    expect(final.phase).toBe('summary');
+    if (final.outcome === 'won') expect(final.encounterIndex).toBe(8);
+  });
+
+  it('encounterDefFor returns the content slot inside the list and a grown act-3 slot past it, bosses every third, pure', () => {
+    for (let i = 0; i < 9; i++) expect(encounterDefFor(CONTENT, i)).toBe(CONTENT.encounters[i]);
+    const fight = CONTENT.encounters[7] as EncounterDefT; // the last act-3 fight
+    const boss = CONTENT.encounters[8] as EncounterDefT;
+    const g = CONTENT.tuning.endlessHpGrowth;
+    const d = CONTENT.tuning.endlessDamageGrowth;
+    for (const i of [9, 10, 12, 13, 21]) {
+      const def = encounterDefFor(CONTENT, i);
+      expect(def.act).toBe(3);
+      expect(def.boss).toBe(false);
+      expect(def.hpScale).toBeCloseTo(fight.hpScale * Math.pow(g, i - 8), 9);
+      expect(def.damageScale).toBeCloseTo(fight.damageScale * Math.pow(d, i - 8), 9);
+    }
+    for (const i of [11, 14, 17]) {
+      const def = encounterDefFor(CONTENT, i);
+      expect(def.boss).toBe(true);
+      expect(def.hpScale).toBeCloseTo(boss.hpScale * Math.pow(g, i - 8), 9);
+    }
+    expect(encounterDefFor(CONTENT, 30)).toEqual(encounterDefFor(CONTENT, 30));
+    expect(encounterDefFor(CONTENT, 11).hpScale).toBeGreaterThan(encounterDefFor(CONTENT, 8).hpScale);
+  });
+
+  it('an endless run goes past the ninth slot: act-3 pools, a boss every third, an evolve after each, one detour per block, no win', () => {
+    const { states, final } = dive(3, 16);
+    expect(final.phase).toBe('fight');
+    expect(final.encounterIndex).toBe(16);
+    expect(final.outcome).toBeNull();
+    expect(states.every((st) => st.outcome !== 'won')).toBe(true);
+    for (const st of states) {
+      if (!st.encounter || st.encounterIndex < 9) continue;
+      const def = encounterDefFor(CONTENT, st.encounterIndex);
+      const pool = def.boss ? CONTENT.bosses : CONTENT.enemies;
+      const e = pool.find((x) => x.id === st.encounter?.enemy.id);
+      expect(e?.act, `slot ${st.encounterIndex}`).toBe(3);
+    }
+    const evolvesAt = [...new Set(states.filter((st) => st.phase === 'evolve').map((st) => st.encounterIndex))];
+    expect(evolvesAt).toEqual([2, 5, 8, 11, 14]);
+    const at9 = states.find((st) => st.encounterIndex === 9);
+    const at12 = states.find((st) => st.encounterIndex === 12);
+    expect(at9?.kinds).toHaveLength(12);
+    expect(at12?.kinds).toHaveLength(15);
+    for (const b of [9, 12]) {
+      const block = (final.kinds as EncounterKindT[]).slice(b, b + 3);
+      expect(block[2]).toBe('fight');
+      expect(block.filter((k) => k !== 'fight').length).toBeLessThanOrEqual(1);
+    }
+    expect(final.stats.hpAtEncounterStart).toHaveLength(17);
+    const boss8 = states.find((st) => st.encounterIndex === 8 && st.encounter?.turn === 1)?.encounter?.enemy.maxHp ?? 0;
+    const boss14 = states.find((st) => st.encounterIndex === 14 && st.encounter?.turn === 1)?.encounter?.enemy.maxHp ?? 0;
+    expect(boss14).toBeGreaterThan(boss8);
+    const again = dive(3, 16);
+    expect(JSON.stringify(again.final)).toBe(JSON.stringify(final));
+    expect(JSON.parse(JSON.stringify(final))).toEqual(final);
+    expect(final.v).toBe(9);
+  });
+
+  it('a normal run never extends its kinds or passes the ninth slot', () => {
+    for (const seed of [0, 1, 2]) {
+      const { states, final } = greedyRun(seed, flat);
+      expect(final.encounterIndex).toBeLessThanOrEqual(8);
+      for (const st of states) expect(st.kinds).toHaveLength(9);
+    }
   });
 });
 
@@ -1533,7 +1632,7 @@ describe('variety wave step 4: gold and cracked tiles (save v8)', () => {
       const b = greedyRun(seed, c);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(8);
+      expect(a.final.v).toBe(9);
     }
   });
 });
@@ -1663,7 +1762,7 @@ describe('variety wave step 3: evolution (save v7)', () => {
       const b = greedyRun(seed, flat);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(8);
+      expect(a.final.v).toBe(9);
       const evolves = a.states.filter((st) => st.phase === 'evolve').length;
       if (a.final.outcome === 'won') {
         expect(evolves).toBe(2);
@@ -1698,7 +1797,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       // The same kinds land in the run, and the run's RNG has spent the three draws before the kit.
       const run = newRun(seed, flat);
       expect(run.kinds).toEqual(kinds);
-      expect(run.v).toBe(8);
+      expect(run.v).toBe(9);
       expect(run.event).toBeNull();
     }
     for (const kind of ['elite', 'rest', 'event']) expect([...(seen[kind] ?? [])].sort(), kind).toEqual(NON_BOSS_AFTER_FIRST);
@@ -1914,11 +2013,82 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(a.log).toEqual(b.log);
       const kinds = a.states.map((st) => st.phase).filter((p) => p === 'rest' || p === 'event');
-      expect(a.final.v).toBe(8);
+      expect(a.final.v).toBe(9);
       // Over the four seeds at least one run passes through a rest or an event before the summary.
       if (kinds.length > 0) return;
     }
     throw new Error('no seed in 0..3 reached a rest or an event');
+  });
+});
+
+describe('variety wave step 5: a turn-start redraw that kills the grid scrambles it', () => {
+  it('with a redraw organelle at turn start, the grid the player sees always holds a word', () => {
+    // A synthetic organelle that redraws three tiles at every turn start (the shipped ones gate theirs on a condition).
+    const redrawer: ItemDef = { id: 'test-redrawer', name: 'Redrawer', rarity: 'common', description: 'test', flavor: 'test', hooks: { onTurnStart: [{ type: 'redrawTiles', count: 3 }] } };
+    const flat = nodeContext({ ...FLAT, items: [...CONTENT.items, redrawer], tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    // Fifteen locked consonants and one free tile: every redraw of the free tile leaves no word, so the guard must scramble.
+    let s = newRun(9, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    const grid = enc.grid.map((t, i) => (i === 15 ? { ...t, letter: 'x', lockedTurns: 0 } : { ...t, letter: 'x', lockedTurns: 9 }));
+    s = { ...s, player: { ...s.player, items: [redrawer.id] }, encounter: { ...enc, grid, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0 } } };
+    // The dead grid is what the fixture built; a shuffle's end-of-turn guard already scrambles, so go through turnStart directly:
+    // a shuffle redraws the one free tile, the end-of-turn guard scrambles (locks included), then turn start redraws again.
+    const next = reduce(s, { type: 'shuffle' }, flat);
+    expect(next.phase).toBe('fight');
+    expect(isDead((next.encounter as Encounter).grid, flat.solver)).toBe(false);
+    // Over many seeds with the redrawer held, no turn ever starts on a dead grid.
+    for (let seed = 0; seed < 30; seed++) {
+      let r = newRun(seed, flat);
+      if (r.phase !== 'fight') continue;
+      const e = r.encounter as Encounter;
+      r = { ...r, player: { ...r.player, items: [redrawer.id, redrawer.id, redrawer.id] }, encounter: { ...e, enemy: { ...e.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0 } } };
+      for (let t = 0; t < 8; t++) {
+        expect(isDead((r.encounter as Encounter).grid, flat.solver), `seed ${seed} turn ${t}`).toBe(false);
+        r = reduce(r, { type: 'shuffle' }, flat);
+      }
+    }
+  });
+});
+
+describe('variety wave step 5: a hit to 0 HP is death before an on-hit heal', () => {
+  it('an on-hit heal cannot stand the player back up from 0; at 1 HP it still fires', () => {
+    const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+    const healer = CONTENT.items.find((i) => i.hooks.onDamageTaken?.some((e) => e.type === 'heal'));
+    if (!healer) throw new Error('no on-hit healer in the pool');
+    let s = newRun(8, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, player: { ...s.player, hp: 6, items: [healer.id] }, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 6 } } };
+    const dead = reduce(s, { type: 'shuffle' }, flat);
+    expect(dead.phase).toBe('summary');
+    expect(dead.outcome).toBe('lost');
+    expect(dead.player.hp).toBe(0);
+    expect(dead.lastTurn?.enemyDamage).toBe(6);
+    const alive = reduce({ ...s, player: { ...s.player, hp: 7 } }, { type: 'shuffle' }, flat);
+    expect(alive.phase).toBe('fight');
+    expect(alive.player.hp).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('variety wave step 5: rage breaks a stun (tracker #8)', () => {
+  it('before the enrage clock a stun skips the attack; from the turn after it the enemy attacks through the stun and the intent agrees', () => {
+    const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0, enrageAfter: 3, enragePerTurn: 0 } });
+    let s = newRun(6, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    s = { ...s, player: { ...s.player, hp: 1000, maxHp: 1000 }, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 6, stunned: 99 } } };
+    const hits: number[] = [];
+    const stuns: boolean[] = [];
+    for (let i = 0; i < 5; i++) {
+      s = reduce(s, { type: 'shuffle' }, flat);
+      hits.push(s.lastTurn?.enemyDamage ?? -1);
+      stuns.push(s.lastTurn?.stunned ?? false);
+    }
+    // Turns 1-3 stunned (0 damage); turns 4 and 5 hit through the stun.
+    expect(hits).toEqual([0, 0, 0, 6, 6]);
+    expect(stuns).toEqual([true, true, true, false, false]);
+    expect((s.encounter as Encounter).enemy.stunned).toBe(94); // the count still ticks down, it is simply not honoured
   });
 });
 

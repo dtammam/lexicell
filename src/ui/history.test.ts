@@ -120,13 +120,24 @@ describe('run history', () => {
     const csv = exportCsv(runs);
     const lines = csv.trimEnd().split('\r\n');
     expect(lines).toHaveLength(3);
-    expect(lines[0]).toBe('seed,startedAt,endedAt,outcome,encounterReached,turns,damageDealt,damageTaken,bestWord,bestWordDamage,items,build,cell');
-    expect(lines[1]).toMatch(/,balanced$/);
+    expect(lines[0]).toBe('seed,startedAt,endedAt,outcome,encounterReached,turns,damageDealt,damageTaken,bestWord,bestWordDamage,items,build,cell,mode');
+    expect(lines[1]).toMatch(/,balanced,normal$/);
     expect(lines[2]).toContain('"a""b,c"');
     expect(lines[2]).toContain('"x;y;z"');
     expect(csv).toContain('"line one\nline two"');
     expect(lines).toHaveLength(3); // the embedded newline is quoted, not a row break: 3 lines only because split is on CRLF
     expect(lines[2]).toContain(',won,');
     expect(lines[1]).toContain(`,${runs[0]?.build}`);
+  });
+
+  it('an endless run records how deep it got, uncapped, and its mode (step 5)', () => {
+    const s = newRun(3, ctx, 'balanced', 'endless');
+    const deep = { ...s, phase: 'summary' as const, outcome: 'lost' as const, encounter: null, encounterIndex: 13 };
+    const e = entryFrom(deep, 'lost', '2026-09-09T00:00:00.000Z', null, '1 · x');
+    expect(e.encounterReached).toBe(14);
+    expect(e.mode).toBe('endless');
+    const normal = { ...newRun(3, ctx), phase: 'summary' as const, outcome: 'won' as const, encounter: null, encounterIndex: 8 };
+    expect(entryFrom(normal, 'won', '2026-09-09T00:00:00.000Z', null, '1 · x').encounterReached).toBe(9);
+    expect(exportCsv([e]).split('\n')[0]?.trimEnd().endsWith(',cell,mode')).toBe(true);
   });
 });

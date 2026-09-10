@@ -676,7 +676,7 @@ describe('App', () => {
   it('Release notes opens from the title, lists every build newest first with a PR link, and Back returns', async () => {
     render(App);
     await click(await findByText('Release notes', 15000));
-    expect(await findByText(/Every build since the first commit/)).toBeTruthy();
+    expect(await findByText(/Every build since the first commit/, 15000)).toBeTruthy(); // 80+ entries render slowly on a loaded machine
     const items = document.querySelectorAll('.notes li');
     expect(items.length).toBe(RELEASE_NOTES.length);
     expect(items[0]?.querySelector('.stamp')?.textContent).toBe(`build\u00a0${RELEASE_NOTES[0]?.build} · PR\u00a0#${RELEASE_NOTES[0]?.pr}`);
@@ -686,7 +686,7 @@ describe('App', () => {
     expect(items[items.length - 1]?.querySelector('.stamp a')).toBeNull();
     await click(getButton('Back'));
     expect(await findByText('New run')).toBeTruthy();
-  });
+  }, 20000); // the list grows with every merge
 
   it('evolution: after a boss the evolve screen offers three traits, the pick lands on the items strip and the summary (step 3)', async () => {
     await startRun();
@@ -742,6 +742,39 @@ describe('App', () => {
     await click(await findByText('How to play', 15000));
     expect(getByText(/^Gold: adds that much damage/)).toBeTruthy();
     expect(getByText(/^Cracked: crumbles/)).toBeTruthy();
+  }, 30000);
+
+  it('modes: the cell picker offers Normal and Endless, an endless run shows Enc without /9 and its summary says how deep (step 5)', async () => {
+    render(App);
+    await click(await findByText('New run', 15000));
+    await findByText('Choose your cell', 15000);
+    const modes = () => Array.from(document.querySelectorAll('.modes .mode'));
+    expect(modes()).toHaveLength(2);
+    expect(modes()[0]?.getAttribute('aria-checked')).toBe('true');
+    await click(modes()[1] ?? null);
+    expect(modes()[1]?.getAttribute('aria-checked')).toBe('true');
+    expect(modes()[0]?.getAttribute('aria-checked')).toBe('false');
+    await click(document.querySelector('button.cell'));
+    await click(await findByText('Divide and conquer'));
+    await findByText('Choose a starting item', 15000);
+    await click(document.querySelector('button.offer'));
+    expect(await findByText('Enc 1')).toBeTruthy();
+    expect(queryByText('Enc 1/9')).toBeNull();
+    expect((JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState).mode).toBe('endless');
+    // Deep in the run at 1 HP against a killer: the next hit ends it, and the summary says how deep.
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = blob.encounter as NonNullable<RunState['encounter']>;
+    const deep: RunState = { ...blob, encounterIndex: 13, player: { ...blob.player, hp: 1, items: [] }, encounter: { ...enc, enemy: { ...enc.enemy, id: 'lamprey', damage: 500, hp: 100000, maxHp: 100000 } }, stats: { ...blob.stats, hpAtEncounterStart: Array.from({ length: 14 }, () => 50) } };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(deep));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    expect(await findByText('Enc 14')).toBeTruthy();
+    await attackOnce('short');
+    expect(await findByText('The deep took you', 15000)).toBeTruthy();
+    expect(getByText('Endless')).toBeTruthy();
+    expect(getByText('14')).toBeTruthy();
+    expect(queryByText('14 / 9')).toBeNull();
   }, 30000);
 
   it('a finished run does not offer Continue on the title', async () => {

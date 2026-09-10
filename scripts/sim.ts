@@ -13,7 +13,7 @@
  */
 import { fileURLToPath } from 'node:url';
 import { CONTENT } from '../src/content/index';
-import type { Content } from '../src/engine/types';
+import type { Content, RunMode } from '../src/engine/types';
 import { BOT_NAMES, GREEDY_MAX_LENGTH, type BotName } from './lib/bots';
 import { nodeContext } from './lib/context';
 import { simulate, type Summary } from './lib/simulate';
@@ -28,10 +28,12 @@ interface Options {
   variant: VariantName;
   /** Starting cell id; the default is the balanced cell the criteria are judged on. */
   cell: string;
+  /** Normal is what the criteria judge; endless (step 5) reports how deep the bots get. */
+  mode: RunMode;
 }
 
 export function parseArgs(argv: readonly string[]): Options {
-  const opts: Options = { runs: 500, bots: [...BOT_NAMES], items: 'all', seedBase: 0, json: false, variant: 'base', cell: 'balanced' };
+  const opts: Options = { runs: 500, bots: [...BOT_NAMES], items: 'all', seedBase: 0, json: false, variant: 'base', cell: 'balanced', mode: 'normal' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = argv[i + 1];
@@ -61,6 +63,11 @@ export function parseArgs(argv: readonly string[]): Options {
       case '--cell':
         if (!v || !CONTENT.cells.some((c) => c.id === v)) throw new Error(`--cell needs one of ${CONTENT.cells.map((c) => c.id).join(', ')}`);
         opts.cell = v;
+        i++;
+        break;
+      case '--mode':
+        if (v !== 'normal' && v !== 'endless') throw new Error('--mode needs normal or endless');
+        opts.mode = v;
         i++;
         break;
       case '--variant':
@@ -134,7 +141,7 @@ function main() {
   const opts = parseArgs(process.argv.slice(2));
   const ctx = nodeContext(contentFor(opts.items, opts.variant));
   const t0 = performance.now();
-  const summaries = opts.bots.map((bot) => simulate(bot, ctx, opts.runs, opts.seedBase, opts.cell));
+  const summaries = opts.bots.map((bot) => simulate(bot, ctx, opts.runs, opts.seedBase, opts.cell, opts.mode));
   const elapsed = (performance.now() - t0) / 1000;
   const criteria = exitCriteria(summaries);
   if (opts.json) {
@@ -142,8 +149,12 @@ function main() {
     return;
   }
   const itemsLabel = opts.items === 'all' ? `all ${CONTENT.items.length} items` : opts.items === 'none' ? 'no items' : opts.items.join(',');
-  console.log(`Lexicell sim: ${opts.runs} runs per bot, seeds ${opts.seedBase}..${opts.seedBase + opts.runs - 1}, ${itemsLabel}, variant ${opts.variant}, cell ${opts.cell}. ${elapsed.toFixed(1)}s\n`);
+  console.log(`Lexicell sim: ${opts.runs} runs per bot, seeds ${opts.seedBase}..${opts.seedBase + opts.runs - 1}, ${itemsLabel}, variant ${opts.variant}, cell ${opts.cell}, mode ${opts.mode}. ${elapsed.toFixed(1)}s\n`);
   console.log(renderTable(summaries));
+  if (opts.mode === 'endless') {
+    console.log('\nEndless: the criteria judge Normal; here the number that matters is the median encounter reached.');
+    return;
+  }
   console.log('\nExit criteria:');
   const mark = (v: boolean | null) => (v === null ? 'n/a ' : v ? 'PASS' : 'FAIL');
   console.log(`  ${mark(criteria.mediocreInBand)}  mediocre wins 20-40%`);

@@ -114,6 +114,125 @@ daily flag.
   enemy special (an enemy gilding the player's tiles makes no sense); the crack special fires every second turn
   after the gate measured every third never landing against a strong player. No retune: balanced
   greedy 66.8%, mediocre 21.0%, solver 87.6%; cells 17.8 (Spore, by design) to 29.6 mediocre, greedy max 83.2%.
+- Step 5 (PR #66): built on top of step 4. `RunState.mode` (save v9, v8 migrates as normal), chosen with the
+  cell; `encounterDefFor` generates slots past the ninth from the act-3 fight/boss scale grown by
+  `endlessHpGrowth` 1.06 and `endlessDamageGrowth` 1.08 per slot (damage faster than HP: at 1.1 / 1.06 the
+  strong bot out-healed 600-turn fights), a boss every third, an evolve after each; `extendKinds` draws one
+  detour per block of three as the block is reached; Endless never wins, history keeps the encounter reached
+  uncapped. Three engine rules Endless exposed and this step fixes: a hit to 0 HP is death before the rest of
+  onDamageTaken (an on-hit heal made the player unkillable by attacks, so every earlier table was tuned against
+  that bug), rage breaks a stun past `enrageAfter` (tracker #8 closed), a turn-start redraw that leaves a dead
+  grid scrambles. Closing the first cost ten points each on curve H (mediocre 21.0 to 10.6, greedy 66.8 to 57.2);
+  curve J (acts 2 and 3 softened) restores balanced mediocre 24.4%, greedy 84.0%, solver 96.8%; cells 19.8
+  (Spore, now failing both criteria) to 37.0 mediocre, greedy max 95.6% (Spore, over the cap: Dean's lever).
+  Endless over 200 runs, median encounter reached: greedy 30, mediocre 8.5, solver 36.
+
+### Step 5 sim tables (re-run after merging main, PR #65; the Diatom Swarm now cracks every second turn)
+
+`npx tsx scripts/sim.ts` (balanced, Amoeba):
+
+```
+Lexicell sim: 500 runs per bot, seeds 0..499, all 200 items, variant base, cell balanced, mode normal. 80.7s
+
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    84.4% |           9 |       16.2 |       105 |       28 |   100 |   100 |    96 |    89 |    88 |    88 |    83 |    82 |    81 |
+| mediocre |  500 |    24.4% |           9 |       28.5 |       277 |        2 |   101 |    95 |    83 |    58 |    63 |    68 |    59 |    69 |    75 |
+|   solver |  500 |    96.6% |           9 |       11.8 |        24 |       14 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    90 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+`npx tsx scripts/sim.ts --cell aggro` (Predator):
+
+```
+Lexicell sim: 500 runs per bot, seeds 0..499, all 200 items, variant base, cell aggro, mode normal. 75.9s
+
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    87.0% |           9 |       13.9 |        48 |       24 |    85 |    85 |    82 |    77 |    76 |    76 |    73 |    72 |    71 |
+| mediocre |  500 |    24.0% |           8 |       23.4 |       181 |        1 |    86 |    80 |    70 |    48 |    55 |    59 |    51 |    58 |    65 |
+|   solver |  500 |    97.8% |           9 |       10.3 |         1 |       11 |    85 |    86 |    84 |    82 |    81 |    81 |    80 |    78 |    77 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+`npx tsx scripts/sim.ts --cell defensive` (Diatom):
+
+```
+Lexicell sim: 500 runs per bot, seeds 0..499, all 200 items, variant base, cell defensive, mode normal. 97.3s
+
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    89.4% |           9 |       18.3 |       162 |       38 |   115 |   115 |   112 |   105 |   105 |   105 |    99 |    97 |    95 |
+| mediocre |  500 |    35.0% |           9 |       34.8 |       377 |        2 |   116 |   113 |   103 |    79 |    82 |    87 |    73 |    81 |    86 |
+|   solver |  500 |    98.4% |           9 |       13.2 |        58 |       14 |   115 |   116 |   113 |   110 |   110 |   109 |   108 |   107 |   106 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+`npx tsx scripts/sim.ts --cell gambler` (Spore):
+
+```
+Lexicell sim: 500 runs per bot, seeds 0..499, all 200 items, variant base, cell gambler, mode normal. 78.9s
+
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    95.4% |           9 |       12.5 |        28 |       11 |    90 |    91 |    88 |    84 |    84 |    83 |    82 |    80 |    80 |
+| mediocre |  500 |    19.8% |           8 |       27.0 |       238 |        2 |    91 |    85 |    73 |    50 |    55 |    61 |    54 |    63 |    68 |
+|   solver |  500 |    99.6% |           9 |        9.4 |         4 |        4 |    90 |    91 |    89 |    88 |    87 |    87 |    87 |    85 |    85 |
+
+Exit criteria:
+  FAIL  mediocre wins 20-40%
+  FAIL  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+`npx tsx scripts/sim.ts --cell tinkerer` (Mycelium):
+
+```
+Lexicell sim: 500 runs per bot, seeds 0..499, all 200 items, variant base, cell tinkerer, mode normal. 95.8s
+
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    77.8% |           9 |       17.4 |       132 |       41 |    86 |    85 |    82 |    75 |    75 |    75 |    71 |    70 |    71 |
+| mediocre |  500 |    29.2% |           9 |       29.6 |       299 |        1 |    87 |    83 |    74 |    57 |    61 |    66 |    60 |    67 |    70 |
+|   solver |  500 |    93.6% |           9 |       12.8 |        47 |       23 |    86 |    86 |    83 |    81 |    80 |    80 |    79 |    78 |    78 |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+  ----  win rate moves with items: compare against --items none
+```
+
+`npx tsx scripts/sim.ts --mode endless --runs 200` (the deep):
+
+```
+Lexicell sim: 200 runs per bot, seeds 0..199, all 200 items, variant base, cell balanced, mode endless. 319.1s
+
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  200 |     0.0% |          30 |       51.3 |       197 |      189 |   100 |   100 |    96 |    89 |    89 |    88 |    82 |    82 |    80 |
+| mediocre |  200 |     0.0% |         8.5 |       42.0 |       258 |        3 |   101 |    95 |    84 |    59 |    66 |    70 |    60 |    69 |    76 |
+|   solver |  200 |     0.0% |          36 |       65.2 |       394 |      181 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    91 |
+
+Endless: the criteria judge Normal; here the number that matters is the median encounter reached.
+```
+
 
 ## Acceptance per step
 

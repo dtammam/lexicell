@@ -110,6 +110,8 @@ export interface EncounterDef {
  */
 export type EncounterKind = 'fight' | 'elite' | 'rest' | 'event';
 
+export type RunMode = 'normal' | 'endless';
+
 /** A small forced trade (variety wave step 2): the first choice is the trade, the last walks away. */
 export interface EventChoice {
   readonly label: string;
@@ -166,6 +168,12 @@ export interface Tuning {
    */
   readonly eliteHpScale: number;
   readonly eliteDamageScale: number;
+  /**
+   * Endless (step 5): past the last content slot each generated slot's scales are the act-3
+   * fight or boss scale times growth^(slots past the end), so the deep keeps getting deeper.
+   */
+  readonly endlessHpGrowth: number;
+  readonly endlessDamageGrowth: number;
 }
 
 export interface Content {
@@ -264,10 +272,16 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 8;
+  readonly v: 9;
   readonly rng: Rng;
   /** The starting cell's id (content.cells). v4; v3 saves load as 'balanced'. */
   readonly cell: string;
+  /**
+   * Normal ends with the ninth encounter; Endless (variety wave step 5, Dean's answer 6) goes on
+   * past it with act-3 creatures on a growing curve, a boss every third slot, until the player
+   * falls. v9; earlier saves load as normal.
+   */
+  readonly mode: RunMode;
   /**
    * The kind of each slot, index = encounterIndex, placed by the seed at newRun (v6). A slot past
    * the array's end is a fight, which is how a migrated v5 save finishes its run.
