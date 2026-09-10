@@ -1,0 +1,14 @@
+# Self-hosting Lexicell (optional; the game also lives at https://dtammam.github.io/lexicell/).
+# A static nginx container, no backend, no accounts, nothing to configure.
+#
+#   docker compose up -d
+#
+# then open http://localhost:8090. The image follows `edge`, rebuilt on every
+# merge to main; `docker compose pull && docker compose up -d` takes the newest.
+services:
+  lexicell:
+    image: deantammam/lexicell:edge
+    pull_policy: always
+    ports:
+      - "8090:80"
+    restart: unless-stopped
