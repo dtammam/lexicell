@@ -1,5 +1,11 @@
 <script lang="ts">
   import { wordOfTheDay } from './definitions';
+  import { RELEASE_NOTES } from './release-notes';
+
+  // The build number the title shows is the latest release note's build, so it always matches the
+  // Release notes page and is identical on the Docker and Pages deploys. The CI env var __BUILD_NUMBER__
+  // used different run counters per workflow, so the two builds disagreed. Guard a null build defensively.
+  const buildLabel = RELEASE_NOTES[0]?.build != null ? `build ${RELEASE_NOTES[0].build} · ` : '';
 
   // The mark (Dean's pick, 2026-09-08): the Bookends wordmark, drawn by scripts/logo.py.
   const base = import.meta.env.BASE_URL;
@@ -66,7 +72,7 @@
     {/if}
   </div>
 
-  <p class="build">build {__BUILD_NUMBER__} · {__BUILD_SHA__}</p>
+  <p class="build">{buildLabel}{__BUILD_SHA__}</p>
 
   {#if wotd}
     <div class="wotd">
@@ -96,7 +102,10 @@
   }
   .wordmark {
     display: block;
-    width: min(100%, 312px);
+    /* min(100%, ...) collapsed against the shrink-wrapped centered parent and rendered tiny on a
+       phone; a viewport-relative width makes the wordmark a reliable hero (about 331px on a 390px
+       screen) without reintroducing vertical overflow. */
+    width: min(85vw, 420px);
     height: auto;
     image-rendering: pixelated;
     image-rendering: crisp-edges;

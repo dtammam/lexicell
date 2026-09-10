@@ -106,6 +106,7 @@ order and count. Sim tables and full gate narratives live in the exec
 plans (`docs/exec-plans/completed/`) and the release notes; this list is
 the honest index.
 
+- **build 76 / PR #74** - Title-screen logo enlarged (the wordmark CSS width no longer collapses against its shrink-wrapped parent); the title build number now reads from RELEASE_NOTES so it matches the Release notes page on both the Pages and Docker builds (was the Pages CI run count, e.g. 59, versus the Docker count).
 - **build 75 / PR #73** - GitHub Pages deploy concurrency fixed: `cancel-in-progress: false` so back-to-back merges queue instead of orphaning a deployment (builds 72-74 had been blocked on the play link; the Docker image was always current). Cause and manual recovery documented in `docs/deploy.md`.
 - **build 73 / PR #71** - README intro restructured to say what the game
   is, what inspired it (word games plus Binding of Isaac, Balatro and
