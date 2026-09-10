@@ -78,7 +78,7 @@
         {#if open === i}
           <p class="detail">
             Seed <code>{r.seed}</code>, build {r.build}{r.cell ? `, ${cellName(r.cell)}` : ''}. Dealt {r.damageDealt}, took {r.damageTaken}.
-            {r.items.length > 0 ? r.items.map((id) => itemDef(id).name).join(', ') : 'No organelles.'}
+            {r.items.length > 0 ? r.items.map((id) => itemDef(id).name).join(', ') : 'No mutations.'}
           </p>
         {/if}
       </li>

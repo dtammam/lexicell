@@ -21,7 +21,7 @@
     <p class="lead">Tiles do not need to touch. Pick any letters anywhere on the grid, in the order you want to spell them.</p>
 
     <h3>Damage</h3>
-    <p>Each letter has a value. The word's letters are added up, multiplied by a bonus for its length, then by your organelles. A seven-letter word is worth many times a four-letter one.</p>
+    <p>Each letter has a value. The word's letters are added up, multiplied by a bonus for its length, then by your mutations. A seven-letter word is worth many times a four-letter one.</p>
 
     <h3>What the tile colours mean</h3>
     <ul class="legend">
@@ -36,12 +36,12 @@
     </ul>
 
     <h3>Your turn</h3>
-    <p>Tap tiles to spell, then Attack. Clear empties the selection. Shuffle redraws every unlocked tile and costs your turn, unless an organelle gave you a free shuffle. After your word the enemy hits back, the tiles you used fall away and new ones drop in.</p>
+    <p>Tap tiles to spell, then Attack. Clear empties the selection. Shuffle redraws every unlocked tile and costs your turn, unless a mutation gave you a free shuffle. After your word the enemy hits back, the tiles you used fall away and new ones drop in.</p>
 
     <h3>The run</h3>
-    <p>Nine encounters in three acts, a boss at the end of each act. Your HP carries from fight to fight and never refills on its own. After each win you choose one organelle of three; they stack for the whole run. Lose your HP and the run ends.</p>
-    <p>Each run also hides one elite (an enemy from the next act, a rare organelle guaranteed for beating it), one rest (heal, or take an organelle instead) and one event (a small trade, take it or leave it) among the fights. Where they fall is the seed's choice.</p>
-    <p>Beat a boss and you evolve: three traits are offered and you keep one for the run. A trait is part of your body, always on, and it applies before your organelles.</p>
+    <p>Nine encounters in three acts, a boss at the end of each act. Your HP carries from fight to fight and never refills on its own. After each win you choose one mutation of three; they stack for the whole run. Lose your HP and the run ends.</p>
+    <p>Each run also hides one elite (an enemy from the next act, a rare mutation guaranteed for beating it), one rest (heal, or take a mutation instead) and one event (a small trade, take it or leave it) among the fights. Where they fall is the seed's choice.</p>
+    <p>Beat a boss and you evolve: three traits are offered and you keep one for the run. A trait is part of your body, always on, and it applies before your mutations.</p>
     <p>Two modes, chosen with your cell. Normal ends with the ninth encounter and a win. Endless goes on past it: the deep's creatures on a curve that grows every fight, a boss every third, an evolution after each, until you fall. History keeps how far you got.</p>
 
     <p class="lead">Reading, sound and the bug report live on the Settings page, the gear at the top of the screen.</p>

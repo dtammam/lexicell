@@ -263,7 +263,7 @@
    */
   function recover(e: unknown, reset: () => void) {
     console.error('render failed', e);
-    // A screen that is not the run (History, Organelles, How to play) must never cost the player
+    // A screen that is not the run (History, Mutations, How to play) must never cost the player
     // their run: go back to the title and keep the save (gate suggestion, run-history round).
     if (screen !== 'run' && recoveries++ < 1) {
       screen = 'title';

@@ -44,7 +44,7 @@ describe('Pick (cursed offers, variety wave step 6)', () => {
 
   it('a cursed offer names each attached curse and offers a Leave it button', () => {
     const { target, actions } = renderPick(cursedRun());
-    expect(target.textContent).toContain('A cursed offer');
+    expect(target.textContent).toContain('A defective offer');
     // Each option shows its curse name and description.
     const curses = target.querySelectorAll('.offer .curse');
     expect(curses).toHaveLength(3);

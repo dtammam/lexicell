@@ -15,12 +15,12 @@
   const curses = $derived(run.curses);
   const cursed = $derived(run.phase === 'pick' && curses !== null);
   const healAmount = $derived(Math.min(run.player.maxHp - run.player.hp, Math.round(run.player.maxHp * CONTENT.tuning.restHeal)));
-  const title = $derived(cursed ? 'A cursed offer' : rest ? 'A quiet pool' : run.pendingPicks > 0 ? 'Choose a starting item' : 'Choose an item');
+  const title = $derived(cursed ? 'A defective offer' : rest ? 'A quiet pool' : run.pendingPicks > 0 ? 'Choose a starting item' : 'Choose an item');
   const hint = $derived(
     cursed
-      ? 'Every one comes with a curse. Take an organelle and its curse together, or leave the whole offer. The next fight starts right after.'
+      ? 'Every one carries a defect. Take a mutation and its defect together, or leave the whole offer. The next fight starts right after.'
       : rest
-        ? 'Nothing hunts here. Rest and heal, or take one organelle instead. Either way the next fight starts right after.'
+        ? 'Nothing hunts here. Rest and heal, or take one mutation instead. Either way the next fight starts right after.'
         : run.pendingPicks > 0
           ? 'Tap one. You keep it for the whole run, and your first fight starts right after.'
           : 'Tap one to add it to your cell. The next fight starts right after.',
@@ -34,7 +34,7 @@
     <button class="offer heal" onclick={() => { dispatch({ type: 'restHeal' }); }}>
       <span class="text">
         <span class="name">Rest</span>
-        <span class="desc">Heal {healAmount} HP ({run.player.hp} to {run.player.hp + healAmount} of {run.player.maxHp}). No organelle.</span>
+        <span class="desc">Heal {healAmount} HP ({run.player.hp} to {run.player.hp + healAmount} of {run.player.maxHp}). No mutation.</span>
       </span>
     </button>
   {/if}
@@ -50,7 +50,7 @@
         <span class="flavor">{item.flavor}</span>
         {#if curse}
           <span class="curse">
-            <span class="curse-label">Curse</span>
+            <span class="curse-label">Defect</span>
             <span class="curse-name">{curse.name}</span>
             <span class="curse-desc">{curse.description}</span>
           </span>
@@ -62,7 +62,7 @@
     <button class="offer leave" onclick={() => { dispatch({ type: 'skipOffer' }); }}>
       <span class="text">
         <span class="name">Leave it</span>
-        <span class="desc">Take nothing and no curse. Move straight to the next fight.</span>
+        <span class="desc">Take nothing and no defect. Move straight to the next fight.</span>
       </span>
     </button>
   {/if}

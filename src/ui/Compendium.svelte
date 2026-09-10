@@ -3,7 +3,7 @@
   import type { ItemDef, Rarity } from '../engine/types';
   import ItemIcon from './ItemIcon.svelte';
 
-  // Every organelle in the game, by rarity, with what it does (Dean, 2026-09-08).
+  // Every mutation in the game, by rarity, with what it does (Dean, 2026-09-08).
   let { onBack }: { onBack: () => void } = $props();
 
   const ORDER: readonly Rarity[] = ['common', 'uncommon', 'rare', 'mythic'];
@@ -18,10 +18,10 @@
 
 <section class="compendium">
   <header>
-    <h2>Organelles</h2>
+    <h2>Mutations</h2>
     <button class="btn" onclick={onBack}>Back</button>
   </header>
-  <p class="hint">{draftable.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1, mythic 0.35, and never more than two commons at once. After act 1, an offer may come cursed.</p>
+  <p class="hint">{draftable.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1, mythic 0.35, and never more than two commons at once. After act 1, an offer may come with defects.</p>
   <div class="list">
     {#each groups as group (group.rarity)}
       <h3 class={group.rarity}>{group.rarity} ({group.items.length})</h3>
@@ -37,7 +37,7 @@
       {/each}
     {/each}
     {#if curses.length > 0}
-      <h3 class="curse">curses ({curses.length})</h3>
+      <h3 class="curse">defects ({curses.length})</h3>
       {#each curses as item (item.id)}
         <div class="entry">
           <ItemIcon id={item.id} size={32} />

@@ -5,7 +5,7 @@
 **Spell words. Hit things. Evolve.**
 
 A mobile-first word-battle roguelike. You are a single cell: spell words from a
-letter grid to attack, pick organelles and traits between fights, and descend
+letter grid to attack, pick mutations and traits between fights, and descend
 until the deep takes you. Single player, no accounts, no backend, no unlocks.
 
 [![CI](https://github.com/dtammam/lexicell/actions/workflows/ci.yml/badge.svg)](https://github.com/dtammam/lexicell/actions/workflows/ci.yml)
@@ -26,7 +26,7 @@ and adds to your phone's home screen as an app.
 ---
 
 **What it is.** Lexicell is a cross-platform word puzzle game with roguelike
-elements. You spell words from a four-by-four letter grid to attack, pick organelles
+elements. You spell words from a four-by-four letter grid to attack, pick mutations
 and traits between fights, and descend as far as your one health bar will carry you.
 A normal run is fifteen to twenty minutes; Endless mode goes until the deep takes
 you. It runs in any browser, on desktop or phone.
@@ -56,7 +56,7 @@ notes page in the game listing every build since the first commit.
   &nbsp;
   <img src="assets/images/cell-picker.png" alt="Choose your cell and mode" width="235">
   &nbsp;
-  <img src="assets/images/organelles.png" alt="The organelle compendium" width="235">
+  <img src="assets/images/organelles.png" alt="The mutation compendium" width="235">
 </p>
 
 <p align="center">
@@ -73,19 +73,19 @@ notes page in the game listing every build since the first commit.
 - **A single cell, five ways to start.** Amoeba, Predator, Diatom, Spore or
   Mycelium, each with its own HP and a built-in quirk, all tuned to win within ten
   points of each other. Pick who you are before the first fight.
-- **200 organelles to draw.** After each won fight you are offered three, keep one.
+- **200 mutations to draw.** After each won fight you are offered three, keep one.
   They change how words score, how tiles are drawn, and how damage flows, from
   common lashes to glowing mythics.
 - **Evolve after a boss.** Beat a boss and your body changes: a thicker membrane,
   venom glands, a taste for rare letters. A trait is always on and applies before
-  your organelles.
+  your mutations.
 - **Enemies that fight back.** Twelve creatures and three bosses across three acts,
   with armour, regen, hunger and venom, each telling you its next move. Every run
   also hides an elite, a rest and a small trade among the fights.
 - **Normal or Endless.** Normal is nine encounters and a win. Endless goes on past
   the ninth, harder every fight, a boss every third, until the deep takes you.
 - **Attrition is the tension.** One health bar for the whole run. No healing
-  between fights unless an organelle or a rest stop gives it.
+  between fights unless a mutation or a rest stop gives it.
 - **Yours, offline, on your phone.** Installable PWA, plays with airplane mode on,
   one saved run in your browser. No accounts, no server, no meta-progression:
   every run starts from zero.
