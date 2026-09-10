@@ -1,1365 +1,373 @@
 # Roadmap
 
-The phases and their exit criteria are defined in
-`docs/lexicell-architecture-pack.md` (Implementation Roadmap). This file
-tracks what is planned and what shipped, honestly: what the gate caught
-and what is still open ships disclosed here.
+The phases and their exit criteria live in
+`docs/lexicell-architecture-pack.md` (Implementation Roadmap); this file
+does not repeat them. It tracks what is open and what shipped, honestly:
+what the gate caught and what is still open ships disclosed here.
 
-## Planned
+Status: Phase 0 (headless engine + sim harness) closed 2026-09-08; Phase
+1 (walking skeleton) built 2026-09-08, its exit checks still owed by Dean
+(see Open). Shipped is one line per merge, newest first, in the same
+order and count as the in-game release notes (`src/ui/release-notes.ts`).
 
-### Phase 0 - Spike: is the loop fun? (CLOSED 2026-09-08, plan in `docs/exec-plans/completed/phase-0-spike.md`)
-
-- [x] rng, dictionary, solver, scoring, effects, hooks, 10 items, 3 enemies + 1 boss, reducer, sim harness
-- [x] Exit criteria: mediocre 23.2% (band 20-40%), no dead grids, items move win rate (0.0% with `--items none`). Greedy 91.0% against the < 90% bar: Dean ruled it noise at n=500 (2026-09-06) and signed Phase 0 off as met on 2026-09-08. Disclosed, not hidden.
-- [x] Dean's decisions on the structural finding: greedy capped at 7, attacks stay per word, act 1 eased plus a starting kit, act 2 and E9 next.
-
-### Phase 1 - Walking skeleton (BUILT 2026-09-08, plan `docs/exec-plans/active/phase-1-walking-skeleton.md`)
-
-- [x] Vite + Svelte 5 + PWA scaffold, persist, store, Fight/Pick/Summary screens, nginx image, CI and publish workflows (see Shipped)
-- [ ] Exit: Dean plays one fight on his phone from the home-screen icon, offline. Needs HTTPS on the NUC and the Docker Hub secrets on the repo. The plan moves to `completed/` when Dean ticks this.
-
-### Phase 2 - MVP
-
-### Phase 3 - Iterations
+Every PR updates this file before it merges: move an item from Open to
+Shipped when it lands, or add a Shipped line. See CLAUDE.md, iteration
+mode rule 7.
 
 ## Open
 
-Ordered as Dean set it. 2026-09-09: the variety wave
-(`docs/exec-plans/active/variety-wave.md`), nine levers Dean agreed:
-enemies and damage ranges, encounter types, evolution, grid rules,
-Normal and Endless modes, curses, a share card, the daily seed.
+Ordered by Dean's priority.
 
-- **Effects wave: closed** (PR #47, 200 items, curve F). The plan is
-  in `docs/exec-plans/completed/effects-wave.md`. Left for later: a
-  10,000-run per-item table to make the two-point reskin rule
-  measurable; the 3000-run tables catch degenerate and never-picked
-  items only.
-- **Run history with export**: built (PR #51), reviewer round pending.
-- **Clarity feedback batch**: all seven shipped (PRs #55, #56, #57).
-- **Clarity feedback batch**: six of seven shipped (PRs #55, #56). Left:
-  cells more cellular with a sprite per starting cell (the sprite pass,
-  in progress).
-- **Run history with export**: shipped (PR #51); plan in completed/.
-- **Clarity feedback batch** (a tester via Dean, 2026-09-08): names
-  shown twice on the fight screen; a busy backdrop; no clear cue that
-  a turn ended; no view of the enemy's next action (Slay the Spire
-  intent); cells should look more cellular; a visual indicator for
-  organelles that fire; a stats HUD later (best and worst word).
-  Proposed as one UI PR after run history, before starting cells.
-- **Logo, round two** (Dean, 2026-09-08): none of the first three
-  landed; B (the amoeba) was closest. Second page of directions.
-- **Starting cells**: shipped (PR #53); plan in completed/. Next for
-  cells: their own sprites, with the sprite pass the tester asked for.
-- **Starting cells** (Dean, 2026-09-08): plan
-  `docs/exec-plans/active/starting-cells.md` (PR #48), five questions
-  for Dean. Engine and save schema: reviewer round. Builds after run
-  history.
-- **Daily seed** as the return hook (Phase 3 in the pack; no
-  achievements). **Sound and graphics direction**: deliberately not
-  yet (Dean).
-- **"Is it fun enough?"**: a measured answer on word length and the
-  letter pool, then whatever it points at.
-- The enforcement layer of the harness (PreToolUse staging block,
-  session-start hook, `.claude/settings.json`, pre-commit sim smoke,
-  pre-push hook, the Node built-ins lint ban) sits on branch
-  `harness/enforcement` awaiting Dean's own review. Dean's rule: the
-  agent does not merge changes to its own constraints. Until it merges,
-  CLAUDE.md and CONTRIBUTING describe hooks that are not yet installed.
-  Trackers #1 and #2 close with it.
-- **Dean's own checks**: the Phase 1 exit (HTTPS on the homelab,
-  home-screen install, airplane-mode load); the iPhone playtester's
-  portrait clipping after PR #34; greedy's fall to 66% under curve D.
-- Sim harness suspicion (adversarial round, not a finding): a scramble
-  on an encounter's final turn could be counted twice because the
-  `pickItem` batch inherits the previous `lastTurn`. Measured 0
-  occurrences over 1500 runs. Pre-dates the act-1 wave.
+### Variety wave, remaining steps
 
-Settled since this list was first written: the act 2 and E9 tuning
-wave (curve C in PR #19, curve D in PR #41); the save schema is v3 and
-persist refuses every other version (tracker #3 closed).
+Plan: `docs/exec-plans/active/variety-wave.md`. Steps 1-5 shipped (PRs
+#61, #62, #64, #65, #66); modes closed step 5. Left, in order:
+
+- **Step 6, curses** (content): paired offers and a curse item flag, so
+  a strong pick can carry a cost.
+- **Step 7, share card and copy-seed** (UI): a result you can share and
+  a seed you can copy to hand someone the same run.
+- **Step 8, daily seed** (UI): one seed a day, framed as "today's
+  challenge / today's evolution".
+
+### Phase 1 exit, Dean's own checks
+
+The Phase 1 exit is Dean's alone; the plan moves to `completed/` when he
+ticks it. Owed:
+
+- HTTPS on the NUC.
+- The `DOCKER_USERNAME` and `DOCKER_PASSWORD` secrets on the repo (the
+  publish workflow builds, smokes and pushes the image once they exist).
+- The home-screen install.
+- Offline / airplane-mode play.
+- iPhone portrait and landscape.
+
+### harness/enforcement review
+
+The enforcement layer of the harness (PreToolUse staging block,
+session-start hook, `.claude/settings.json`, pre-commit sim smoke,
+pre-push hook, the Node built-ins lint ban) sits on branch
+`harness/enforcement` awaiting Dean's own review. Dean's rule: the agent
+does not merge changes to its own constraints. Until it merges, CLAUDE.md
+and CONTRIBUTING describe hooks that are not yet installed. Tech-debt #1
+and #2 close with it.
+
+### "Is it fun enough?"
+
+A measured answer on word length and the letter pool, then whatever it
+points at. Not yet started.
+
+### Open disclosed residuals
+
+- **Diatom (defensive) mediocre rate sits about 10.6 points over
+  Amoeba** (35.0% against 24.4% on the shipped modes tables), just
+  outside the ten-point rule. Dean's tuning call, not a bug.
+- **The enrage / stun clock is a backstop, not a lever** (variety wave
+  step 1). PR #66 closed the permanent stun lock (tech-debt #8: past
+  `tuning.enrageAfter` a stunned enemy now attacks through the stun), so
+  a stall ends with the clock; the clock still only guarantees an end
+  while the enemy attacks.
+- **The four RNG-gated grid selection guards in PR #65** (`goldTiles`
+  and `crackTiles` never re-mark or pick an already-played tile; a
+  crumble is computed after the lock tick) are covered by the statistical
+  cracks probe (839 turns, all counters zero) rather than seed-fixed unit
+  tests (tech-debt #9, OPEN). A regression would show as a non-zero
+  counter over many turns, not a failed fixed-seed case.
+- **The effects wave still owes a 10,000-run per-item impact table.** The
+  3000-run tables catch degenerate and never-picked items only; the
+  two-point reskin rule is not measurable at that sample.
+- **Act-2 / E9 tuning deferred from the Phase 0 spike.** Largely
+  addressed since by curves C (PR #19) and D (PR #41) and revisited every
+  wave (G, H, J); carried here as the residual the Phase 0 close named.
+- **Phase 0 engine commits (through 9f63d34) landed before the harness**
+  (tech-debt #1, OPEN), staged with `git add -A` and no reviewer gate.
+  Closes with the harness/enforcement review above.
+
+### Backlog / future ideas (Dean, 2026-09-10, recorded not scheduled)
+
+Not on the plan, not costed, not committed. Written down so they are not
+lost.
+
+- **Vary the item sprite pool.** Many item icons duplicate today. Dean is
+  fine with it for now and actively likes the programmatic placeholder
+  art style, so the goal is to keep that style and add variety / reduce
+  duplicates, not to replace the look.
+- **Sound.** Music and background / ambient audio. There is none today.
+- **A custom domain or redirect for the play link** (for example
+  lexi.cell), instead of the raw github.io URL.
+- **Publish to an app store** of some kind.
+- **A public leaderboard**, for the public online (GitHub Pages) version
+  only. Explicitly not part of the self-hosted build.
 
 ## Shipped
 
-### Variety wave, step 5: Normal and Endless modes (PR #66, 2026-09-09)
-
-Dean's answer 6: both modes from the first run, chosen with the cell.
-`RunState.mode` (save v9; a v8 save migrates as normal) rides on the run
-and on the `newRun` action, and the cell picker offers Normal and
-Endless beside the five cells. Normal ends with the ninth slot as
-before. Endless never ends on a win: `encounterDefFor(content, index)`
-generates every slot past the content's nine from act 3's pools, a boss
-every third slot (`index % 3 === 2`, the way the content lays them out),
-the last act's fight or boss scale grown by `tuning.endlessHpGrowth`
-(1.06) and `endlessDamageGrowth` (1.08) per slot past the end,
-compounding. It is pure, so the same index always gives the same def and
-a save needs nothing new to continue. `extendKinds` draws one detour
-(elite, rest, event or a plain fight) per generated block of three, as
-the block is reached, so the deep keeps step 2's rhythm; an evolve
-follows every boss. Arena shows "Enc N" without the "/9" in Endless and
-clamps sprites and palettes to act 3; the summary says "The deep took
-you", names the mode and shows the depth uncapped; history entries carry
-`mode` and keep `encounterReached` uncapped in Endless (the CSV gains a
-`mode` column); Help explains the two modes. The sim takes
-`npx tsx scripts/sim.ts --mode endless`, guards a run at 50,000 actions,
-and caps the nine HP columns at nine for an Endless run that went
-deeper.
-
-Endless found three engine rules that Normal's nine slots were too short
-to expose. All three are fixed here, in `src/engine/reducer.ts`:
-
-- **A hit that leaves 0 HP is death, before the rest of the
-  `onDamageTaken` effects fire.** Before this branch the hit clamped HP
-  to 0, an on-hit heal fired, and only then came the death check, so any
-  of the seven "heal when hit" organelles made the player unkillable by
-  attacks: only venom tiles could still finish a run (there is no poison
-  on the player's side, and an event trade floors HP at 1). Say it
-  plainly: every balance table in this file before this entry was tuned
-  against that bug. Closing it cost the casual bot ten points on curve H
-  (21.0% to 10.6%) and the strong bot ten (66.8% to 57.2%).
-- **Past `tuning.enrageAfter` a stunned enemy attacks through the
-  stun.** Rage breaks a stun; the count is left alone, it is simply not
-  honoured. That closes tracker #8 (two stun organelles on the same beat
-  locked an enemy forever), and the intent line shows the hit that will
-  land instead of "stunned" once the clock is past.
-- **A turn-start redraw that leaves a dead grid now scrambles it**, the
-  same guard the end of a turn has had. An Endless run holding several
-  redraw organelles met one.
-
-Curve J pays for the first of those. Acts 2 and 3 come down from curve H
-(act 2 hp 1.2 / 1.35 / 1.2, damage 0.9 / 1.05 / 1.15; act 3 hp 2.1 / 2.4
-/ 1.9, damage 1.6 / 1.8 / 1.9), which brings the casual bot back to
-24.4% on Amoeba. Alternatives measured on the balanced cell, greedy /
-mediocre: G 66.2 / 12.0, I 78.6 / 19.4, K 83.6 / 20.2, L 75.2 / 17.8 (HP
-kept, damage cut), M 79.6 / 20.4, J 84.0 / 24.4. The two bots stay
-linked: whenever the casual bot reaches the 20-40 band the strong bot
-sits near 80 or above. Endless growth was retuned too: 1.1 HP / 1.06
-damage gave 600-turn fights against million-HP enemies the strong bot
-out-healed, so damage now grows faster than HP (1.06 / 1.08) and the
-deep kills before it bores.
-
-Disclosed:
-
-- The strong bot's rate rose from 67% to 84% on Amoeba. That is the
-  honest cost of closing the immortality bug, not a tuning slip, and it
-  is a design decision for Dean: the runs that used to end in act 3 now
-  end there for real, and a strong player wins far more often.
-- Spore (`--cell gambler`) prints FAIL on both criteria: mediocre 19.8%,
-  greedy 95.6%. The criteria are judged on Amoeba and Spore's casual
-  rate sits 4.6 points from Amoeba's 24.4, inside the ten-point rule,
-  but its strong-bot rate is over the 90% cap. A lever for Dean, not
-  hidden.
-- Endless runs out of traits. There are twelve, an evolve follows every
-  boss, so after twelve picks the offer shrinks and then empties, and
-  the boss's item pick follows directly.
-- Sprites and palettes stop at act 3 in Endless. The HUD's act number
-  keeps counting past it.
-
-`npx tsx scripts/sim.ts`, curve J, re-run after merging main (PR #65
-folded in, the Diatom Swarm now cracks every second turn), shipped:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    84.4% |           9 |       16.2 |       105 |       28 |   100 |   100 |    96 |    89 |    88 |    88 |    83 |    82 |    81 |
-| mediocre |  500 |    24.4% |           9 |       28.5 |       277 |        2 |   101 |    95 |    83 |    58 |    63 |    68 |    59 |    69 |    75 |
-|   solver |  500 |    96.6% |           9 |       11.8 |        24 |       14 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    90 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell aggro`, Predator:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    87.0% |           9 |       13.9 |        48 |       24 |    85 |    85 |    82 |    77 |    76 |    76 |    73 |    72 |    71 |
-| mediocre |  500 |    24.0% |           8 |       23.4 |       181 |        1 |    86 |    80 |    70 |    48 |    55 |    59 |    51 |    58 |    65 |
-|   solver |  500 |    97.8% |           9 |       10.3 |         1 |       11 |    85 |    86 |    84 |    82 |    81 |    81 |    80 |    78 |    77 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell defensive`, Diatom:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    89.4% |           9 |       18.3 |       162 |       38 |   115 |   115 |   112 |   105 |   105 |   105 |    99 |    97 |    95 |
-| mediocre |  500 |    35.0% |           9 |       34.8 |       377 |        2 |   116 |   113 |   103 |    79 |    82 |    87 |    73 |    81 |    86 |
-|   solver |  500 |    98.4% |           9 |       13.2 |        58 |       14 |   115 |   116 |   113 |   110 |   110 |   109 |   108 |   107 |   106 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell gambler`, Spore:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    95.4% |           9 |       12.5 |        28 |       11 |    90 |    91 |    88 |    84 |    84 |    83 |    82 |    80 |    80 |
-| mediocre |  500 |    19.8% |           8 |       27.0 |       238 |        2 |    91 |    85 |    73 |    50 |    55 |    61 |    54 |    63 |    68 |
-|   solver |  500 |    99.6% |           9 |        9.4 |         4 |        4 |    90 |    91 |    89 |    88 |    87 |    87 |    87 |    85 |    85 |
-
-  FAIL  mediocre wins 20-40%
-  FAIL  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    77.8% |           9 |       17.4 |       132 |       41 |    86 |    85 |    82 |    75 |    75 |    75 |    71 |    70 |    71 |
-| mediocre |  500 |    29.2% |           9 |       29.6 |       299 |        1 |    87 |    83 |    74 |    57 |    61 |    66 |    60 |    67 |    70 |
-|   solver |  500 |    93.6% |           9 |       12.8 |        47 |       23 |    86 |    86 |    83 |    81 |    80 |    80 |    79 |    78 |    78 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --mode endless --runs 200`, the deep (no bot wins; the
-number that matters is the median encounter reached):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  200 |     0.0% |          30 |       51.3 |       197 |      189 |   100 |   100 |    96 |    89 |    89 |    88 |    82 |    82 |    80 |
-| mediocre |  200 |     0.0% |         8.5 |       42.0 |       258 |        3 |   101 |    95 |    84 |    59 |    66 |    70 |    60 |    69 |    76 |
-|   solver |  200 |     0.0% |          36 |       65.2 |       394 |      181 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    91 |
-
-Endless: the criteria judge Normal; here the number that matters is the median encounter reached.
-```
-
-Gate: adversarial round on the engine and the save (below, once it reports).
-
-### Variety wave, step 4: gold and cracked tiles (PR #65, 2026-09-09)
-
-Dean's answer 5: gold tiles and cracked tiles now, a dead letter later.
-Two marks on `Tile` (save v8; a v7 save migrates with plain tiles):
-`gold` adds that much damage when the tile is played, after the word's
-multiplier and before the enemy's armour, and leaves with the tile;
-`cracked` counts turns until the tile crumbles, at which point it is
-refilled and settles like a played one (the report says how many
-crumbled). Two verbs in the vocabulary: `goldTiles` (count, value) and
-`crackTiles` (count, turns), both drawing playable, unselected, unmarked
-tiles one draw each. Content: the Midas Membrane trait gilds one tile
-at every turn start (+5); the Diatom Swarm cracks two tiles every
-second turn for three (the end of that turn already ticks once, as a
-lock is ticked, so the player sees 2, then 1, then the crumble). A
-shuffle or a scramble replaces unlocked cracked tiles with sound ones
-(a locked tile survives a shuffle; no shipped enemy both locks and
-cracks). Candidates (the bots
-and the missed-word line) count the best gold a word's letters can
-carry and `candidateIndices` spends those tiles first, so the mapped
-hit equals the candidate; the word line and the Attack button read
-`scoreSelection`, the exact hit for the tiles actually chosen. Tiles
-show a gold edge with `+5` or a dashed edge with the hourglass count;
-the How to play legend names both. Disclosed: on a small grid (a 390px
-phone) the badge is hidden as the lock and venom badges are, so the
-gold edge and the dashed edge carry the signal and the crack's count
-shows only on wider screens. Also fixed here: a long enemy name ran
-into its HP figure on the bar label.
-
-Balance, no retune. The gate measured the crack special at every third
-turn costing the strong bot nothing at all (the 70 HP swarm died in 2.5
-turns, before its own special; 0 crumbles in 500 runs), so it now fires
-every second turn; the tables below are from that. Gold shipped as a
-trait (Midas Membrane, worth about six points to either bot on its
-own), not as an enemy special: the plan's "an enemy special for each"
-became one special (cracks) and one trait (gold), since an enemy that
-gilds the player's tiles makes no sense. All criteria pass on Amoeba
-and every cell sits inside ten points of it (Spore's mediocre rate
-stays under the band by design, as in step 3).
-
-`npx tsx scripts/sim.ts`, shipped:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    67.2% |           9 |       17.3 |       163 |       24 |   100 |   100 |    96 |    89 |    88 |    86 |    75 |    72 |    72 |
-| mediocre |  500 |    20.8% |           7 |       27.9 |       279 |        2 |   101 |    95 |    83 |    58 |    60 |    63 |    52 |    58 |    65 |
-|   solver |  500 |    87.8% |           9 |       13.1 |        66 |       16 |   100 |   101 |    98 |    95 |    94 |    93 |    89 |    86 |    84 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell aggro`, Predator:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    68.4% |           9 |       15.1 |       119 |       16 |    85 |    85 |    82 |    77 |    76 |    75 |    67 |    65 |    65 |
-| mediocre |  500 |    22.6% |           7 |       24.1 |       253 |        3 |    86 |    80 |    70 |    48 |    53 |    55 |    47 |    52 |    56 |
-|   solver |  500 |    88.8% |           9 |       11.3 |        25 |        9 |    85 |    86 |    84 |    82 |    81 |    80 |    77 |    75 |    74 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell defensive`, Diatom:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    69.8% |           9 |       19.7 |       229 |       37 |   115 |   115 |   112 |   105 |   104 |   103 |    91 |    87 |    86 |
-| mediocre |  500 |    29.0% |           9 |       35.5 |       464 |        5 |   116 |   113 |   103 |    79 |    81 |    82 |    65 |    70 |    76 |
-|   solver |  500 |    91.8% |           9 |       14.8 |       120 |       11 |   115 |   116 |   113 |   110 |   109 |   109 |   105 |   101 |   100 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell gambler`, Spore:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    83.0% |           9 |       13.8 |        79 |       20 |    90 |    91 |    88 |    84 |    84 |    83 |    78 |    75 |    74 |
-| mediocre |  500 |    17.4% |           6 |       26.5 |       264 |        2 |    91 |    85 |    73 |    49 |    53 |    55 |    48 |    55 |    61 |
-|   solver |  500 |    94.8% |           9 |       10.3 |         9 |        5 |    90 |    91 |    89 |    88 |    87 |    86 |    85 |    83 |    81 |
-
-  FAIL  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    58.4% |           9 |       18.5 |       182 |       34 |    86 |    85 |    82 |    75 |    74 |    74 |    65 |    62 |    64 |
-| mediocre |  500 |    26.6% |         7.5 |       30.3 |       398 |        2 |    87 |    83 |    74 |    56 |    59 |    62 |    53 |    58 |    62 |
-|   solver |  500 |    83.6% |           9 |       14.0 |       111 |       24 |    86 |    86 |    83 |    81 |    80 |    79 |    76 |    73 |    73 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-Gate: adversarial round on the engine and the save (below, once it reports).
-
-### Variety wave, step 3: evolution (PR #64, 2026-09-09)
-
-Dean's answer 4: a trait pick after each boss, three offered. Twelve
-traits in `src/content/traits.ts` (item hooks with a name and a line of
-flavor, no rarity, not in the item pool: Thick Membrane, Predatory,
-Long Reach, Regenerative, Venom Glands, Chitin Shell, Photosynthesis,
-Fast Twitch, Vowel Sense, Rare Taste, Adrenal, Colonial). When a boss
-falls short of the last slot the run enters `evolve`: three traits the
-player lacks, drawn one at a time without replacement; `pickTrait`
-keeps one on `player.traits` (save v7; a v6 save migrates with none)
-and the item offer the win owes follows. Traits gather after the
-starting cell and before the items in every hook, so an order-sensitive
-verb sees them second. The evolve screen, the items strip and sheet
-(traits first), the summary and Help know them. The bots take the
-trait whose hooks score highest.
-
-Balance: on curve G the two traits lifted greedy 61.8 to 73.8, mediocre
-21.6 to 26.2, and Spore's greedy to 90.2, past the cap. Curve H grows
-acts 2 and 3 to absorb them (act 2 hp 1.4 / 1.6 / 1.4, damage 1.05 /
-1.25 / 1.35; act 3 hp 2.7 / 3.0 / 2.4, damage 2.0 / 2.2 / 2.3). Spore
-at 95 HP was tried and reverted: it lifted greedy to 88.2 and mediocre
-only to 19.8, so HP is the wrong lever for a cell whose bonus never
-touches a 4-5 letter word. Disclosed: Spore's mediocre rate sits two
-points under the band by design, inside the ten-point rule (4.2 from
-Amoeba).
-
-`npx tsx scripts/sim.ts`, curve H, shipped:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    68.2% |           9 |       17.2 |       167 |       36 |   100 |   100 |    96 |    89 |    88 |    86 |    75 |    73 |    72 |
-| mediocre |  500 |    22.2% |           7 |       28.5 |       330 |        2 |   101 |    95 |    83 |    58 |    61 |    64 |    53 |    60 |    64 |
-|   solver |  500 |    87.6% |           9 |       13.0 |        63 |       26 |   100 |   101 |    98 |    95 |    94 |    93 |    89 |    87 |    85 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell aggro`, Predator:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    66.8% |           9 |       15.1 |       117 |       18 |    85 |    85 |    82 |    77 |    76 |    75 |    67 |    64 |    64 |
-| mediocre |  500 |    23.2% |           7 |       24.1 |       235 |        2 |    86 |    80 |    70 |    48 |    52 |    53 |    46 |    51 |    53 |
-|   solver |  500 |    87.4% |           9 |       11.3 |        24 |       21 |    85 |    86 |    84 |    82 |    81 |    80 |    77 |    74 |    73 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell defensive`, Diatom:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    73.0% |           9 |       20.0 |       250 |       34 |   115 |   115 |   112 |   105 |   105 |   103 |    91 |    86 |    86 |
-| mediocre |  500 |    29.2% |           9 |       36.4 |       513 |        2 |   116 |   113 |   103 |    79 |    81 |    84 |    65 |    71 |    77 |
-|   solver |  500 |    91.6% |           9 |       14.7 |       123 |       22 |   115 |   116 |   113 |   110 |   109 |   109 |   105 |   102 |    99 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell gambler`, Spore:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    84.8% |           9 |       14.0 |        84 |       20 |    90 |    91 |    88 |    84 |    84 |    83 |    78 |    75 |    74 |
-| mediocre |  500 |    18.0% |           6 |       26.6 |       276 |        1 |    91 |    85 |    73 |    50 |    54 |    56 |    50 |    57 |    60 |
-|   solver |  500 |    95.8% |           9 |       10.3 |        10 |       13 |    90 |    91 |    89 |    88 |    87 |    86 |    85 |    83 |    81 |
-
-  FAIL  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    63.4% |           9 |       18.4 |       182 |       41 |    86 |    85 |    82 |    76 |    75 |    74 |    66 |    64 |    66 |
-| mediocre |  500 |    24.4% |           8 |       30.4 |       391 |        2 |    87 |    83 |    75 |    56 |    60 |    63 |    52 |    56 |    61 |
-|   solver |  500 |    81.2% |           9 |       14.1 |       119 |       22 |    86 |    86 |    83 |    81 |    80 |    79 |    76 |    73 |    73 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-Gate (adversarial, one round, REQUEST CHANGES then fixed): a trait id
-content later drops would have thrown from every hook of a saved run
-(the event-id class from step 2, and the same has been true of item ids
-all along); persist now drops any item or trait id content no longer
-has at load, from the player and from a pick or evolve offer, and
-refuses a pick or evolve with nothing left to pick. Four tests did not
-bind what they claimed (cell-before-trait order, the trait argument on
-the damage, encounter-end and tile-draw hooks) and chooseTrait had none;
-all bound now. The fight's preview cache keys on traits too. Measured by
-the gate: 17,569 replayed steps with 0 mismatches, 607 real v6 saves
-migrated and finished, 26 mutants killed, the curve G claim (greedy 73.8
-with traits) reproduced exactly. Disclosed: a forged evolve save with a
-null offer is dropped rather than repaired.
-
-### Variety wave, step 2: encounter types (PR #62, 2026-09-09)
-
-Dean's answer 3: one elite, one rest and one event inside the nine,
-placed by the seed. `RunState.kinds` (save v6; a v5 save migrates with
-empty kinds and finishes its run as fights) holds a kind per slot: at
-newRun three draws put an elite, a rest and an event on distinct
-non-boss slots after the first (slots 2, 4, 5, 7, 8 of nine). An elite
-fights the next act's pool at this slot's scale (act 3: an act-3 enemy
-at 1.3x HP, 1.15x damage) and its win offers a rare first. A rest is a
-screen: heal 30% of max HP, or take one organelle of a normal
-three-offer. An event is one of eight small trades in
-`src/content/events.ts` (heal for max HP, max HP for HP now, a shield,
-free shuffles, a rare pick for skin); the trade is the first choice,
-walking away the last. A trade's effects apply in the order written
-(a script, not a hook: the gate found EFFECT_ORDER made "max HP +20,
-take 30" a net heal at low HP), and a trade never kills on the spot:
-HP floors at 1, though the next turn start can (an organelle that
-costs HP at turn start, held at 1 HP). A save on an event id content
-has dropped moves on with nothing applied. New
-actions `restHeal` and `eventChoice`; `pickItem` works on the rest
-screen. Rest and event slots count as encounters reached, so the
-summary's 9 and the sim's HP columns keep their meaning. The bots heal
-at a rest below 60% HP and pick otherwise; the strong bots take a trade
-when its cost leaves them above 60%, the mediocre bot takes every
-trade. Help and the intro say "encounters", and Help explains the three
-kinds. Every earlier seed's layout changed (three draws before the
-kit); no replay promise crosses a save version.
-
-Balance, no retune: fewer fights and a heal against an elite and fewer
-picks net out a little harder for the strong bots and unchanged for the
-mediocre one. All criteria PASS; every cell within ten points of
-Amoeba's 21.6%. Tables re-run after the gate's fix round (written-order
-event effects moved Mycelium's mediocre rate 24.6 to 24.2, nothing else).
-
-`npx tsx scripts/sim.ts`, shipped:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    61.8% |           9 |       17.4 |       181 |        6 |   100 |   100 |    96 |    89 |    88 |    86 |    75 |    71 |    69 |
-| mediocre |  500 |    21.6% |           7 |       29.0 |       326 |        2 |   101 |    95 |    83 |    59 |    62 |    63 |    50 |    58 |    66 |
-|   solver |  500 |    87.2% |           9 |       13.1 |        79 |       22 |   100 |   101 |    98 |    95 |    94 |    92 |    89 |    85 |    84 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell aggro`, Predator:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    65.6% |           9 |       15.2 |       127 |       14 |    85 |    85 |    82 |    77 |    76 |    75 |    67 |    63 |    61 |
-| mediocre |  500 |    20.4% |           7 |       23.7 |       245 |        0 |    86 |    80 |    70 |    48 |    51 |    53 |    44 |    50 |    53 |
-|   solver |  500 |    88.2% |           9 |       11.4 |        25 |       10 |    85 |    86 |    84 |    82 |    81 |    80 |    77 |    74 |    73 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell defensive`, Diatom:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    68.2% |           9 |       19.9 |       242 |       23 |   115 |   115 |   112 |   106 |   104 |   102 |    92 |    86 |    84 |
-| mediocre |  500 |    26.6% |           9 |       36.2 |       501 |        2 |   116 |   113 |   103 |    79 |    80 |    82 |    65 |    69 |    72 |
-|   solver |  500 |    87.4% |           9 |       14.6 |       120 |       14 |   115 |   116 |   113 |   110 |   109 |   107 |   103 |    98 |    95 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell gambler`, Spore:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    79.8% |           9 |       13.9 |        85 |        8 |    90 |    91 |    88 |    85 |    83 |    82 |    78 |    73 |    71 |
-| mediocre |  500 |    20.6% |           6 |       27.4 |       297 |        2 |    91 |    85 |    73 |    50 |    53 |    55 |    47 |    53 |    58 |
-|   solver |  500 |    95.2% |           9 |       10.2 |        11 |        8 |    90 |    91 |    89 |    89 |    87 |    85 |    84 |    81 |    80 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    60.4% |           9 |       18.6 |       202 |       27 |    86 |    85 |    82 |    75 |    74 |    74 |    65 |    62 |    63 |
-| mediocre |  500 |    24.2% |           7 |       29.9 |       381 |        2 |    87 |    83 |    75 |    56 |    57 |    59 |    50 |    52 |    55 |
-|   solver |  500 |    83.4% |           9 |       13.9 |        88 |       21 |    86 |    86 |    83 |    81 |    80 |    79 |    75 |    71 |    70 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-Gate (adversarial, one round, REQUEST CHANGES then fixed): a save on
-an event id content no longer had soft-locked the run (no buttons, the
-reducer threw); now the walk-away. Event effects moved from
-EFFECT_ORDER to written order (above). Damage taken no longer counts a
-max-HP cut. Persist drops an event id off the event screen and is
-tested loading rest and event saves. Two unbound tests bound (the event
-draw's RNG, rest rounding on an 85-HP cell). Measured by the gate: 120
-replayed runs with 0 mismatches, 45 real v5 saves migrated and
-finished, 15 of 15 claimed mutants killed. Disclosed: at 1 HP after a
-trade, a turn-start self-damage organelle kills before a word is
-played; forged saves can put an elite on slot 0 (persist checks kinds,
-not their placement).
-
-### Variety wave, step 1: enemies and damage ranges (PR #61, 2026-09-09)
-
-Dean's brief: testers finish runs and share screenshots; vary it up.
-Twelve enemies in three act pools (four per act: a plain hitter, a slow
-heavy hitter, a hazard maker, a trait carrier) and one boss per act,
-each boss with a special and a trait. Three enemy traits in the engine:
-armour (words shorter than N deal half), regen (heals N at its turn
-start, never above max), hunger (its damage grows N a turn). Every hit
-rolls in a range from the run RNG (round(d(1-v)) to round(d(1+v))), so
-a seed still replays exactly; the intent line shows the range and the
-traits. An enrage clock in tuning: past turn 20 every enemy hits 1
-harder each turn. It went in when seed 197 stalemated the sim on the
-pre-retune roster (a regenerating armoured enemy against a healing bot,
-5000 steps and no end); on the shipped content that seed ends on its
-own (the gate replayed it with enrage off: won at encounter 9 in 56
-turns), and over 500 seeds enrage engaged in 9 of 3458 mediocre fights
-and no greedy fight, so it is a backstop, not a lever. It only
-guarantees an end while the enemy attacks: two stun items that fire on
-alternating turns lock an enemy for good (tracker #8). The damage
-preview applies the enemy's armour, so the number shown is the number
-that lands. No save change: traits act on hp and damage the enemy
-already carries, the roll uses the run RNG. Sprites for all fifteen.
-
-Balance: on curve F the new roster won the mediocre bot 8.8% and greedy
-40.0%. Curve G softens acts 2 and 3; the act-2 boss lost 20 HP and 0.2
-damage scale; Rotifer regen 3 to 2, Siphonophore 5 to 3, Colony 2 to 1,
-Abyssal Mat armour 6 to 5 and regen 4 to 2, Diatom Swarm armour 5 to 4,
-Tardigrade King 6 to 5.
-
-`npx tsx scripts/sim.ts` on curve G, shipped (re-run after the gate's preview fix; the bots now see armour):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    68.6% |           9 |       21.0 |       158 |       18 |   100 |   100 |    97 |    90 |    90 |    89 |    80 |    74 |    73 |
-| mediocre |  500 |    22.6% |           7 |       32.9 |       312 |        1 |   101 |    94 |    80 |    56 |    54 |    54 |    54 |    58 |    63 |
-|   solver |  500 |    88.0% |           9 |       15.8 |        62 |        5 |   100 |   100 |   100 |    97 |    97 |    97 |    92 |    90 |    86 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-The other cells on the new roster, first measured with the cell numbers
-shipped in PR #53: Predator 24.8%, Diatom 38.2%, Spore 20.4% with greedy
-at 86.6%, Mycelium 36.6%; Diatom and Mycelium sat outside the ten-point
-band around Amoeba's 22.6% and Spore's greedy rate was near the cap.
-Retuned: Diatom 115 HP and 2 less per hit (was 120 and 3), Spore +50% on
-6+ letters (was +60%), Mycelium 85 HP and -20% damage (was 90 and -15%).
-Shipped per-cell tables:
-
-`npx tsx scripts/sim.ts --cell aggro`, Predator:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    70.2% |           9 |       18.2 |        91 |        8 |    85 |    85 |    83 |    77 |    77 |    76 |    69 |    64 |    64 |
-| mediocre |  500 |    24.8% |           7 |       27.8 |       248 |        0 |    86 |    79 |    66 |    46 |    45 |    47 |    49 |    52 |    55 |
-|   solver |  500 |    90.2% |           9 |       13.7 |        18 |        7 |    85 |    85 |    85 |    84 |    84 |    84 |    81 |    79 |    76 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell defensive`, Diatom:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    71.0% |           9 |       24.4 |       231 |       17 |   115 |   115 |   113 |   106 |   106 |   105 |    94 |    87 |    84 |
-| mediocre |  500 |    31.2% |           8 |       41.9 |       454 |        1 |   116 |   113 |   102 |    78 |    75 |    72 |    63 |    65 |    66 |
-|   solver |  500 |    91.4% |           9 |       17.6 |        99 |        9 |   115 |   115 |   115 |   112 |   112 |   112 |   107 |   104 |   100 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell gambler`, Spore:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    82.0% |           9 |       16.7 |        76 |        3 |    90 |    90 |    89 |    85 |    86 |    85 |    80 |    76 |    74 |
-| mediocre |  500 |    20.2% |           6 |       31.2 |       266 |        1 |    91 |    84 |    71 |    49 |    48 |    50 |    51 |    54 |    57 |
-|   solver |  500 |    98.0% |           9 |       12.5 |         7 |        1 |    90 |    90 |    91 |    90 |    91 |    91 |    89 |    88 |    87 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    62.2% |           9 |       22.1 |       174 |       23 |    86 |    85 |    83 |    76 |    76 |    74 |    67 |    64 |    64 |
-| mediocre |  500 |    32.0% |           8 |       34.7 |       368 |        2 |    87 |    83 |    73 |    55 |    56 |    57 |    59 |    60 |    62 |
-|   solver |  500 |    83.0% |           9 |       16.8 |        82 |       11 |    86 |    86 |    85 |    82 |    83 |    82 |    78 |    75 |    74 |
-
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-Gate (adversarial, one round, REQUEST CHANGES then fixed): the damage
-preview ignored armour (`candidateWords` scored the raw word, so the
-Best line and the bots saw 11 where 5 landed against Tardigrade King);
-fixed in the engine, the same rule in both places. Seven mutants
-survived the first tests (a dropped roll RNG, hunger growing at the
-encounter start, an off-by-one armour boundary, a range whose top never
-lands, the traits tick moved before poison or before the onTurnStart
-death check, the intent line reading the base damage); each now has a
-binding test. Regen ticks before poison (a Siphonophore at 1 HP with
-poison 3 survives the turn): pinned by test and in the reducer header,
-Dean's call if it should flip. The enrage story in this entry was
-corrected as above, and the plan's hunger definition matched to what
-shipped (it grows every turn, not only unhit turns). Determinism held:
-23,235 replayed steps, 0 mismatches. Open: `bestWordDamage` records
-the word's score while `damageDealt` records what landed, the overkill
-convention from before armour; Mycelium's mediocre rate sits at the
-edge of the ten-point band.
-
-### Starting cells (PR #53, 2026-09-08)
-
-Dean's five answers: agree with all. Five cells in `src/content/cells.ts`,
-each stats plus always-on hooks in the item vocabulary, gathered before
-the items in every hook: Amoeba (100 HP, no traits: the game as it was),
-Predator (85 HP, +25% damage, every hit hurts 1 more), Diatom (120 HP,
-3 less per hit, -15% damage), Spore (90 HP, 6+ letters +60%, 3-letter
-words half), Mycelium (90 HP, one extra kit pick, -15% damage). Picker
-after New run, before the intro; the summary's New run keeps the cell;
-the cell shows on the summary and in history. `RunState.cell`,
-`SAVE_VERSION` 4; a v3 save loads as Amoeba (question 3: a migration,
-the first on record). `--cell` on the sim. 229 tests.
-
-Tuning pass against the acceptance (every cell within 10 points of
-Amoeba's 25.2% for the mediocre bot, none above 90% greedy). First
-draft: Predator (80 HP, +2 per hit) 14.8%, Spore (double on 6+, half on
-4 or fewer) 13.6% with greedy at 89.2%, Mycelium (100 HP, 5 shield per
-fight) 52.0%: an extra pick is worth 27 points to a bot that reads
-offers. Shipped numbers, all PASS:
-
-`npx tsx scripts/sim.ts --cell balanced`, Amoeba (balanced, the default):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    57.6% |           9 |       20.7 |         0 |       15 |   100 |   100 |    97 |    90 |    90 |    89 |    62 |    66 |    69 |
-| mediocre |  500 |    25.2% |           6 |       30.3 |         0 |        1 |   101 |    94 |    79 |    58 |    55 |    56 |    37 |    46 |    54 |
-|   solver |  500 |    80.0% |           9 |       15.9 |         1 |        8 |   100 |   100 |    99 |    96 |    96 |    96 |    80 |    80 |    79 |
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell aggro`, Predator (aggro):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    61.2% |           9 |       17.9 |         0 |        8 |    85 |    85 |    83 |    78 |    78 |    78 |    56 |    59 |    61 |
-| mediocre |  500 |    20.8% |           6 |       25.2 |         2 |        0 |    86 |    80 |    65 |    46 |    45 |    47 |    32 |    43 |    54 |
-|   solver |  500 |    82.2% |           9 |       13.9 |         0 |       11 |    85 |    85 |    85 |    83 |    83 |    83 |    71 |    72 |    71 |
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell defensive`, Diatom (defensive):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    66.6% |           9 |       24.1 |         3 |       18 |   120 |   120 |   118 |   113 |   113 |   112 |    82 |    82 |    84 |
-| mediocre |  500 |    30.8% |           7 |       41.2 |         1 |        0 |   121 |   119 |   110 |    91 |    87 |    84 |    50 |    61 |    69 |
-|   solver |  500 |    87.6% |           9 |       17.7 |         0 |       13 |   120 |   120 |   120 |   117 |   117 |   117 |   102 |   101 |    99 |
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell gambler`, Spore (gambler):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    79.2% |           9 |       16.0 |         0 |        7 |    90 |    90 |    89 |    86 |    86 |    86 |    70 |    70 |    71 |
-| mediocre |  500 |    23.4% |           6 |       29.2 |         1 |        0 |    91 |    84 |    69 |    49 |    48 |    50 |    35 |    43 |    50 |
-|   solver |  500 |    95.0% |           9 |       12.5 |         1 |        1 |    90 |    90 |    91 |    90 |    90 |    91 |    83 |    84 |    83 |
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-`npx tsx scripts/sim.ts --cell tinkerer`, Mycelium (tinkerer):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    56.0% |           9 |       21.0 |         0 |       39 |    91 |    90 |    88 |    82 |    82 |    80 |    57 |    60 |    62 |
-| mediocre |  500 |    34.2% |           7 |       33.9 |         5 |        1 |    92 |    88 |    76 |    60 |    60 |    62 |    41 |    51 |    58 |
-|   solver |  500 |    76.4% |           9 |       16.4 |         2 |       11 |    91 |    91 |    90 |    88 |    88 |    88 |    73 |    73 |    74 |
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-```
-
-Gate (adversarial, two rounds): no runtime defect; four binding gaps
-(the chosen cell through the action, cell-before-items order, the
-draw/turn-start/encounter-end pass-throughs, persist's cell type) closed
-by tests; one design gap fixed (a cell's starting items now fire their
-onPick, so a Colossus starter really adds its 40 HP). Default equivalence
-measured: 300 runs byte-identical to the merge-base with the balanced
-cell. Disclosed: the App-level cell pass-throughs are bound by the
-reviewer's scratch test, not the suite; "in order" on starting items'
-onPick is unbound (the two shipped-pool cases commute).
-
-### Run history with export (PR #51, 2026-09-08)
-
-Dean's four answers: agree with all. A per-device list under
-`lexicell.history` (v1, cap 200, oldest fall off), written once when a
-run reaches its summary and once when a live run is abandoned from the
-menu; `lexicell.run.started` carries the start time per seed. Export
-JSON (lossless) and CSV (RFC 4180, items joined by `;`) as downloads;
-History screen from the title and from the summary, newest first, tap a
-row for seed, build and the full organelle list; Clear behind a
-two-step. The reducer and RunState are untouched. Found on the way: the
-title kept offering Continue after a finished run in the same session
-(hasSave was set once and never re-derived); it is now derived from
-the live run's phase. 218 tests. Gate: adversarial round on history.ts
-and the store hook (below).
-
-### Effects wave, content batch 3: the pool reaches 200 (PR #47, 2026-09-08)
-
-The last forty-three items (22 common, 12 uncommon, 8 rare, 1 mythic):
-the pool is 200 exactly at the plan's composition, 90 / 60 / 38 / 12.
-Rare-letter scaling (Flagellin), the venom capstone (Venom Heart), lock
-synergy (Warden), missing-HP (Pressure), cadence (Syncopation,
-Clockwork), first-turn (Pulsar), finishers (Scalpel), a shuffle economy
-(Slipstream), trades (Ballast, Wellspring), and Protocell as the twelfth
-mythic. Curve F, the one tuning pass promised for the final pool: act 3
-damage 2.4 / 2.7 / 2.8 (was 2.8 / 3.1 / 3.2; hp unchanged), because the
-bigger pool and the lock removals had pulled greedy to 53.6% on curve D.
-Measured on the way: curve D 53.6 / 31.4, act 3 damage minus 0.2 each
-56.8 / 32.6, minus 0.4 each (curve F, shipped) 59.4 / 33.6.
-
-The 3000-run per-item table on curve F then caught a family, not an
-item: lifesteal. With the greedy bot's big words, Siphon at a quarter
-(common) won 90%, Hemolymph 92%, Zooxanthellae 93%, Osmoregulator 91%,
-Glutton 99%; every lifesteal fraction came down (Siphon and Glutton to
-15%, Zooxanthellae 25%, Hemolymph 30%, Osmoregulator and Phage 15%;
-the mythics keep theirs). Pressure, an uncommon, won 87% for the
-mediocre bot in 294 runs: now +2 per missing tenth and no heal on hit.
-The low-HP heal-on-hit locks (Endospore 96%, Second Wind 99%,
-Membrane Pump 90% for greedy) were trimmed. Draw-bias traps got a
-flat bonus to stand on (Vowel Magnet 1.2 and +3, Chemotaxis 1.3 and
-+3, Lodestone 1.5, Patience heals 6). Curve F before those edits:
-greedy 59.4%, mediocre 33.6%, solver 81.0%.
-
-`npx tsx scripts/sim.ts` on curve F with 200 items, shipped:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    57.6% |           9 |       20.7 |         0 |       15 |   100 |   100 |    97 |    90 |    90 |    89 |    62 |    66 |    69 |
-| mediocre |  500 |    25.2% |           6 |       30.3 |         0 |        1 |   101 |    94 |    79 |    58 |    55 |    56 |    37 |    46 |    54 |
-|   solver |  500 |    80.0% |           9 |       15.9 |         1 |        8 |   100 |   100 |    99 |    96 |    96 |    96 |    80 |    80 |    79 |
-
-Exit criteria:
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-All three criteria pass with the whole pool. Mediocre sits lower in
-its band than before the lifesteal and Pressure fixes; those items had
-been carrying it. Per-item table at 3000
-runs per bot: `docs/sim/batch-3-impact.md`. The effects wave closes:
-plan moved to `docs/exec-plans/completed/effects-wave.md`.
-
-### Effects wave, content batch 2 and harness fixes (PR #45, 2026-09-08)
-
-Forty-five items in synergy pairs (22 common, 13 uncommon, 8 rare, 2
-mythic) for 157: venom you make yourself and then feed on (Venom
-Reservoir, Antivenin, Venom Loop, Venom Crown, with Scavenger from
-batch 1), missing-HP scaling (Crust, Adrenaline, Frenzy), turn cadence
-(Circadian Clock, Overclock, Hourglass, Metronome, Lantern), consonant
-or vowel sides, first-turn bursts (Sprint, Ambush), finishers (Reaper),
-and two mythics (Singularity: +1 per letter per organelle; Eternal
-Return). Harness, as the gate disclosed: the sim table gains a
-`shuffles` column and no longer counts shuffles as scrambles; the bots'
-free-shuffle rule fires (greedy and solver below six letters, mediocre
-when it has no 4-5 letter word); `scripts/item-impact.ts` is in the
-repo with `--runs` and `--bot`. No curve change.
-
-The first per-item table (3000 runs per bot) caught three more
-degenerate items and four traps. Numbing Barb (stun on every 6+ word)
-and Neurotoxin (stun on every 5+ word) were permanent locks for the
-greedy bot at 98% each, the same shape as Paralytic: Numbing Barb now
-poisons, Neurotoxin's stun fires every second turn. Zooxanthellae at
-half lifesteal was a full heal every word (100% greedy): now 35%.
-Endospore (pre-existing, 92% greedy) 7 to 5 reduction. Traps, all well
-under base for both bots: Venom Loop (venom 2 and heal 3 lost to its
-own bites) now venom 1 and heal 4; Vowel Magnet 1.8 to 1.4; Chemotaxis
-2.0 to 1.5; Bait 1.5 to 1.3 plus +3 damage. A heavy draw bias narrows
-the grid more than it helps.
-
-`npx tsx scripts/sim.ts` before those edits: greedy 57.0%, mediocre
-22.4%, solver 79.4%. After (shipped):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    53.4% |           9 |       20.2 |         2 |       10 |   100 |   100 |    97 |    90 |    90 |    89 |    63 |    66 |    68 |
-| mediocre |  500 |    22.0% |           6 |       32.0 |         8 |        1 |   101 |    94 |    79 |    58 |    57 |    59 |    38 |    45 |    55 |
-|   solver |  500 |    79.6% |           9 |       15.4 |         0 |       10 |   100 |   101 |   100 |    97 |    97 |    97 |    82 |    81 |    80 |
-
-Exit criteria:
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-All three pass, but both rates fell with the bigger pool and the lock
-removals (mediocre 30.8 to 22.0, greedy 66.0 to 53.4): a larger pool
-dilutes the strong picks, several new items are trades, and the greedy
-bot had been leaning on the locks. Curve D is left alone until batch 3
-completes the pool, when one tuning pass covers the final 200 and
-brings greedy back toward the sixties; if act 3 feels like a wall in
-Dean's runs before then, that is the lever. Per-item table at 3000 runs per bot: `docs/sim/batch-2-impact.md`.
-
-### Effects wave, UI and content batch 1 (PR #41, 2026-09-08)
-
-Stacked on PR #39 as PR #40, which GitHub closed when the stacked base
-branch was deleted at #39's merge; #41 is the same branch against main. UI: the shield rides the HP bar as a second segment
-with a "+n" label, poison and stun badge the enemy sprite, the shuffle
-button reads "Free xN" in the life colour while a charge is held and
-needs no arming, report lines for poison, stun, shield and redraws,
-redrawn tiles blink in place, the compendium states the two-commons
-rule; `--shield` token. Content: forty items on the new verbs (20
-common, 12 uncommon, 7 rare, 1 mythic) for 112 in total, glyphs from
-the templates. Curve D: act 2 damage 1.2 / 1.4 / 1.9 (was 1.1 / 1.3 /
-1.7), act 3 hp 3.1 / 3.5 / 3.0 and damage 2.8 / 3.1 / 3.2 (was 2.8 /
-3.2 / 2.6 and 2.2 / 2.5 / 2.5), because the new pool and the offer
-rule made act 3 a cruise for the mediocre bot (HP rising through acts
-3 on curve C). Act 1 untouched. 193 tests.
-
-`npx tsx scripts/sim.ts` on curve C with the 112 items (before the
-curve change; mediocre out of band, tracker #7):
-
-```
-|   greedy |  500 |    81.6% |           9 |       20.7 |        16 |   100 |   100 |    98 |    92 |    92 |    92 |    74 |    76 |    77 |
-| mediocre |  500 |    45.8% |           9 |       37.1 |        13 |   101 |    95 |    80 |    59 |    59 |    60 |    47 |    56 |    63 |
-|   solver |  500 |    95.6% |           9 |       14.9 |         6 |   100 |   101 |   100 |    98 |    98 |    99 |    88 |    89 |    89 |
-```
-
-The first per-item table (1500 runs per bot) caught a degenerate item:
-Paralytic stunned on every word, a permanent lock against every-turn
-attackers, 98% wins for the mediocre bot in the 154 runs that held it.
-It now stuns every second turn. Carapace 8 to 12 shield and Chrysalis 3
-to 4 shield were the two shield items with n > 100 sitting under the
-base rate. Mediocre on curve D before those three edits: 35.2%.
-
-`npx tsx scripts/sim.ts` on curve D with the three edits (shipped):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    66.0% |           9 |       20.6 |        13 |   100 |   100 |    98 |    92 |    91 |    91 |    70 |    72 |    74 |
-| mediocre |  500 |    30.8% |           6 |       34.0 |        10 |   101 |    95 |    79 |    58 |    57 |    58 |    38 |    45 |    53 |
-|   solver |  500 |    85.0% |           9 |       15.3 |         6 |   100 |   101 |   100 |    98 |    98 |    98 |    85 |    84 |    83 |
-
-Exit criteria:
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-All three criteria pass; tracker #7 closes. Greedy fell from 78% to
-66%: the harder act 3 costs the strong human too, and 66% is inside
-the criterion but worth watching in Dean's own runs. Per-item table:
-`docs/sim/batch-1-impact.md` (1500 runs per bot, pasted). The plan's
-cut rule (an item within 2 points of base for both bots is a reskin)
-is not measurable at this sample: an item is held in roughly 100 of
-1500 runs, so its win-with rate carries about plus or minus 10 points.
-At 1500 runs the table catches degenerate items (Paralytic) and items
-the mediocre bot never takes (seven, all gated on conditions its 4-5
-letter words cannot meet), not two-point reskins. A 10,000-run table
-is a batch-2 job.
-
-### Effects wave, engine PR (PR #39, 2026-09-08)
-
-Dean agreed all six plan questions. Nine verbs (poisonEnemy, stun,
-shield, lifesteal, freeShuffle, redrawTiles, letterWeight, maxHp,
-perUnit), seven conditions (startsWith, endsWith, uniqueLetters,
-repeatLetter, enemyHpBelow, minVowels, firstTurn), the onPick hook,
-save v3 (v2 dropped), an offer that holds at most two commons. Bots:
-offerScore reads the new verbs and breaks ties by rarity (closes
-tracker #6); greedy and solver spend a free shuffle rather than play a
-word under five letters. No content changed: the 72 items are as
-before. 192 tests.
-
-`npx tsx scripts/sim.ts` at 1b99bf1 (offer rule on, rarity tiebreak on):
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    78.0% |           9 |       18.5 |         8 |   100 |    99 |    97 |    91 |    91 |    89 |    68 |    69 |    69 |
-| mediocre |  500 |    48.4% |           9 |       34.3 |        12 |   100 |    94 |    80 |    60 |    59 |    60 |    37 |    44 |    49 |
-|   solver |  500 |    94.4% |           9 |       13.6 |         4 |   100 |   100 |    99 |    97 |    96 |    96 |    86 |    86 |    85 |
-
-Exit criteria:
-  FAIL  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-The mediocre criterion FAILS. Measured one variable at a time
-(`--bot mediocre`, same seeds, edits reverted after each run):
-
-```
-== A: rarity tiebreak off (offer rule on)
-| mediocre |  500 |    39.8% |         7.5 |       33.4 |         7 |   100 |    94 |    79 |    57 |    55 |    56 |    32 |    38 |    41 |
-== B: offer rule off (tiebreak on)
-| mediocre |  500 |    44.2% |           9 |       33.9 |        12 |   100 |    94 |    80 |    59 |    58 |    59 |    33 |    39 |    44 |
-== C: both off
-| mediocre |  500 |    36.4% |           7 |       33.4 |         7 |   100 |    93 |    79 |    57 |    56 |    56 |    31 |    34 |    37 |
-```
-
-Gate (adversarial, two rounds): round one found the perUnit cap
-skipping count one and per-child instead of total (fixed: every child
-under a perUnit scales, the scalers' addMult is capped as a total), and
-six binding gaps (RNG advance in redraw and free-shuffle scramble, stun
-cadence on a two-turn attacker, pure-perUnit preview, conditionCtx
-wiring, onPick target), all bound by tests; persist now rejects an
-enemy without poison/stunned; turnEvery never fires at turn 0. Round
-two APPROVEd with three one-assertion follow-ups, landed in the merge.
-Disclosed (S7): the bots' free-shuffle rule is nearly inert (0 shuffles
-in full greedy runs holding 500 charges) and the sim's "scrambles"
-column counts every shuffle, so once free-shuffle items ship it
-conflates shuffles with dead-grid scrambles; both are harness work for
-batch 2.
-
-So the offer rule (Dean's design, question 2) is worth about 3.5
-points and the bot reading rarity about 8. The second is a change to
-the instrument, not the game: a casual player who takes the glowing
-item was always winning more than the old bot said. Both ship. The
-plan's acceptance line ("criteria pass after the engine PR with the
-existing 72 items") is NOT met and is moved to content batch 1, which
-reworks the 72 anyway and lands with the UI PR (tracker #7).
-
-### Small PRs under iteration mode (one line each, newest first)
-
-- PR #63 (2026-09-09): release notes. Dean: every merge since the first
-  commit, visible in the game, newest on top, with PR and build numbers
-  and plain human notes, maintained over time. `src/ui/release-notes.ts`
-  holds 81 entries (80 merges plus itself); a Release notes button on the
-  title opens a scrolling list with a link to each PR; the test keeps
-  builds and PRs descending with no gaps and refuses em dashes; CLAUDE.md
-  rule 6: every PR adds its entry at the top before merging.
-- PR #59 (2026-09-09): phone fit, second pass, for the after-a-word state:
-  one stat per arena row, WORD DAMAGE as the hit line, definition and
-  missed word on one line, shorter stage. Rendered at 390x780 both before
-  and after a word.
-- PR #58 (2026-09-09): phone fit. Short status-row labels and intent
-  strings, a shorter first-fight hint, badges hidden on small grids; the
-  layout was overflowing a 390px phone and squeezing the grid. Verified
-  with a headless Chromium render at 390x780, the first real render check.
-- PR #57 (2026-09-09): the sprite pass. Cellular sprites (membrane,
-  nucleus, organelle dots) and a body per starting cell per act, from
-  scripts/sprites.py; the picker, intro and arena use them.
-- PR #56 (2026-09-09): stats HUD. RunStats gains the worst word; save
-  v5 with a v4 migration (v3 saves chain through); a BEST / WORST row in
-  the arena and the worst word on the summary. Gate: a migrated save
-  showed an empty WORST 0 until the next word (now a dash); ties keep the
-  first word and zero-damage words count for neither stat, both bound;
-  persist now type-checks the stats the screens render. Disclosed: a
-  migrated run's worst word covers only words played after the update;
-  history entries and the CSV carry the best word only (adding the worst
-  is a HISTORY_VERSION decision, not taken).
-- PR #55 (2026-09-08): clarity. Enemy intent line, names once on the
-  bars, a veil over the backdrop, the report steps in per turn, grafts
-  glow when they fire for the selected word; prose face to DotGothic16
-  (Dean could not read the cell descriptions in Pixelify Sans).
-- PR #52 (2026-09-08): the mark. The Bookends wordmark and square mark
-  from scripts/logo.py; favicon, apple-touch and PWA icons regenerated;
-  title screen shows the wordmark; manifest and theme colour on the
-  Plasma ground.
-- PR #50 (2026-09-08): the missed-word reveal names only words that are
-  gone from the new grid, never one still spellable (Dean: it read as
-  a cheat).
-- PR #49 (2026-09-08): "tiles do not need to touch" said outright on the
-  How to play card and in the first-fight hint (a player assumed Boggle
-  adjacency).
-- PR #46 (2026-09-08): readability after a tester's session: tiles
-  carry two signals (vowel fill, rare edge; the mid tier and `--mid`
-  are gone), a How to play card from the title with the legend at
-  real point values, a first-fight hint line, a per-device Readable
-  type toggle (system sans), Pixelify Sans ligatures off ("find" had
-  read as "And").
-- PR #44 (2026-09-08): landscape fight bounded to the viewport (side
-  and board columns; the report absorbs the squeeze). Dean: "landscape
-  requires scrolling". Not verified on a device.
-- PR #43 (2026-09-08): bookkeeping; Open list in Dean's order; the
-  three design pillars written into the pack.
-- PR #42 (2026-09-08): keyboard play on desktop: letters select tiles
-  (venomed first), Backspace undoes, Enter attacks, Escape clears; hint
-  on fine-pointer devices only. Dean's ask, queued behind the wave.
-- PR #38 (2026-09-08): Dean's type-lab readout shipped: Press Start 2P
-  for tiles, the word line, HUD and buttons; Pixelify Sans for
-  headings, names and prose. Silkscreen and DotGothic16 removed; two
-  vendored faces. The armed shuffle label shortened to fit the wide
-  face.
-- PR #37 (2026-09-08): playtest-log row for the type lab.
-- PR #36 (2026-09-08): DotGothic16 vendored as the HUD face (Dean's
-  pick from seven faces); Silkscreen keeps tiles, the word line and
-  headings; no digit under 16 px; tabular digits.
-- PR #35 (2026-09-08): CI runs once per commit (pull_request only);
-  the push twin of a green run had failed jobless and tripped the
-  merge watcher, which had not gated the merge on it. Chains gate now.
-- PR #34 (2026-09-08): fit any viewport after an iPhone 17 playtest
-  (top lost in portrait, actions lost in landscape): hidden-scrollbar
-  fallback, two-column landscape fight, grid floor 160 px, capped items
-  sheet, no double-tap zoom. Not verified on the device.
-- PR #33 (2026-09-08): v1 scope changed to a 200-item pool (pack
-  updated); effects wave exec plan opened with six questions for Dean.
-- PR #32 (2026-09-08): intro grid reads LONG WORD HITS HARD.
-
-### Mythic tier and 72 items (PR #31, 2026-09-08)
-
-Dean: even more items, and a mythic pool, explicitly powered. `Rarity`
-gains `mythic` at offer weight 0.35 (engine touch, one adversarial
-round). Fourteen more regulars to 64, then eight mythics that break
-the rules on purpose within the vocabulary: triple damage, heal to
-full, 25 a turn, immunity on even turns. Measured at 500 mediocre
-runs: 22% of runs pick a mythic and those win 65% against 37% overall.
-Shipped content, `npx tsx scripts/sim.ts`:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    77.8% |           9 |       18.6 |         8 |   100 |    99 |    97 |    91 |    91 |    90 |    69 |    70 |    71 |
-| mediocre |  500 |    37.0% |           7 |       33.5 |         7 |   100 |    93 |    79 |    57 |    56 |    56 |    31 |    35 |    38 |
-|   solver |  500 |    94.4% |           9 |       13.7 |         4 |   100 |   100 |    99 |    97 |    96 |    96 |    85 |    85 |    84 |
-
-Exit criteria:
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-Mediocre sits at the top of its band; the per-item table shows the
-mythics winning between 50% and 100% of the runs that hold them, which
-is the intent.
-
-Gate (adversarial, one round): the reduceDamage floor at zero had no
-test and Tardigrade's 999 made it load-bearing (a mutant dropping it
-turned an enemy hit into a full heal); Sheath's text said odd turns
-but turnEvery 1 fires every turn, now even turns; the mythic offer
-weight had no binding test. All three fixed in the round. Disclosed:
-the mediocre bot's offer score rates five of the eight mythics no
-higher than an ordinary two-effect common and passed on 43% of the
-mythics it was offered, so "22% pick a mythic" is a bot artefact, not
-the items' pull (tracker #6).
-
-### Item pool 24 to 50 (PR #30, 2026-09-08)
-
-Dean: "a ton more items." Twenty-six more from the existing effect
-vocabulary, with identities the first two dozen lacked: thorns
-(Spine, Hydra), self-venom for power (Toxin Sac), chaos for damage
-(Flagellar Motor), a glass cannon that bleeds (Apoptosis), HP and turn
-gates, letter families. Glyphs for the new ones are procedural from a
-few organelle templates in scripts/sprites.py, seeded by id; any can
-be replaced by a hand-drawn map. Three sustain items that made greedy
-unbeatable (Regeneration, Cyst, Membrane Pump at 98 to 100% with) were
-trimmed. Shipped content, `npx tsx scripts/sim.ts`:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    76.4% |           9 |       18.5 |         3 |   100 |    99 |    97 |    91 |    91 |    91 |    71 |    72 |    72 |
-| mediocre |  500 |    25.2% |           6 |       32.2 |         6 |   100 |    94 |    78 |    54 |    52 |    52 |    23 |    28 |    32 |
-|   solver |  500 |    95.0% |           9 |       13.6 |         4 |   100 |   100 |    99 |    97 |    97 |    97 |    87 |    88 |    88 |
-
-Exit criteria:
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-With fifty items the mediocre bot, which reads offers, is back inside
-its band; greedy dropped because offense is spread thinner. Both pass.
-
-### Item pool 10 to 24 (PR #24, 2026-09-08)
-
-Dean: the first offer was always the same commons. Fourteen items from
-the existing effect vocabulary (six common, five uncommon, three rare,
-two of them trade-offs), each with a hand-drawn glyph. Balance by
-measurement: Regeneration and Cyst were near-100% wins (heal on every
-hit) and were trimmed; the wider pool diluted sustain and offense, so
-flat items were raised across the board. The mediocre bot now reads
-an offer and prefers items whose conditions it can meet, as a casual
-human does; the random picker wasted picks on 6+ letter items.
-
-Shipped content, `npx tsx scripts/sim.ts`:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    86.6% |           9 |       17.4 |         3 |   100 |    99 |    97 |    92 |    92 |    92 |    75 |    77 |    79 |
-| mediocre |  500 |    17.8% |           6 |       29.3 |        16 |   100 |    93 |    77 |    54 |    53 |    53 |    23 |    27 |    26 |
-|   solver |  500 |    95.6% |           9 |       13.0 |         5 |   100 |   100 |    99 |    97 |    97 |    97 |    89 |    90 |    91 |
-
-Exit criteria:
-  FAIL  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-Disclosed: mediocre sits at 17.8% at 500 runs, below the 20-40 band
-by 2.2 points (a 300-run sweep read 20.0%). Softening act 3 or E9 did
-not move it and pushed greedy past 90, so curve C stays; the miss is
-the price of a pool a human can build with, and the next lever is
-rule-bending effects, not numbers.
-
-### Tuning wave (PR #19, 2026-09-08): the boss lock lands, venom, acts 2 and 3
-
-The boss's lock now skips the tiles of the word just played, so it
-locks its full count (tracker #5 closed). Venom is the first tile
-hazard: the Polyp venoms one tile every third turn; it bites at each
-turn start and grows to `tuning.venomMax` (4) until spent, shuffled or
-scrambled. Save version is 2; v1 saves are dropped on load, no
-migration (no users yet). The bots now spend a venomed tile when a
-word allows, as any human would; without that venom took mediocre from
-22% to 9%. Curve C from a 300-run sweep: act 2 softer, act 3 harder.
-
-Shipped content, `npx tsx scripts/sim.ts`:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    87.2% |           9 |       21.2 |         8 |   100 |    99 |    97 |    91 |    91 |    91 |    62 |    64 |    65 |
-| mediocre |  500 |    24.6% |           5 |       34.9 |        10 |   100 |    92 |    70 |    35 |    32 |    30 |    17 |    19 |    20 |
-|   solver |  500 |    98.8% |           9 |       15.4 |         5 |   100 |   100 |    99 |    96 |    97 |    98 |    83 |    86 |    86 |
-
-Exit criteria:
-  PASS  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-All three measurable Phase 0 criteria pass at 500 runs for the first
-time. Dean's E9 targets: greedy's E9 costs 32.6 HP (25 to 35 asked);
-48.7% of mediocre runs reach E6 (49% asked); the mediocre E9 cost is
-not measurable with bots, since the only mediocre runs that reach E9
-are the ones that win. `--variant pre-act1` (act 1 at full strength)
-now reads greedy 56.8%, mediocre 8.8%, solver 89.2%.
-
-### Gravity and cleaner tiles (PR #3, 2026-09-08)
-
-Used tiles leave, survivors rise in their column, fresh letters land at
-the bottom and animate in; a shuffle settles the same way. Plain tiles
-lost the corner value (it read as a count); only the lock countdown
-remains. Engine change (`settle` after refill, `used` on the turn
-report), one adversarial round. Shipped content, `npx tsx scripts/sim.ts`:
-
-```
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    91.2% |           9 |       21.1 |         4 |   100 |    99 |    97 |    91 |    88 |    85 |    58 |    63 |    66 |
-| mediocre |  500 |    24.2% |           4 |       33.2 |         7 |   100 |    92 |    71 |    34 |    25 |    19 |    18 |    20 |    20 |
-|   solver |  500 |    99.2% |           9 |       15.3 |         4 |   100 |   100 |    99 |    96 |    96 |    96 |    81 |    86 |    89 |
-
-Exit criteria:
-  PASS  mediocre wins 20-40%
-  FAIL  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-Shifts from the act-1 tables, measured by the gate: base mediocre win
-rate +1.0 points (5 runs), mean turns +0.6, HP columns up to +2;
-pre-act1 solver -0.6 points, greedy -0.4, HP up to -2. Boss locks and
-vowel-floor swaps land on different letters now that positions move.
-Criteria unchanged. The gate also found that the boss's lock is lost on
-most specials, on main as well; tracker #5, fixed with the tuning wave.
-
-### Feel wave (PR #1, merged 2026-09-08)
-
-Dean played the skeleton and asked for clarity and feel. Shipped:
-green-means-valid tiles with values and selection order; WordNet
-definitions for played words (61.5% of ENABLE, 1.4 MB gzip lazy chunk)
-and a word of the day; title screen with Continue and a two-step
-abandon (tracker #4 closed); items panel; an arena with generated
-pixel sprites, act backgrounds, hit flash, shake and floating damage;
-shuffle that costs the turn (the one engine change); rotation-proof
-tile sizing; a dependency diet (no Workbox or PWA plugin, no testing
-library, 557 to 233 packages, hand-written service worker).
-
-What the gate caught (one adversarial round): the green-word test
-could not tell isWord from a length check; abandoning from a fresh
-load did not clear the save; the service worker would have cached a
-502 page as the offline index; sprite paths ignored Vite's base on
-the LAN route; two shuffle mutants unbound. All fixed in the PR.
-Replay against main's reducer: 40,276 steps, 0 mismatches; both sim
-tables reproduced cell for cell (unchanged from the entry below).
-Measured at merge: 142 tests, lint clean. Iteration mode (CLAUDE.md)
-starts after this wave: reviewer only for engine and persistence.
-
-### Phase 1 walking skeleton (`feat/phase-1-skeleton`, merged 2026-09-08)
-
-Vite 7 + Svelte 5 + TypeScript scaffold with the engine import wall
-verified by probe; dictionary bundled as a lazy `?raw` chunk;
-versioned localStorage persist behind an injectable Storage; a
-plain-TS store that is the only caller of `reduce`; Fight, Pick and
-Summary screens; PWA manifest and service worker precaching the
-dictionary; generated icons; nginx image; CI on branches; Docker
-publish on main (`deantammam/lexicell:edge`). Dean's 2026-09-08
-direction: playable first, iterate after. Scope is the pack's Phase 1
-plus the bare pick and summary screens the real reducer needs.
-
-No browser extension was available, so the promised manual pass
-became a jsdom suite that mounts the real App with the real
-dictionary and reducer and plays a run through the DOM.
-
-What the gate caught (one adversarial round, APPROVE with two
-warnings, fix round, re-APPROVE): a save with the right keys and
-wrong types loaded, threw in render and came back on every reload
-(now refused by a typed shape check, with a render boundary that
-drops the save and starts fresh as the net); Pick's index binding was
-unbound by the suite (bound at seed 20260918); the turn-start report
-rendering was unbound (same test); a false claim about workbox's
-default file-size cap in a comment; and the plan named a file that
-did not exist.
-
-Measured at merge: `npm test` 111 passed, `npm run lint` clean
-(eslint, tsc, svelte-check), build 59 kB app + 1,665.56 kB dictionary
-chunk (440.03 kB gzip), service worker precaches 14 entries. CI green
-on the branch. The Docker image is unbuilt on the dev box (no Docker);
-the publish workflow builds, smokes and pushes it in CI once Dean adds
-`DOCKER_USERNAME` and `DOCKER_PASSWORD` to the repository secrets.
-
-Still open: the Phase 1 exit is Dean's alone (HTTPS on the NUC, home
-screen install, airplane mode, one fight). Locked tiles are disabled
-in the UI but no test binds that; the reducer rejects a locked tile
-anyway. `npm run sim -- --runs 10` in CI is a smoke, not a gate: it
-exits 0 when a criterion prints FAIL.
-
-### Act-1 wave (`tune/greedy-cap`, merged 2026-09-08)
-
-Greedy bot capped at 7 letters with an uncapped `solver` reported as
-the upper bound; `tuning.startingPicks` engine knob (shipped at 1, the
-starting kit); act 1 eased; `--variant pre-act1` restores the previous
-content so the baseline stays reproducible. Engine files changed
-(`types.ts`, `reducer.ts`), so the wave took one adversarial round.
-
-What the gate caught: every sim cell reproduced, but three test-binding
-gaps. The kit's empty-offer path could revert to skipping encounter 0
-with 86/86 green; the greedy cap could change to 6 or 8 unnoticed
-while the criterion label still said 7; the sim usage block named a
-variant that did not exist. All bound with mutation-tested fixes, plus
-the clamp on `startingPicks` and a content guard against non-finite
-knobs. 91 tests.
-
-Shipped content, `npx tsx scripts/sim.ts`:
-
-```
-Lexicell sim: 500 runs per bot, seeds 0..499, all 10 items, variant base. 127.5s
-
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    91.0% |           9 |       21.1 |         5 |   100 |    99 |    97 |    91 |    88 |    85 |    58 |    63 |    66 |
-| mediocre |  500 |    23.2% |           4 |       32.6 |         8 |   100 |    92 |    71 |    34 |    25 |    19 |    16 |    19 |    19 |
-|   solver |  500 |    99.2% |           9 |       15.3 |         4 |   100 |   100 |    99 |    96 |    96 |    96 |    81 |    86 |    89 |
-
-Exit criteria:
-  PASS  mediocre wins 20-40%
-  FAIL  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-Previous content, `npx tsx scripts/sim.ts --variant pre-act1` (the
-`solver` row is the old uncapped greedy, i.e. the Phase 0 baseline;
-`greedy` is the cap alone):
-
-```
-Lexicell sim: 500 runs per bot, seeds 0..499, all 10 items, variant pre-act1. 110.3s
-
-|      bot | runs | win rate | median enc. | mean turns | scrambles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|----------|------|----------|-------------|------------|-----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
-|   greedy |  500 |    59.4% |           9 |       21.2 |         4 |   100 |    96 |    89 |    62 |    60 |    58 |    39 |    44 |    47 |
-| mediocre |  500 |     8.4% |           3 |       21.2 |         1 |   100 |    65 |    33 |     8 |    11 |    13 |    14 |    16 |    18 |
-|   solver |  500 |    92.4% |           9 |       17.1 |         9 |   100 |    99 |    96 |    85 |    85 |    84 |    66 |    71 |    73 |
-
-Exit criteria:
-  FAIL  mediocre wins 20-40%
-  PASS  greedy (best word of <= 7 letters) wins, but < 90%
-  PASS  no run hit a grid with zero valid words
-  ----  win rate moves with items: compare against --items none
-```
-
-### Phase 0 engine (main through 9f63d34, pre-harness)
-
-Landed before the harness existed; see tech-debt #1.
+One line per merge, newest first, matching `src/ui/release-notes.ts` in
+order and count. Sim tables and full gate narratives live in the exec
+plans (`docs/exec-plans/completed/`) and the release notes; this list is
+the honest index.
+
+- **build 73 / PR #71** - README intro restructured to say what the game
+  is, what inspired it (word games plus Binding of Isaac, Balatro and
+  Slay the Spire, a Plague Inc theme, an Earthbound look) and how it was
+  built. Docs only, no game change.
+- **build 72 / PR #70** - README cover image cleaned up: the wordmark on
+  a solid ground with no stray white border. Docs only.
+- **build 71 / PR #69** - README intro tells where the game came from.
+  Docs only.
+- **build 70 / PR #68** - A real README: cover image, phone screenshots,
+  a short guide to running your own copy. Docs only.
+- **build 69 / PR #67** - Portrait phone fit: the whole game fits a
+  portrait phone with no scroll, iOS Safari chrome included; a long enemy
+  name ellipsizes instead of shoving the HP number out of its box.
+- **build 68 / PR #66** - Endless mode, chosen with the cell (save v9; a
+  v8 save migrates as normal). Endless generates every slot past the nine
+  from act 3's pools, a boss every third, HP and damage grown per slot.
+  Gate (adversarial, engine + save): Endless surfaced three engine bugs,
+  all fixed here. An on-hit heal fired before the death check, so every
+  "heal when hit" organelle made the player unkillable by attacks (every
+  balance table before this entry was tuned against that bug); curve J
+  re-tunes acts 2-3, and the strong bot's Amoeba rate rose 67% to 84%,
+  disclosed as the honest cost. A stun past enrage now attacks through
+  (tech-debt #8 closed). A turn-start redraw that leaves a dead grid now
+  scrambles. Disclosed: Spore FAILs both criteria (mediocre 19.8, greedy
+  95.6, a lever for Dean); Endless runs out of traits after twelve;
+  sprites and palettes clamp to act 3.
+- **build 67 / PR #65** - Gold and cracked tiles (save v8; a v7 save
+  migrates plain). A gold tile adds damage when played (Midas Membrane
+  trait); a cracked tile is a timer that refills on crumble (Diatom Swarm
+  cracks two every second turn). Also fixed a long enemy name overrunning
+  its HP figure.
+- **build 66 / PR #64** - Evolution: a trait pick after each boss, three
+  offered, twelve traits (save v7; a v6 save migrates with none). Gate
+  (adversarial, REQUEST CHANGES then fixed): a trait id content later
+  drops would throw from every hook of a saved run; persist now drops
+  item and trait ids content no longer has and refuses an empty pick or
+  evolve. Four unbound tests and chooseTrait bound; 17,569 replayed steps
+  with 0 mismatches, 607 real v6 saves migrated, 26 mutants killed.
+- **build 65 / PR #63** - The in-game Release notes page: every merge
+  since the first commit, newest first, with PR and build numbers, in
+  `src/ui/release-notes.ts` behind a test that keeps the order and
+  numbering honest. Added CLAUDE.md iteration rule 6 (every PR adds its
+  note at the top before merging).
+- **build 64 / PR #62** - Encounter types (save v6; a v5 save migrates as
+  fights): one elite, one rest and one event inside the nine, placed by
+  the seed; eight event trades in `src/content/events.ts`. Gate
+  (adversarial, REQUEST CHANGES then fixed): a save on a dropped event id
+  soft-locked the run (now the walk-away); event effects moved to written
+  order; a max-HP cut no longer counts as damage taken; two unbound tests
+  bound; 120 runs with 0 mismatches, 45 real v5 saves migrated. Disclosed:
+  a turn-start self-damage organelle can kill at 1 HP after a trade;
+  forged saves can misplace a kind.
+- **build 63 / PR #61** - Twelve enemies in three act pools, three
+  bosses, three enemy traits (armour, regen, hunger), damage rolls inside
+  a seed-replayable range, an enrage clock past turn 20. No save change.
+  Gate (adversarial, REQUEST CHANGES then fixed): the damage preview
+  ignored armour (bots saw 11 where 5 landed against Tardigrade King);
+  seven mutants bound. Open at the time: the enrage clock only guarantees
+  an end while the enemy attacks (tech-debt #8, since closed by #66);
+  Mycelium's mediocre rate at the ten-point band edge.
+- **build 62 / PR #60** - The variety plan: nine levers on paper in
+  Dean's order (enemies, ranges, encounter types, evolution, grid rules,
+  Normal and Endless, curses, a share card, a daily seed). Plan
+  `docs/exec-plans/active/variety-wave.md`.
+- **build 61 / PR #59** - Phone fit, second pass: the after-a-word state
+  fits a 390x780 phone (one stat per row, a two-line report, a shorter
+  stage). Rendered before and after.
+- **build 60 / PR #58** - Phone fit: shorter status-row labels and intent
+  strings, badges hidden on small grids; the first change verified with a
+  real 390x780 headless render instead of a guess.
+- **build 59 / PR #57** - Cellular sprites: membrane, nucleus and
+  organelle dots on every creature, and a body per starting cell per act,
+  from `scripts/sprites.py`.
+- **build 58 / PR #56** - Best and worst word HUD (save v5; a v4 migrates,
+  v3 chains through). Gate: a migrated save showed an empty WORST until
+  the next word (now a dash); ties and zero-damage words bound; persist
+  type-checks the stats. Disclosed: a migrated run's worst word covers
+  only words played after the update; history and CSV carry the best word
+  only.
+- **build 57 / PR #55** - Clarity: an enemy intent line, names shown once,
+  a veil over the backdrop, the report stepping one line per turn, grafts
+  glowing when they fire; prose moved to DotGothic16.
+- **build 56 / PR #54** - Paperwork: two finished plans filed under
+  completed. No game change.
+- **build 55 / PR #53** - Starting cells (save v4; a v3 save loads as
+  Amoeba, the first migration on record): five cells with stats and
+  always-on hooks. Gate (adversarial, two rounds): no runtime defect;
+  four binding gaps closed; one design gap fixed (a cell's starting items
+  now fire onPick); 300 runs byte-identical to base on the balanced cell.
+- **build 54 / PR #52** - The Bookends mark: a gold pixel wordmark and
+  square mark from `scripts/logo.py`; favicon, apple-touch and PWA icons,
+  the wordmark on the title.
+- **build 53 / PR #51** - Run history with export (`lexicell.history` v1,
+  cap 200): JSON and CSV downloads, a History screen, per-run detail;
+  reducer and RunState untouched. Fixed the title still offering Continue
+  after a finished run. Gate: adversarial round on history.ts and the
+  store hook.
+- **build 52 / PR #50** - The missed-word reveal names only words gone
+  from the new grid, never one still spellable (it had read as a cheat).
+- **build 51 / PR #49** - "Tiles do not need to touch" said outright on
+  the How to play card and the first-fight hint (a tester had played
+  Boggle rules).
+- **build 50 / PR #48** - Two plans on paper (run history, starting
+  cells) with numbered questions for Dean.
+- **build 49 / PR #47** - The item pool reaches 200 (90 / 60 / 38 / 12),
+  curve F, the one final-pool tuning pass. The 3000-run table caught a
+  lifesteal family and Pressure; fractions and heals trimmed. Left open:
+  a 10,000-run per-item table for the two-point reskin rule. Effects wave
+  closed; plan in `completed/`.
+- **build 48 / PR #46** - Readable: two-signal tiles (yellow vowel, pink
+  rare edge), a How to play card, a Readable type toggle, ligatures off
+  ("find" had read as "And").
+- **build 47 / PR #45** - Organelles batch two: 45 items in synergy pairs
+  to 157; harness fixes (a shuffles column split from scrambles,
+  `scripts/item-impact.ts`). The per-item table caught three degenerate
+  items and four traps, all trimmed.
+- **build 46 / PR #44** - Landscape fit: two columns and no scrolling to
+  reach the Attack button. Not verified on a device.
+- **build 45 / PR #43** - Bookkeeping: the Open list rewritten in Dean's
+  order; three design pillars written into the pack.
+- **build 44 / PR #42** - Keyboard play on desktop: type the letters,
+  Backspace undoes, Enter attacks, Escape clears.
+- **build 43 / PR #41** - Effects on screen, batch one: the shield on the
+  HP bar, poison and stun badges, a free shuffle; 40 items to 112; acts
+  2-3 harder (curve D). The per-item table caught Paralytic (a permanent
+  lock, now every second turn). Tech-debt #7 closed. Greedy fell 78% to
+  66%, disclosed.
+- **build 42 / PR #39** - The effects engine: nine verbs, seven
+  conditions, the onPick hook, save v3 (v2 dropped), at most two commons
+  per offer. Gate (adversarial, two rounds): a perUnit cap bug and six
+  binding gaps fixed. The mediocre criterion FAILed with the unchanged 72
+  items (tech-debt #7, closed by #41). Disclosed: the bots' free-shuffle
+  rule is nearly inert and the scrambles column conflates shuffles (S7,
+  harness work).
+- **build 41 / PR #38** - Type by role: Press Start 2P for tiles, the
+  word line, HUD and buttons; Pixelify Sans for headings and prose.
+- **build 40 / PR #37** - A log line: the type lab written into the
+  playtest log.
+- **build 39 / PR #36** - Numbers you can read: DotGothic16 for every
+  digit, none under 16px, tabular figures.
+- **build 38 / PR #35** - CI once per commit (pull_request only); the push
+  twin of a green run had failed jobless and tripped the merge watcher.
+- **build 37 / PR #34** - Fit any viewport after an iPhone 17 playtest: a
+  hidden-scrollbar fallback, a two-column landscape, a grid floor, no
+  double-tap zoom. Not verified on the device.
+- **build 36 / PR #33** - Scope change: the v1 item pool goes to 200; the
+  effects wave plan opened with six questions for Dean.
+- **build 35 / PR #32** - The intro grid reads LONG WORD HITS HARD (it had
+  spelled something else).
+- **build 34 / PR #31** - Mythic tier: a fourth rarity, eight rule-bending
+  mythics to 72 items. Gate (adversarial, one round): the reduceDamage
+  floor, Sheath's odd/even turns and the mythic offer weight all bound.
+  Disclosed: "22% pick a mythic" is a bot artefact (tech-debt #6, closed
+  by #39).
+- **build 33 / PR #30** - Item pool 24 to 50, each with a scripted glyph;
+  three sustain items trimmed.
+- **build 32 / PR #29** - Grafts: every carried organelle shows on your
+  body in the arena.
+- **build 31 / PR #28** - Shiver: pixel body text, a shiver on a few
+  tiles, an intro that spells its own lesson.
+- **build 30 / PR #27** - Flavor: one line of voice per organelle, kept
+  apart from what it does.
+- **build 29 / PR #26** - The compendium: every organelle on the title
+  screen, grouped by rarity.
+- **build 28 / PR #25** - No scrollbar: the fight screen clips instead of
+  scrolling; the grid absorbs the difference.
+- **build 27 / PR #24** - Item pool 10 to 24: fourteen items; sustain
+  trimmed, flat items raised; the mediocre bot learned to read an offer.
+  Disclosed: mediocre 17.8% at 500 runs, 2.2 under the band.
+- **build 26 / PR #23** - The pixel voice: the pixel face as the game's
+  voice, a system sans for running text.
+- **build 25 / PR #22** - Item icons: ten hand-drawn glyphs toned by
+  rarity.
+- **build 24 / PR #21** - Legibility: Atkinson Hyperlegible for letters,
+  words and names, pixels for numbers. Later reverted.
+- **build 23 / PR #20** - Plasma: a design language with tokens every
+  component uses, a deep violet ground, cyan life, gold score.
+- **build 22 / PR #19** - The tuning wave: the boss lock lands on
+  surviving tiles (tech-debt #5 closed), venom (the Polyp), acts 2-3
+  retuned (curve C), save v2 (v1 dropped). All three measurable Phase 0
+  criteria pass at 500 runs for the first time.
+- **build 21 / PR #18** - Deploy note: a merge to main deploys to Docker
+  Hub and GitHub Pages by itself.
+- **build 20 / PR #17** - The intro scene: pond, portal, arrival, with the
+  sprites.
+- **build 19 / PR #16** - An intro: one screen after New run naming the
+  pick and the fight.
+- **build 18 / PR #15** - GitHub Pages: the same bundle at
+  dtammam.github.io/lexicell on every merge.
+- **build 17 / PR #14** - Earthbound pass: cycling palettes, seamless
+  layers, enemies that float their own way.
+- **build 16 / PR #13** - The word you missed: after each attack, the best
+  word the grid held.
+- **build 15 / PR #12** - Damage preview: the word line and Attack button
+  show the hit before you commit.
+- **build 14 / PR #11** - You evolve: three player forms, one per act.
+- **build 13 / PR #10** - Build numbers: the build stamp reads "build N"
+  with the sha.
+- **build 12 / PR #9** - The playtest log: every perception and request
+  with a next step.
+- **build 11 / PR #8** - Items named for a cell: Flagellum, Vacuole,
+  Plasmid.
+- **build 10 / PR #7** - Battle backdrop: an Earthbound-style backdrop
+  behind the arena.
+- **build 9 / PR #6** - Tiles at a glance: colour by letter class, serif
+  capitals.
+- **build 8 / PR #5** - The game never scrolls: one viewport tall, the
+  grid takes whatever is left.
+- **build 7 / PR #4** - Build stamp: a sha on the title screen.
+- **build 6 / PR #3** - Gravity: survivors rise, fresh tiles land below
+  and animate in; value badges gone. Gate (one adversarial round) found
+  the boss lock lost on most specials (tech-debt #5, fixed by #19).
+- **build 5 / PR #2** - Docker context fix: the image build could not see
+  scripts/lib; PR CI now builds the image too.
+- **build 4 / PR #1** - The feel wave: definitions for played words, a
+  title screen, an arena, a shuffle that costs the turn, a dependency diet
+  (557 to 233 packages). Gate (one adversarial round): five findings
+  fixed; 40,276 replayed steps with 0 mismatches. Iteration mode begins
+  here.
+- **build 3** - Dev build on the LAN via code-server's proxy.
+- **build 2** - Local play: the dev and preview servers bind every
+  interface.
+- **build 1 / walking skeleton** - A Svelte shell over the engine, a saved
+  run in localStorage, a PWA manifest and service worker, an nginx image,
+  the publish workflow. Gate (one adversarial round, APPROVE with two
+  warnings then re-APPROVE): a mistyped save loaded and threw (now
+  refused); binding gaps closed. The Docker image is unbuilt until Dean
+  adds the repo secrets. The Phase 1 exit is Dean's.
+- **Act 1 eased, Phase 0 closed** (052ef0f) - A starting kit, act 1
+  softened, greedy capped at 7. The headless engine met its exit criteria.
+  Gate (act-1 wave, one adversarial round): three binding gaps fixed.
+  Greedy 91.0% against the sub-90% bar, ruled noise at n=500.
+- **Rulings on record** (1d833a2) - Dean's decisions written into the
+  docs, not only into a session's memory.
+- **Handoff** (68986d9) - Branch state, next step and a resume prompt for
+  a paused session.
+- **Lean mode** (a6ec1bd) - The reviewer seats, exec plans, a tech-debt
+  tracker, explicit staging, no em dashes. The harness docs; enforcement
+  still sits on its own branch (Open).
+- **Length bonus in content** (9f63d34) - The length-bonus table moved
+  beside the HP curve, where tuning lives.
+- **Candidates** (24efb16) - Effects resolved once, tiles mapped only for
+  the chosen word. The sim got fast.
+- **The sim harness** (da454bc) - Two bots, seeded runs, exit criteria
+  printed under the table.
+- **The reducer** (32490cb) - The full run loop through one mutation path.
+- **The grid** (79adb44) - Frequency-weighted draws, a vowel floor,
+  solver-checked fresh grids.
+- **Enemies as content** (95d0cf8) - Enemies, a boss and the encounter
+  curve as data, not engine.
+- **Hooks and ten items** (c96905c) - Items hook into the turn;
+  acquisition order in, fixed order out.
+- **Effects and scoring** (50dc9d4) - The effect vocabulary and scoring
+  formula, in a fixed order, conditions flattened before they apply.
+- **The solver** (209addf) - A multiset scan with precomputed masks, no
+  trie.
+- **The dictionary** (97f215d) - A filtered ENABLE list shipped as text,
+  its source hash pinned.
+- **The RNG** (2c1698e) - Seed and counter carried in state, advanced in
+  constant time; replays are exact because of this commit.
+- **First commit** (134f4c5) - A headless TypeScript engine with lint
+  rules that keep it pure.
+
+The Phase 0 engine commits (through 9f63d34) landed before the harness
+existed; see tech-debt #1, still open.
