@@ -29,6 +29,7 @@ export const RUN_STATE_KEYS: readonly string[] = [
   'player',
   'encounter',
   'offer',
+  'curses',
   'outcome',
   'lastTurn',
   'rejected',
@@ -103,6 +104,9 @@ function looksLikeRunState(value: unknown): value is RunState {
     (v.offer === null || Array.isArray(v.offer)) &&
     // A pick or an evolve screen needs something to pick (gate S4, PR #64): the reducer never writes an empty one.
     ((v.phase !== 'pick' && v.phase !== 'evolve') || (Array.isArray(v.offer) && v.offer.length > 0)) &&
+    // Curses (variety wave step 6, v10): null or a string list, and on a cursed pick aligned 1:1 with the offer.
+    (v.curses === null || (Array.isArray(v.curses) && v.curses.every((c) => typeof c === 'string'))) &&
+    (v.phase === 'pick' && v.curses !== null ? Array.isArray(v.offer) && v.curses.length === v.offer.length : true) &&
     (v.outcome === null || typeof v.outcome === 'string') &&
     (v.lastTurn === null || isRecord(v.lastTurn)) &&
     (v.rejected === null || typeof v.rejected === 'string') &&
@@ -116,6 +120,10 @@ function looksLikeRunState(value: unknown): value is RunState {
 }
 
 const KNOWN_ITEMS: ReadonlySet<string> = new Set(CONTENT.items.map((i) => i.id));
+// Offer slots only ever hold boons; curse slots only ever hold curses (variety wave step 6). The
+// split lets dropUnknownIds reject a forged pair that swaps a boon into the curse slot or vice versa.
+const KNOWN_BOONS: ReadonlySet<string> = new Set(CONTENT.items.filter((i) => !i.curse).map((i) => i.id));
+const KNOWN_CURSES: ReadonlySet<string> = new Set(CONTENT.items.filter((i) => i.curse).map((i) => i.id));
 const KNOWN_TRAITS: ReadonlySet<string> = new Set(CONTENT.traits.map((t) => t.id));
 
 /**
@@ -131,17 +139,37 @@ export function dropUnknownIds(value: unknown): unknown {
   const items = Array.isArray(player.items) ? player.items.filter((id) => KNOWN_ITEMS.has(id as string)) : player.items;
   const traits = Array.isArray(player.traits) ? player.traits.filter((id) => KNOWN_TRAITS.has(id as string)) : player.traits;
   let offer = value.offer;
-  if (value.phase === 'evolve' && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_TRAITS.has(id as string));
-  else if ((value.phase === 'pick' || value.phase === 'rest') && Array.isArray(offer)) offer = offer.filter((id) => KNOWN_ITEMS.has(id as string));
+  let curses = value.curses;
+  if (value.phase === 'pick' && Array.isArray(offer) && Array.isArray(curses)) {
+    // A cursed pick (variety wave step 6): filter the boon and its curse AS AN ALIGNED PAIR. A pair
+    // is kept only when the boon is a known boon and the curse a known curse; anything else (a
+    // dropped id, or a forged boon swapped into the curse slot) takes the whole pair with it. The
+    // two lists stay the same length, so the shape check's alignment rule still holds; if they empty,
+    // the non-empty-offer rule drops the save.
+    const keptOffer: unknown[] = [];
+    const keptCurses: unknown[] = [];
+    for (let i = 0; i < offer.length; i++) {
+      if (KNOWN_BOONS.has(offer[i] as string) && KNOWN_CURSES.has(curses[i] as string)) {
+        keptOffer.push(offer[i]);
+        keptCurses.push(curses[i]);
+      }
+    }
+    offer = keptOffer;
+    curses = keptCurses;
+  } else if (value.phase === 'evolve' && Array.isArray(offer)) {
+    offer = offer.filter((id) => KNOWN_TRAITS.has(id as string));
+  } else if ((value.phase === 'pick' || value.phase === 'rest') && Array.isArray(offer)) {
+    offer = offer.filter((id) => KNOWN_BOONS.has(id as string));
+  }
   // A rest with nothing left to offer is what startRest writes as null (heal alone), not an empty list.
   if (value.phase === 'rest' && Array.isArray(offer) && offer.length === 0) offer = null;
-  return { ...value, player: { ...player, items, traits }, offer };
+  return { ...value, player: { ...player, items, traits }, offer, curses };
 }
 
 /**
  * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
  * the empty worst-word stats (stats HUD), v5 gains empty kinds and no event (encounter types), v6
- * gains no traits (evolution), v7 gains plain gold and cracked marks on every tile (grid rules), v8 gains mode 'normal' (modes). Anything else passes through and meets the shape check.
+ * gains no traits (evolution), v7 gains plain gold and cracked marks on every tile (grid rules), v8 gains mode 'normal' (modes), v9 gains curses null (curses, step 6). Anything else passes through and meets the shape check.
  */
 export function migrate(value: unknown): unknown {
   let v: unknown = value;
@@ -161,6 +189,8 @@ export function migrate(value: unknown): unknown {
   }
   // v8 -> v9 (modes): every earlier run was a normal one.
   if (isRecord(v) && v.v === 8 && !('mode' in v)) v = { ...v, v: 9, mode: 'normal' };
+  // v9 -> v10 (curses, step 6): no offer was cursed before the feature existed.
+  if (isRecord(v) && v.v === 9 && !('curses' in v)) v = { ...v, v: 10, curses: null };
   return v;
 }
 

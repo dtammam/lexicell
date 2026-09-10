@@ -74,6 +74,8 @@ export type Action =
   | { readonly type: 'clearSelection' }
   | { readonly type: 'submitWord' }
   | { readonly type: 'pickItem'; readonly index: number }
+  /* Variety wave step 6: leave a cursed offer entirely (valid only on a cursed pick). */
+  | { readonly type: 'skipOffer' }
   | { readonly type: 'shuffle' }
   /* Variety wave step 2: the rest screen's heal (its pick is pickItem), and an event's choice. */
   | { readonly type: 'restHeal' }
@@ -82,12 +84,12 @@ export type Action =
   | { readonly type: 'pickTrait'; readonly index: number };
 
 /**
- * 9 since modes (RunState.mode; variety wave step 5); a v8 save is MIGRATED by persist.ts as
- * normal. 8 was grid rules (Tile.gold, Tile.cracked), 7 evolution (player.traits), 6 encounter
- * types (kinds, event), 5 the stats HUD (worstWord), 4 starting cells, 3 the effects wave (v2
- * dropped), 2 the tuning wave (v1 dropped); v3 to v8 all migrate forward.
+ * 10 since curses (RunState.curses; variety wave step 6); a v9 save is MIGRATED by persist.ts with
+ * curses null. 9 was modes (mode), 8 grid rules (Tile.gold, Tile.cracked), 7 evolution
+ * (player.traits), 6 encounter types (kinds, event), 5 the stats HUD (worstWord), 4 starting cells,
+ * 3 the effects wave (v2 dropped), 2 the tuning wave (v1 dropped); v3 to v9 all migrate forward.
  */
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 /** The mode a run gets when none is named. */
 export const DEFAULT_MODE: RunMode = 'normal';
 /** The cell a run gets when none is named: the game as it was before cells. */
@@ -122,7 +124,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
   const maxHp = cell.maxHp;
   const [kinds, rng] = placeKinds(createRng(seed), ctx.content);
   const state: RunState = {
-    v: 9,
+    v: 10,
     cell: cell.id,
     mode,
     kinds,
@@ -133,6 +135,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
     player: { hp: maxHp, maxHp, items: [...cell.startingItems], traits: [], shield: 0, freeShuffles: 0 },
     encounter: null,
     offer: null,
+    curses: null,
     outcome: null,
     lastTurn: null,
     rejected: null,
@@ -161,6 +164,8 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return submitWord(state, ctx);
     case 'pickItem':
       return pickItem(state, action.index, ctx);
+    case 'skipOffer':
+      return skipOffer(state, ctx);
     case 'shuffle':
       return shuffle(state, ctx);
     case 'restHeal':
@@ -512,6 +517,7 @@ function startEncounter(state0: RunState, ctx: EngineContext): RunState {
     phase: 'fight',
     encounter,
     offer: null,
+    curses: null,
     rejected: null,
   };
   return turnStart(s2, ctx, EMPTY_REPORT);
@@ -520,14 +526,14 @@ function startEncounter(state0: RunState, ctx: EngineContext): RunState {
 /** A rest slot: the heal-or-pick screen. The offer is a normal one; with nothing left to offer, the heal stands alone. */
 function startRest(state: RunState, ctx: EngineContext): RunState {
   const [offer, rng] = drawOffer(state, ctx);
-  return { ...withRng(state, rng), phase: 'rest', encounter: null, offer: offer.length > 0 ? offer : null, rejected: null };
+  return { ...withRng(state, rng), phase: 'rest', encounter: null, offer: offer.length > 0 ? offer : null, curses: null, rejected: null };
 }
 
 /** An event slot: one draw picks the event. With no events in content the slot is skipped. */
 function startEvent(state: RunState, ctx: EngineContext): RunState {
   if (ctx.content.events.length === 0) return advance(state, ctx);
   const [def, rng] = pick(state.rng, ctx.content.events);
-  return { ...withRng(state, rng), phase: 'event', event: def.id, encounter: null, offer: null, rejected: null };
+  return { ...withRng(state, rng), phase: 'event', event: def.id, encounter: null, offer: null, curses: null, rejected: null };
 }
 
 /** The event by id, or undefined: a save can carry an id that content has since dropped (gate W1). */
@@ -592,12 +598,17 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
       damage: report.damage + a.enemyDamage,
       redrawn: [...report.redrawn, ...a.redrawn],
     },
-    stats: { ...a.state.stats, damageDealt: a.state.stats.damageDealt + a.enemyDamage },
+    // A curse can drain the player at turn start (onTurnStart damagePlayer); count it as damage taken.
+    // No shipped boon does, so existing runs keep a.playerDamage === 0 here.
+    stats: { ...a.state.stats, damageDealt: a.state.stats.damageDealt + a.enemyDamage, damageTaken: a.state.stats.damageTaken + a.playerDamage },
   };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
-  // Turn-start redraws (redrawTiles) can leave a grid with no word, as the end of a turn can (step 5:
-  // an Endless run holding several redraw organelles met one); the same guard, the same scramble.
-  if (s.encounter && a.redrawn.length > 0 && isDead(s.encounter.grid, ctx.solver)) {
+  // A turn-start effect can leave a grid with no word: a redraw (step 5, an Endless run with several
+  // redraw organelles), or a curse's lock or scramble (step 6). Guard on the grid itself, not on
+  // whether a redraw happened. Safe for existing content: entering turnStart the grid is always live
+  // (endTurn's guard) and no shipped onTurnStart effect removes playable tiles, so this scrambles
+  // only in the new curse cases and leaves every existing replay byte-identical.
+  if (s.encounter && isDead(s.encounter.grid, ctx.solver)) {
     s = scramble(s, ctx);
     s = { ...s, lastTurn: { ...(s.lastTurn ?? EMPTY_REPORT), scrambled: true, used: Array.from({ length: GRID_SIZE }, (_, i) => i) } };
   }
@@ -670,8 +681,10 @@ function endEncounter(state: RunState, ctx: EngineContext): RunState {
   if (endsAt(s, ctx.content, s.encounterIndex)) return { ...s, phase: 'summary', outcome: 'won', encounter: null, offer: null };
   // A boss falls: evolve (variety wave step 3), then the item pick as after any fight.
   if (encounterDefFor(ctx.content, s.encounterIndex).boss) return makeEvolve(s, ctx);
-  // An elite's offer carries a guaranteed rare (variety wave step 2).
-  return makeOffer(s, ctx, kindAt(s, s.encounterIndex) === 'elite' ? 'rare' : undefined);
+  // An elite's offer carries a guaranteed rare (variety wave step 2) and is NOT cursable; a plain
+  // fight's offer is cursable (variety wave step 6).
+  const elite = kindAt(s, s.encounterIndex) === 'elite';
+  return makeOffer(s, ctx, elite ? 'rare' : undefined, !elite);
 }
 
 /**
@@ -690,8 +703,10 @@ function makeEvolve(state: RunState, ctx: EngineContext): RunState {
     pool = pool.filter((t) => t.id !== chosen.id);
   }
   const s = withRng(state, rng);
-  if (offer.length === 0) return makeOffer({ ...s, encounter: null }, ctx);
-  return { ...s, phase: 'evolve', offer, encounter: null };
+  // The post-boss offer is cursable (variety wave step 6), whether it comes from this no-traits
+  // fallback or from pickTrait after a trait is chosen.
+  if (offer.length === 0) return makeOffer({ ...s, encounter: null }, ctx, undefined, true);
+  return { ...s, phase: 'evolve', offer, curses: null, encounter: null };
 }
 
 /** The trait joins player.traits (pick order), then the item offer the boss win owes. */
@@ -701,7 +716,8 @@ function pickTrait(state: RunState, index: number, ctx: EngineContext): RunState
   if (id === undefined) return reject(state, 'bad trait index');
   traitDef(ctx.content, id); // throws on an unknown id
   const s: RunState = { ...state, rejected: null, player: { ...state.player, traits: [...state.player.traits, id] }, offer: null };
-  return makeOffer(s, ctx);
+  // The post-boss offer is cursable (variety wave step 6).
+  return makeOffer(s, ctx, undefined, true);
 }
 
 /** An offer holds at most this many commons (Dean, 2026-09-08, question 2): a pick always has something in it. */
@@ -739,11 +755,58 @@ function drawOffer(state: RunState, ctx: EngineContext, guaranteed?: Rarity): [s
   return [offer, rng];
 }
 
-function makeOffer(state: RunState, ctx: EngineContext, guaranteed?: Rarity): RunState {
-  const [offer, rng] = drawOffer(state, ctx, guaranteed);
+/** One cursed offer in this many, once eligible (variety wave step 6). One RNG draw when eligible. */
+export const CURSE_CHANCE = 5;
+
+/**
+ * The curses attached to a cursed offer: one per boon slot, drawn without replacement (uniform)
+ * from the curse pool and aligned by index with the offer. With the shipped ten curses this always
+ * fills an offer of at most three; a caller that can't fill (a tiny curse pool) drops the curse.
+ */
+function drawCurses(rng: Rng, ctx: EngineContext, count: number): [string[], Rng] {
+  let pool = ctx.content.items.filter((i) => i.curse);
+  const curses: string[] = [];
+  for (let n = 0; n < count && pool.length > 0; n++) {
+    let chosen;
+    [chosen, rng] = pick(rng, pool);
+    curses.push(chosen.id);
+    pool = pool.filter((i) => i.id !== chosen.id);
+  }
+  return [curses, rng];
+}
+
+/**
+ * `cursable` (variety wave step 6) is true only for the normal post-fight offer (endEncounter, not
+ * an elite) and the post-boss offer (pickTrait / makeEvolve). A cursed offer is possible only after
+ * act 1 (act >= 2) and only when the content carries curses; then one RNG draw rolls the 1-in-five
+ * chance. Non-cursable and act-1 offers draw nothing extra, so their RNG stream is unchanged. When
+ * cursed, one curse is drawn per boon slot and aligned into state.curses; otherwise curses is null.
+ */
+function makeOffer(state: RunState, ctx: EngineContext, guaranteed?: Rarity, cursable = false): RunState {
+  const cursePool = ctx.content.items.filter((i) => i.curse);
+  const act = encounterDefFor(ctx.content, state.encounterIndex).act;
+  const eligible = cursable && act >= 2 && cursePool.length > 0;
+  let rng = state.rng;
+  let cursed = false;
+  if (eligible) {
+    let roll: number;
+    [roll, rng] = nextInt(rng, CURSE_CHANCE);
+    cursed = roll === 0;
+  }
+  const [offer, rngAfterOffer] = drawOffer(withRng(state, rng), ctx, guaranteed);
+  rng = rngAfterOffer;
+  let curses: readonly string[] | null = null;
+  if (cursed && offer.length > 0 && cursePool.length >= offer.length) {
+    const [drawn, rng2] = drawCurses(rng, ctx, offer.length);
+    // Only attach when we could fill every slot: state.curses must align 1:1 with offer.
+    if (drawn.length === offer.length) {
+      curses = drawn;
+      rng = rng2;
+    }
+  }
   const s = withRng(state, rng);
-  if (offer.length === 0) return advance({ ...s, encounter: null }, ctx);
-  return { ...s, phase: 'pick', offer, encounter: null };
+  if (offer.length === 0) return advance({ ...s, curses: null, encounter: null }, ctx);
+  return { ...s, phase: 'pick', offer, curses, encounter: null };
 }
 
 /** After a pick (or an empty offer): consume a pending starting pick, or move to the next encounter. */
@@ -1009,19 +1072,38 @@ function pickItem(state: RunState, index: number, ctx: EngineContext): RunState 
   if ((state.phase !== 'pick' && state.phase !== 'rest') || !state.offer) return reject(state, 'not picking');
   const id = state.offer[index];
   if (id === undefined) return reject(state, 'bad offer index');
-  const def = itemDef(ctx.content, id); // throws on unknown id
+  itemDef(ctx.content, id); // throws on unknown id
+  // A cursed offer (variety wave step 6): the boon comes with the curse aligned to its slot. Both
+  // join player.items, boon first then curse, and both fire onPick in that order.
+  const curseId = state.curses ? state.curses[index] : undefined;
+  const picked = curseId !== undefined ? [id, curseId] : [id];
+  for (const pid of picked) itemDef(ctx.content, pid); // throws on unknown id
   let s: RunState = {
     ...state,
     rejected: null,
-    player: { ...state.player, items: [...state.player.items, id] },
+    player: { ...state.player, items: [...state.player.items, ...picked] },
     offer: null,
+    curses: null,
   };
-  // onPick (effects wave): this item's own once-only effects. No encounter exists here, so
-  // enemy and grid effects are no-ops; heal, maxHp, shield and freeShuffle land.
-  const onPick = resolveEffects(def.hooks.onPick ?? [], conditionCtx(s, ctx));
-  if (onPick.length > 0) {
-    const a = applyEffects(s, onPick, ctx);
-    s = { ...a.state, lastTurn: { ...(a.state.lastTurn ?? EMPTY_REPORT), healed: (a.state.lastTurn?.healed ?? 0) + a.healed } };
+  // onPick (effects wave): each picked item's own once-only effects. No encounter exists here, so
+  // enemy and grid effects are no-ops; heal, maxHp (the curse's negative max HP included), shield
+  // and freeShuffle land.
+  for (const pid of picked) {
+    const onPick = resolveEffects(itemDef(ctx.content, pid).hooks.onPick ?? [], conditionCtx(s, ctx));
+    if (onPick.length > 0) {
+      const a = applyEffects(s, onPick, ctx);
+      s = { ...a.state, lastTurn: { ...(a.state.lastTurn ?? EMPTY_REPORT), healed: (a.state.lastTurn?.healed ?? 0) + a.healed } };
+    }
   }
   return advance(s, ctx);
+}
+
+/**
+ * Leave a cursed offer entirely (variety wave step 6): valid only in the pick phase with a curse
+ * attached (curses non-null). It forgoes the whole offer and advances, as a skipped pick. A normal
+ * offer is mandatory, so skipOffer is rejected there.
+ */
+function skipOffer(state: RunState, ctx: EngineContext): RunState {
+  if (state.phase !== 'pick' || state.curses === null) return reject(state, 'no cursed offer to leave');
+  return advance({ ...state, rejected: null, offer: null, curses: null }, ctx);
 }

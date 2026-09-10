@@ -43,16 +43,16 @@ describe('persist', () => {
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: SAVE_VERSION + 1 }) });
     expect(createPersist(storage).load()).toBeNull();
     expect(storage.data.has(SAVE_KEY)).toBe(false);
-    expect(SAVE_VERSION).toBe(9);
+    expect(SAVE_VERSION).toBe(10);
     for (const old of [1, 2]) {
       const stale = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: old }) });
       expect(createPersist(stale).load()).toBeNull();
       expect(stale.data.has(SAVE_KEY)).toBe(false);
     }
-    // A v8 save (no mode) loads as v9 as a normal run (modes, step 5).
-    const v8body = Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'mode'));
+    // A v8 save (no mode, no curses) migrates forward as a normal run (modes, step 5).
+    const v8body = Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'mode' && k !== 'curses'));
     const fromV8 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v8body, v: 8 }) })).load();
-    expect(fromV8?.v).toBe(9);
+    expect(fromV8?.v).toBe(10);
     expect(fromV8?.mode).toBe('normal');
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v8body) })).load()).toBeNull(); // v9 without a mode is dropped
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, mode: 'hard' }) })).load()).toBeNull();
@@ -61,14 +61,14 @@ describe('persist', () => {
     // A v7 save (tiles without gold or cracked) loads as v9 with plain marks on every tile (grid rules, step 4).
     const fightS = s.phase === 'fight' ? s : reduce(s, { type: 'pickItem', index: 0 }, ctx);
     const encS = fightS.encounter as NonNullable<RunState['encounter']>;
-    // A pre-v9 blob never carries a mode: the migration is by version AND shape, so the fixtures strip it.
-    const noMode = (o: object) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== 'mode'));
+    // A pre-v9 blob carries neither a mode nor curses: the migration is by version AND shape, so the fixtures strip both.
+    const noMode = (o: object) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== 'mode' && k !== 'curses'));
     const v7body = { ...noMode(fightS), encounter: { ...encS, grid: encS.grid.map((t) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'gold' && k !== 'cracked'))) } };
     const fromV7 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v7body, v: 7 }) })).load();
-    expect(fromV7?.v).toBe(9);
+    expect(fromV7?.v).toBe(10);
     expect(fromV7?.encounter?.grid.every((t) => t.gold === 0 && t.cracked === 0)).toBe(true);
     expect(fromV7?.encounter?.grid.map((t) => t.letter)).toEqual(encS.grid.map((t) => t.letter));
-    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...noMode(fightS), v: 7 }) })).load()?.v).toBe(9); // v7 already carrying marks keeps them
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...noMode(fightS), v: 7 }) })).load()?.v).toBe(10); // v7 already carrying marks keeps them
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...fightS, v: 7 }) })).load()).toBeNull(); // a v7 blob claiming a mode is not a v7 blob
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v7body) })).load()).toBeNull(); // v8 without the marks is dropped
     // Marks are non-negative integers (gate S2): a negative, a fraction or a string on any tile drops the blob.
@@ -80,13 +80,13 @@ describe('persist', () => {
     const oldPlayer = Object.fromEntries(Object.entries(s.player).filter(([k]) => k !== 'traits'));
     const v6body = { ...v8body, player: oldPlayer };
     const fromV6 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v6body, v: 6 }) })).load();
-    expect(fromV6?.v).toBe(9);
+    expect(fromV6?.v).toBe(10);
     expect(fromV6?.player.traits).toEqual([]);
     expect(fromV6?.rng).toEqual(s.rng);
     // A v5 save (no kinds, no event) loads as v7 with empty kinds: the rest of its run is fights (encounter types, step 2).
     const v5body = Object.fromEntries(Object.entries(v6body).filter(([k]) => k !== 'kinds' && k !== 'event')) as unknown as Omit<RunState, 'kinds' | 'event'>;
     const fromV5 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v5body, v: 5 }) })).load();
-    expect(fromV5?.v).toBe(9);
+    expect(fromV5?.v).toBe(10);
     expect(fromV5?.kinds).toEqual([]);
     expect(fromV5?.event).toBeNull();
     expect(fromV5?.player.traits).toEqual([]);
@@ -98,7 +98,7 @@ describe('persist', () => {
     const v3 = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v3body, v: 3 }) });
     const loaded = createPersist(v3).load();
     expect(loaded).not.toBeNull();
-    expect(loaded?.v).toBe(9);
+    expect(loaded?.v).toBe(10);
     expect(loaded?.cell).toBe('balanced');
     expect(loaded?.stats.worstWord).toBe('');
     expect(loaded?.stats.worstWordDamage).toBe(0);
@@ -106,7 +106,7 @@ describe('persist', () => {
     expect(loaded?.rng).toEqual(s.rng);
     // A v4 save (cell, no worst word) loads as v8 too.
     const fromV4 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v4body, v: 4 }) })).load();
-    expect(fromV4?.v).toBe(9);
+    expect(fromV4?.v).toBe(10);
     expect(fromV4?.cell).toBe(s.cell);
     expect(fromV4?.stats).toEqual(s.stats);
     // Blobs that claim a version whose shape they do not have are not migrated: dropped.
@@ -114,7 +114,7 @@ describe('persist', () => {
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 4 }) })).load()).toBeNull(); // v4 with worst stats
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 5 }) })).load()).toBeNull(); // v5 with kinds
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 6 }) })).load()).toBeNull(); // v6 with traits
-    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v8body, v: 7 }) })).load()?.v).toBe(9); // v7 between fights: nothing to migrate but the number and the mode
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...v8body, v: 7 }) })).load()?.v).toBe(10); // v7 between fights: nothing to migrate but the number and the mode
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v3body) })).load()).toBeNull(); // v7 without a cell
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v5body) })).load()).toBeNull(); // v7 without kinds
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(v6body) })).load()).toBeNull(); // v7 without traits
@@ -143,7 +143,7 @@ describe('persist', () => {
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...staleRest, offer: ['gone-item'] }) })).load()?.offer).toBeNull();
     expect(dropUnknownIds('x')).toBe('x');
     expect(dropUnknownIds({ v: 7 })).toEqual({ v: 7 });
-    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 9, cell: 'balanced', mode: 'normal', kinds: [], event: null, player: { ...oldPlayer, traits: [] }, stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
+    expect(migrate({ ...v3body, v: 3 })).toEqual({ ...v3body, v: 10, curses: null, cell: 'balanced', mode: 'normal', kinds: [], event: null, player: { ...oldPlayer, traits: [] }, stats: { ...oldStats, worstWord: '', worstWordDamage: 0 } });
     // The kinds must be known kinds and the event a string or null; an event phase needs its event.
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: ['fight', 'boss'] }) })).load()).toBeNull();
     expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, kinds: 'fight' }) })).load()).toBeNull();
@@ -184,6 +184,53 @@ describe('persist', () => {
       const forged = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...fight, encounter: { ...enc, enemy } }) });
       expect(createPersist(forged).load()).toBeNull();
     }
+  });
+
+  it('curses (variety wave step 6, v10): key set binds to newRun; a v9 blob migrates with curses null; a cursed pick round-trips; forged and misaligned pairs are dropped', () => {
+    const s = newRun(3, ctx);
+    // The key set carries curses (bound by the RUN_STATE_KEYS test); newRun writes it null.
+    expect(RUN_STATE_KEYS).toContain('curses');
+    expect(s.curses).toBeNull();
+    // A real v9 blob (no curses field) migrates to v10 with curses null and loads.
+    const noCurses = Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'curses'));
+    const fromV9 = createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...noCurses, v: 9 }) })).load();
+    expect(fromV9?.v).toBe(10);
+    expect(fromV9?.curses).toBeNull();
+    // A blob claiming v9 yet already carrying curses is not a v9 blob (shape and version must agree): dropped.
+    expect(createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...s, v: 9 }) })).load()).toBeNull();
+
+    const boons = CONTENT.items.filter((i) => !i.curse).slice(0, 3).map((i) => i.id);
+    const curses = CONTENT.items.filter((i) => i.curse).slice(0, 3).map((i) => i.id);
+    const cursedPick: RunState = { ...s, phase: 'pick', encounter: null, offer: boons, curses };
+    const rt = createPersist(fakeStorage());
+    rt.save(cursedPick);
+    expect(rt.load()).toEqual(cursedPick); // a mid-cursed-pick save round-trips
+
+    const load = (blob: object): RunState | null => createPersist(fakeStorage({ [SAVE_KEY]: JSON.stringify(blob) })).load();
+    // A forged boon in the curse slot drops that pair (no free boon); the aligned rest survives.
+    const forgedCurse = load({ ...cursedPick, curses: [boons[0], curses[1], curses[2]] });
+    expect(forgedCurse?.offer).toEqual(boons.slice(1));
+    expect(forgedCurse?.curses).toEqual(curses.slice(1));
+    // A forged curse in the boon slot drops its pair too.
+    const forgedBoon = load({ ...cursedPick, offer: [curses[0], boons[1], boons[2]] });
+    expect(forgedBoon?.offer).toEqual(boons.slice(1));
+    expect(forgedBoon?.curses).toEqual(curses.slice(1));
+    // A short curse list drops the unpaired boon rather than handing it over curse-free.
+    const short = load({ ...cursedPick, curses: curses.slice(0, 2) });
+    expect(short?.offer).toEqual(boons.slice(0, 2));
+    expect(short?.curses).toEqual(curses.slice(0, 2));
+    // Curses that are not strings: no slot holds a known curse, every pair drops, the save goes.
+    expect(load({ ...cursedPick, curses: [1, 2, 3] })).toBeNull();
+    // Every pair forged (all boons in the curse slots): the offer empties and the non-empty-offer rule drops it.
+    expect(load({ ...cursedPick, curses: [boons[0], boons[1], boons[2]] })).toBeNull();
+    // An unknown boon id drops just its pair, like a stale held item.
+    const staleBoon = load({ ...cursedPick, offer: ['gone-item', boons[1], boons[2]] });
+    expect(staleBoon?.offer).toEqual(boons.slice(1));
+    expect(staleBoon?.curses).toEqual(curses.slice(1));
+    // A normal pick keeps curses null and still filters unknown boons.
+    const normalStale = load({ ...s, phase: 'pick', encounter: null, offer: ['gone-item', boons[0]], curses: null });
+    expect(normalStale?.offer).toEqual([boons[0]]);
+    expect(normalStale?.curses).toBeNull();
   });
 
   it('drops a blob whose shape is not the current one (a missing field, an extra field)', () => {
