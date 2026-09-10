@@ -22,6 +22,8 @@
 
   // The seed is the only wall-clock the game reads, and it is read here, never in the engine.
   const seed = () => Date.now() >>> 0;
+  // The Vite base URL, so the header wordmark resolves under GitHub Pages' subpath too.
+  const base = import.meta.env.BASE_URL;
   const storage = browserStorage();
   const persist = createPersist(storage);
   // Per-device settings (Dean, 2026-09-08): a Readable type toggle for players the pixel faces cost letters.
@@ -166,7 +168,7 @@
 
 <main data-readable={settings.readable ? '' : undefined}>
   <header class="top">
-    <h1>Lexicell</h1>
+    <h1><img class="brand" src="{base}logo/bookends-wordmark.svg" alt="Lexicell" /></h1>
     {#if screen === 'run'}
       <button class="menu" onclick={toTitle}>Menu</button>
     {/if}
@@ -233,11 +235,18 @@
     margin: 0 0 var(--s1);
   }
   h1 {
-    font-family: var(--font-hud);
-    font-size: var(--hud-m);
-    letter-spacing: 0.1em;
-    color: var(--muted);
+    /* line-height 0 so the image sets the header height, not a text line box. */
     margin: 0;
+    line-height: 0;
+  }
+  /* The Bookends wordmark stands in for the app name: sized to the height of the HUD text it
+     replaced (~20px) so the header footprint and the Menu button's position do not move. */
+  .brand {
+    display: block;
+    height: 20px;
+    width: auto;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
   }
   .menu {
     font-family: var(--font-hud);
