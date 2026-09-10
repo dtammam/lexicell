@@ -202,6 +202,9 @@ ITEM_TONES = {
     "uncommon": ((53, 224, 216), (200, 255, 250), (18, 8, 38)),
     "rare": ((255, 79, 163), (255, 200, 230), (18, 8, 38)),
     "mythic": ((255, 230, 109), (255, 255, 240), (60, 40, 0)),
+    # Curse (variety wave step 6): a dark, warning tone, distinct from every boon rarity. Dried
+    # blood over near-black, with a sickly amber highlight, so a cursed option reads as a cost.
+    "curse": ((122, 24, 40), (214, 120, 66), (10, 2, 6)),
 }
 ITEMS = {
     "sharp-pen": ("common", [  # Flagellum: a whip trailing from a bud
@@ -672,6 +675,14 @@ TEMPLATED = {
     "protocell": ("mythic", "blob"),
 }
 
+# Curses (variety wave step 6): rendered with the dark "curse" tone rather than a rarity tone, so
+# a cursed option is unmistakable next to a boon. Each maps to a template kind seeded by its id.
+CURSES = {
+    "curse-dull": "spike", "curse-weak": "wave", "curse-lumber": "rod", "curse-thin-skin": "shield",
+    "curse-bleed": "drop", "curse-frail": "blob", "curse-drought": "ring", "curse-shackle": "cluster",
+    "curse-fester": "star", "curse-tremor": "wave",
+}
+
 
 def template_rows(kind: str, seed: str) -> list[str]:
     rng = random.Random(seed)
@@ -776,6 +787,9 @@ def main() -> None:
     for item_id, (rarity, kind) in TEMPLATED.items():
         item_icon(rarity, template_rows(kind, item_id)).save(items_dir / f"{item_id}.png", optimize=True)
         print(f"wrote items/{item_id}.png ({rarity}, {kind})")
+    for item_id, kind in CURSES.items():
+        item_icon("curse", template_rows(kind, item_id)).save(items_dir / f"{item_id}.png", optimize=True)
+        print(f"wrote items/{item_id}.png (curse, {kind})")
 
 
 if __name__ == "__main__":

@@ -716,7 +716,10 @@ const RARITY_RANK: Record<Rarity, number> = { common: 0, uncommon: 1, rare: 2, m
  */
 function drawOffer(state: RunState, ctx: EngineContext, guaranteed?: Rarity): [string[], Rng] {
   const owned = new Set(state.player.items);
-  let pool = ctx.content.items.filter((i) => !owned.has(i.id));
+  // Curses (variety wave step 6) are never a normal boon: they are drawn only as the cost attached
+  // to a boon in a cursed offer (drawCurses). The filter covers the guaranteed-rare path too, which
+  // derives its floor from this same pool.
+  let pool = ctx.content.items.filter((i) => !owned.has(i.id) && !i.curse);
   const offer: string[] = [];
   let commons = 0;
   let rng = state.rng;

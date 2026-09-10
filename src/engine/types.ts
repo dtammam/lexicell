@@ -39,6 +39,12 @@ export interface ItemDef {
   /** One line of voice (Dean, 2026-09-08). Never mechanics; the description carries those. */
   readonly flavor: string;
   readonly hooks: Partial<Record<Hook, readonly Effect[]>>;
+  /**
+   * Curse (variety wave step 6): a self-harm item that never appears as a normal boon. Curses
+   * are drawn only as the attached cost in a cursed offer (see reducer.makeOffer / RunState.curses)
+   * and are filtered out of drawOffer. A curse uses the same effect verbs as any item, inverted.
+   */
+  readonly curse?: true;
 }
 
 /**

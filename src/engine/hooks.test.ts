@@ -42,10 +42,13 @@ describe('hooks', () => {
 });
 
 describe('placeholder item set (roadmap deliverable 5)', () => {
-  it('has two hundred items with unique ids, twelve of them mythic', () => {
-    expect(ITEMS).toHaveLength(200);
-    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(200);
-    expect(ITEMS.filter((i) => i.rarity === 'mythic')).toHaveLength(12);
+  it('has two hundred draftable items with unique ids, twelve of them mythic, plus the curse pool', () => {
+    // Curses (variety wave step 6) are items too, but never drafted as boons; the draftable pool is 200.
+    const boons = ITEMS.filter((i) => !i.curse);
+    expect(boons).toHaveLength(200);
+    expect(new Set(ITEMS.map((i) => i.id)).size).toBe(ITEMS.length);
+    expect(boons.filter((i) => i.rarity === 'mythic')).toHaveLength(12);
+    expect(ITEMS.filter((i) => i.curse).length).toBeGreaterThanOrEqual(8);
   });
 
   it('uses at least three hooks and four effect types', () => {
