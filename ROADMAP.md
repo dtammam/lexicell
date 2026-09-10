@@ -154,13 +154,14 @@ Disclosed:
 - Sprites and palettes stop at act 3 in Endless. The HUD's act number
   keeps counting past it.
 
-`npx tsx scripts/sim.ts`, curve J, shipped:
+`npx tsx scripts/sim.ts`, curve J, re-run after merging main (PR #65
+folded in, the Diatom Swarm now cracks every second turn), shipped:
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    84.0% |           9 |       16.2 |       111 |       30 |   100 |   100 |    96 |    89 |    88 |    88 |    83 |    82 |    81 |
-| mediocre |  500 |    24.4% |           9 |       28.5 |       282 |        2 |   101 |    95 |    83 |    58 |    63 |    69 |    59 |    69 |    76 |
-|   solver |  500 |    96.8% |           9 |       11.8 |        24 |       14 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    90 |
+|   greedy |  500 |    84.4% |           9 |       16.2 |       105 |       28 |   100 |   100 |    96 |    89 |    88 |    88 |    83 |    82 |    81 |
+| mediocre |  500 |    24.4% |           9 |       28.5 |       277 |        2 |   101 |    95 |    83 |    58 |    63 |    68 |    59 |    69 |    75 |
+|   solver |  500 |    96.6% |           9 |       11.8 |        24 |       14 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    90 |
 
   PASS  mediocre wins 20-40%
   PASS  greedy (best word of <= 7 letters) wins, but < 90%
@@ -171,8 +172,8 @@ Disclosed:
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    87.6% |           9 |       13.9 |        48 |       23 |    85 |    85 |    82 |    77 |    77 |    76 |    73 |    72 |    72 |
-| mediocre |  500 |    23.4% |           8 |       23.4 |       184 |        2 |    86 |    80 |    70 |    48 |    55 |    59 |    52 |    57 |    64 |
+|   greedy |  500 |    87.0% |           9 |       13.9 |        48 |       24 |    85 |    85 |    82 |    77 |    76 |    76 |    73 |    72 |    71 |
+| mediocre |  500 |    24.0% |           8 |       23.4 |       181 |        1 |    86 |    80 |    70 |    48 |    55 |    59 |    51 |    58 |    65 |
 |   solver |  500 |    97.8% |           9 |       10.3 |         1 |       11 |    85 |    86 |    84 |    82 |    81 |    81 |    80 |    78 |    77 |
 
   PASS  mediocre wins 20-40%
@@ -184,9 +185,9 @@ Disclosed:
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    89.2% |           9 |       18.3 |       161 |       40 |   115 |   115 |   112 |   105 |   105 |   104 |    99 |    97 |    95 |
-| mediocre |  500 |    37.0% |           9 |       35.4 |       414 |        4 |   116 |   113 |   103 |    79 |    83 |    88 |    73 |    82 |    87 |
-|   solver |  500 |    98.4% |           9 |       13.2 |        56 |       14 |   115 |   116 |   113 |   110 |   110 |   109 |   108 |   107 |   106 |
+|   greedy |  500 |    89.4% |           9 |       18.3 |       162 |       38 |   115 |   115 |   112 |   105 |   105 |   105 |    99 |    97 |    95 |
+| mediocre |  500 |    35.0% |           9 |       34.8 |       377 |        2 |   116 |   113 |   103 |    79 |    82 |    87 |    73 |    81 |    86 |
+|   solver |  500 |    98.4% |           9 |       13.2 |        58 |       14 |   115 |   116 |   113 |   110 |   110 |   109 |   108 |   107 |   106 |
 
   PASS  mediocre wins 20-40%
   PASS  greedy (best word of <= 7 letters) wins, but < 90%
@@ -197,8 +198,8 @@ Disclosed:
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    95.6% |           9 |       12.5 |        28 |       11 |    90 |    91 |    88 |    84 |    84 |    83 |    82 |    81 |    80 |
-| mediocre |  500 |    19.8% |           8 |       27.0 |       240 |        2 |    91 |    85 |    73 |    50 |    55 |    61 |    53 |    63 |    68 |
+|   greedy |  500 |    95.4% |           9 |       12.5 |        28 |       11 |    90 |    91 |    88 |    84 |    84 |    83 |    82 |    80 |    80 |
+| mediocre |  500 |    19.8% |           8 |       27.0 |       238 |        2 |    91 |    85 |    73 |    50 |    55 |    61 |    54 |    63 |    68 |
 |   solver |  500 |    99.6% |           9 |        9.4 |         4 |        4 |    90 |    91 |    89 |    88 |    87 |    87 |    87 |    85 |    85 |
 
   FAIL  mediocre wins 20-40%
@@ -210,9 +211,9 @@ Disclosed:
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    78.4% |           9 |       17.3 |       127 |       37 |    86 |    85 |    82 |    76 |    75 |    76 |    71 |    70 |    72 |
-| mediocre |  500 |    28.6% |           9 |       29.8 |       292 |        1 |    87 |    83 |    74 |    57 |    62 |    66 |    59 |    67 |    71 |
-|   solver |  500 |    93.6% |           9 |       12.8 |        48 |       24 |    86 |    86 |    83 |    81 |    80 |    80 |    79 |    78 |    78 |
+|   greedy |  500 |    77.8% |           9 |       17.4 |       132 |       41 |    86 |    85 |    82 |    75 |    75 |    75 |    71 |    70 |    71 |
+| mediocre |  500 |    29.2% |           9 |       29.6 |       299 |        1 |    87 |    83 |    74 |    57 |    61 |    66 |    60 |    67 |    70 |
+|   solver |  500 |    93.6% |           9 |       12.8 |        47 |       23 |    86 |    86 |    83 |    81 |    80 |    80 |    79 |    78 |    78 |
 
   PASS  mediocre wins 20-40%
   PASS  greedy (best word of <= 7 letters) wins, but < 90%
@@ -224,8 +225,8 @@ number that matters is the median encounter reached):
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  200 |     0.0% |          30 |       50.7 |       209 |      185 |   100 |   100 |    96 |    89 |    89 |    88 |    82 |    82 |    80 |
-| mediocre |  200 |     0.0% |         8.5 |       41.5 |       251 |        4 |   101 |    95 |    84 |    59 |    65 |    70 |    59 |    69 |    77 |
+|   greedy |  200 |     0.0% |          30 |       51.3 |       197 |      189 |   100 |   100 |    96 |    89 |    89 |    88 |    82 |    82 |    80 |
+| mediocre |  200 |     0.0% |         8.5 |       42.0 |       258 |        3 |   101 |    95 |    84 |    59 |    66 |    70 |    60 |    69 |    76 |
 |   solver |  200 |     0.0% |          36 |       65.2 |       394 |      181 |   100 |   101 |    98 |    95 |    95 |    94 |    93 |    91 |    91 |
 
 Endless: the criteria judge Normal; here the number that matters is the median encounter reached.
