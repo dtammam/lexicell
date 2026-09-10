@@ -65,9 +65,21 @@ const MUSIC_FADE = 1.2;
  * Background music level on its own bus, kept low on purpose (Dean, 2026-09-10: "quiet enough so
  * the other sounds shine through"). The song sits under the effects; nudge this one number to taste.
  */
-const MUSIC_LEVEL = 0.28;
+const MUSIC_LEVEL = 0.37;
 /** A gentle safety lowpass over the whole effects bus, so nothing is ever harsh. */
 const BUS_LOWPASS = 6000;
+
+/**
+ * Loop points for theme.mp3 ("Before the Surge"), in seconds, from a self-similarity analysis of the
+ * decoded waveform (RMS envelope plus zero-crossing-constrained cross-correlation; see the PR). The
+ * track is through-composed: a quiet fade-in (0 to ~6.4s), a long dynamic body, then an outro fade
+ * (from ~200.7s to silence at 212s). It does not loop end to start. So we play from 0 with loop = true
+ * and set loopStart/loopEnd to the body: the quiet intro plays once, then [LOOP_START, LOOP_END] repeats
+ * forever and the ending is never reached. Both endpoints are rising zero-crossings at matched loudness,
+ * so the wrap does not click or jump in level.
+ */
+const LOOP_START = 6.440862;
+const LOOP_END = 200.685669;
 
 type ACtor = typeof AudioContext;
 function audioContextCtor(): ACtor | undefined {
@@ -371,6 +383,13 @@ class AudioEngine {
     const src = ctx.createBufferSource();
     src.buffer = this.musicBuffer;
     src.loop = true; // gapless: the AudioBuffer wraps at the sample, no gap, no click
+    // The quiet intro plays once, then only the body [LOOP_START, LOOP_END] repeats (the outro is never
+    // reached). Guard against a buffer that is somehow too short for these points: fall back to looping
+    // the whole thing rather than looping a zero- or negative-length window.
+    if (LOOP_END > LOOP_START && this.musicBuffer.duration >= LOOP_END) {
+      src.loopStart = LOOP_START;
+      src.loopEnd = LOOP_END;
+    }
     src.connect(this.musicGain);
     const now = ctx.currentTime;
     this.musicGain.gain.cancelScheduledValues(now);
