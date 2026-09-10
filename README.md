@@ -75,7 +75,7 @@ notes page in the game listing every build since the first commit.
 - **Normal or Endless.** Normal is nine encounters and a win. Endless goes on past
   the ninth, harder every fight, a boss every third, until the deep takes you.
 - **Attrition is the tension.** One health bar for the whole run. No healing
-  between fights unless an organelle says so.
+  between fights unless an organelle or a rest stop gives it.
 - **Yours, offline, on your phone.** Installable PWA, plays with airplane mode on,
   one saved run in your browser. No accounts, no server, no meta-progression:
   every run starts from zero.
