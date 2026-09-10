@@ -1,28 +1,7 @@
 <script lang="ts">
   import { LETTER_VALUE } from '../engine/scoring';
 
-  let {
-    onBack,
-    readable,
-    onToggleReadable,
-    sound,
-    volume,
-    onToggleSound,
-    onSetVolume,
-  }: {
-    onBack: () => void;
-    readable: boolean;
-    onToggleReadable: () => void;
-    sound: boolean;
-    volume: number;
-    onToggleSound: () => void;
-    onSetVolume: (v: number) => void;
-  } = $props();
-
-  function onVolumeInput(e: Event) {
-    const target = e.currentTarget as HTMLInputElement;
-    onSetVolume(Number(target.value) / 100);
-  }
+  let { onBack }: { onBack: () => void } = $props();
 
   // The legend shows real letters at their real values, so a player can check it against the grid.
   const RARE = ['K', 'J', 'X', 'Q', 'Z'].map((l) => `${l} ${LETTER_VALUE[l.toLowerCase()] ?? 0}`).join(', ');
@@ -65,17 +44,7 @@
     <p>Beat a boss and you evolve: three traits are offered and you keep one for the run. A trait is part of your body, always on, and it applies before your organelles.</p>
     <p>Two modes, chosen with your cell. Normal ends with the ninth encounter and a win. Endless goes on past it: the deep's creatures on a curve that grows every fight, a boss every third, an evolution after each, until you fall. History keeps how far you got.</p>
 
-    <h3>Reading</h3>
-    <p>The pixel type is the game's voice. If it costs you letters, switch it off; the choice stays on this device.</p>
-    <button class="btn" class:life={readable} onclick={onToggleReadable}>{readable ? 'Readable type: on' : 'Readable type: off'}</button>
-
-    <h3>Sound</h3>
-    <p>Crisp effects for tiles, words, hits and wins, and music once a track is added. The choice stays on this device.</p>
-    <button class="btn" class:life={sound} onclick={onToggleSound}>{sound ? 'Sound: on' : 'Sound: off'}</button>
-    <label class="volume" class:off={!sound}>
-      <span>Volume</span>
-      <input type="range" min="0" max="100" step="1" value={Math.round(volume * 100)} oninput={onVolumeInput} disabled={!sound} aria-label="Volume" />
-    </label>
+    <p class="lead">Reading, sound and the bug report live on the Settings page, the gear at the top of the screen.</p>
   </div>
 </section>
 
@@ -194,29 +163,5 @@
     background: var(--tile-select);
     border-color: var(--tile-select);
     color: var(--tile-select-ink);
-  }
-  .volume {
-    display: flex;
-    align-items: center;
-    gap: var(--s3);
-    font-family: var(--font-ui);
-    font-size: var(--text);
-    color: var(--ink);
-    margin-top: var(--s1);
-  }
-  .volume.off {
-    color: var(--muted);
-  }
-  .volume input[type='range'] {
-    flex: 1;
-    min-width: 0;
-    height: 12px;
-    accent-color: var(--life);
-    touch-action: manipulation;
-    cursor: pointer;
-  }
-  .volume input[type='range']:disabled {
-    cursor: default;
-    opacity: 0.5;
   }
 </style>

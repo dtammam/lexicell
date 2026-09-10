@@ -17,6 +17,10 @@
  *
  * The AudioContext is created lazily on the first user gesture (unlock()), because browsers,
  * iOS Safari especially, refuse to start audio before one.
+ *
+ * Two independent user buses (Dean, 2026-09-10, Settings page): sound effects and music each carry
+ * their own mute and volume. The master node is a fixed unity passthrough; the two user gains below
+ * it are what the settings drive, so muting one never touches the other.
  */
 
 export type SfxName =
@@ -58,12 +62,13 @@ interface NoiseOpts {
   readonly sweepTo?: number;
 }
 
-/** How quickly master gain changes settle (setTargetAtTime time constant), so mute/volume never click. */
+/** How quickly a user gain changes settle (setTargetAtTime time constant), so mute/volume never click. */
 const GAIN_SETTLE = 0.02;
 const MUSIC_FADE = 1.2;
 /**
  * Background music level on its own bus, kept low on purpose (Dean, 2026-09-10: "quiet enough so
- * the other sounds shine through"). The song sits under the effects; nudge this one number to taste.
+ * the other sounds shine through"). This is the baseline balance of music against effects; the
+ * music user volume scales it, so the effective music gain is MUSIC_LEVEL * musicVolume.
  */
 const MUSIC_LEVEL = 0.37;
 /** A gentle safety lowpass over the whole effects bus, so nothing is ever harsh. */
@@ -81,6 +86,8 @@ const BUS_LOWPASS = 6000;
 const LOOP_START = 6.440862;
 const LOOP_END = 200.685669;
 
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+
 type ACtor = typeof AudioContext;
 function audioContextCtor(): ACtor | undefined {
   if (typeof window === 'undefined') return undefined;
@@ -91,15 +98,22 @@ function audioContextCtor(): ACtor | undefined {
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  /** Music fade envelope (0..1); a separate user gain below it carries level and volume. */
   private musicGain: GainNode | null = null;
-  /** The effects bus: voices feed sfxDry and the reverb; both sum through a soft lowpass into master. */
+  /** Music user bus: MUSIC_LEVEL * musicVolume, forced to 0 when music is muted. */
+  private musicUserGain: GainNode | null = null;
+  /** The effects bus: voices feed sfxDry and the reverb; both sum through a soft lowpass. */
   private sfxDry: GainNode | null = null;
   private sfxWet: GainNode | null = null;
   private verb: ConvolverNode | null = null;
+  /** Effects user bus: sfxVolume, forced to 0 when effects are muted. */
+  private sfxUserGain: GainNode | null = null;
   private noiseBuffer: AudioBuffer | null = null;
 
-  private muted = false;
-  private volume = 0.7;
+  private sfxMuted = false;
+  private sfxVolume = 0.7;
+  private musicMuted = false;
+  private musicVolume = 0.7;
 
   private musicBuffer: AudioBuffer | null = null;
   private musicSource: AudioBufferSourceNode | null = null;
@@ -128,19 +142,26 @@ class AudioEngine {
     try {
       const ctx = new Ctor();
       const master = ctx.createGain();
-      master.gain.value = this.muted ? 0 : this.volume;
+      master.gain.value = 1; // fixed unity passthrough; the two user gains below it do the mixing
       master.connect(ctx.destination);
 
-      // Music bus: straight into master, fades in when a track starts.
+      // Music bus: source -> fade envelope -> user gain (level*volume, 0 when muted) -> master.
+      const musicUserGain = ctx.createGain();
+      musicUserGain.gain.value = this.musicMuted ? 0 : MUSIC_LEVEL * this.musicVolume;
+      musicUserGain.connect(master);
       const musicGain = ctx.createGain();
-      musicGain.gain.value = 0;
-      musicGain.connect(master);
+      musicGain.gain.value = 0; // fades 0..1 when a track starts and back to 0 when it stops
+      musicGain.connect(musicUserGain);
 
-      // Effects bus: a soft lowpass into master; a dry path and a small reverb both feed it.
+      // Effects bus: a soft lowpass, then the user gain (volume, 0 when muted); a dry path and a
+      // small reverb both feed the lowpass.
+      const sfxUserGain = ctx.createGain();
+      sfxUserGain.gain.value = this.sfxMuted ? 0 : this.sfxVolume;
+      sfxUserGain.connect(master);
       const busLp = ctx.createBiquadFilter();
       busLp.type = 'lowpass';
       busLp.frequency.value = BUS_LOWPASS;
-      busLp.connect(master);
+      busLp.connect(sfxUserGain);
       const sfxDry = ctx.createGain();
       sfxDry.gain.value = 0.9;
       sfxDry.connect(busLp);
@@ -154,9 +175,11 @@ class AudioEngine {
       this.ctx = ctx;
       this.master = master;
       this.musicGain = musicGain;
+      this.musicUserGain = musicUserGain;
       this.sfxDry = sfxDry;
       this.sfxWet = sfxWet;
       this.verb = verb;
+      this.sfxUserGain = sfxUserGain;
       void ctx.resume().catch(() => undefined);
       if (this.wantMusic) this.playMusicSource();
     } catch {
@@ -165,25 +188,41 @@ class AudioEngine {
     }
   }
 
-  setMuted(muted: boolean): void {
-    this.muted = muted;
-    this.applyMasterGain();
+  setSfxMuted(muted: boolean): void {
+    this.sfxMuted = muted;
+    this.applySfxGain();
   }
 
-  setVolume(volume: number): void {
-    this.volume = Math.min(1, Math.max(0, volume));
-    this.applyMasterGain();
+  setSfxVolume(volume: number): void {
+    this.sfxVolume = clamp01(volume);
+    this.applySfxGain();
   }
 
-  private applyMasterGain(): void {
-    if (!this.ctx || !this.master) return;
-    const target = this.muted ? 0 : this.volume;
-    this.master.gain.setTargetAtTime(target, this.ctx.currentTime, GAIN_SETTLE);
+  setMusicMuted(muted: boolean): void {
+    this.musicMuted = muted;
+    this.applyMusicGain();
   }
 
-  /** Synthesize and play a named effect. No-op before unlock, or when muted. */
+  setMusicVolume(volume: number): void {
+    this.musicVolume = clamp01(volume);
+    this.applyMusicGain();
+  }
+
+  private applySfxGain(): void {
+    if (!this.ctx || !this.sfxUserGain) return;
+    const target = this.sfxMuted ? 0 : this.sfxVolume;
+    this.sfxUserGain.gain.setTargetAtTime(target, this.ctx.currentTime, GAIN_SETTLE);
+  }
+
+  private applyMusicGain(): void {
+    if (!this.ctx || !this.musicUserGain) return;
+    const target = this.musicMuted ? 0 : MUSIC_LEVEL * this.musicVolume;
+    this.musicUserGain.gain.setTargetAtTime(target, this.ctx.currentTime, GAIN_SETTLE);
+  }
+
+  /** Synthesize and play a named effect. No-op before unlock, or when effects are muted. */
   playSfx(name: SfxName): void {
-    if (!this.ctx || !this.sfxDry || this.muted) return;
+    if (!this.ctx || !this.sfxDry || this.sfxMuted) return;
     this.renderSfx(name, this.ctx.currentTime + 0.01);
   }
 
@@ -392,9 +431,10 @@ class AudioEngine {
     }
     src.connect(this.musicGain);
     const now = ctx.currentTime;
+    // The fade envelope rises to unity; the music user gain below it sets the actual level and mute.
     this.musicGain.gain.cancelScheduledValues(now);
     this.musicGain.gain.setValueAtTime(Math.max(0.0001, this.musicGain.gain.value), now);
-    this.musicGain.gain.linearRampToValueAtTime(MUSIC_LEVEL, now + MUSIC_FADE);
+    this.musicGain.gain.linearRampToValueAtTime(1, now + MUSIC_FADE);
     src.start();
     this.musicSource = src;
   }

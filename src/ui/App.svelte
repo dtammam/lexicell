@@ -20,6 +20,8 @@
   import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
   import { audio } from './audio';
+  import SettingsScreen from './Settings.svelte';
+  import { RELEASE_NOTES } from './release-notes';
   import { sfxForTransition } from './audio-events';
   import { dailyPlayedDay, dailySeed, isDailyRun, markDailyPlayed } from './daily';
   import { dayNumber } from './definitions';
@@ -31,26 +33,35 @@
   const base = import.meta.env.BASE_URL;
   const storage = browserStorage();
   const persist = createPersist(storage);
-  // Per-device settings (Dean, 2026-09-08): a Readable type toggle for players the pixel faces cost letters.
+  // Per-device settings (Dean, 2026-09-08): the Readable type toggle, and (2026-09-10) independent
+  // sound-effects and music mute/volume, all reached from the always-available Settings page.
   let settings: Settings = $state.raw(loadSettings(storage));
   function toggleReadable() {
     settings = { ...settings, readable: !settings.readable };
     saveSettings(storage, settings);
   }
-  // Sound (Dean, 2026-09-10): an on/off toggle and a volume slider, per device, beside Readable.
-  function toggleSound() {
-    settings = { ...settings, sound: !settings.sound };
+  function toggleSfxMuted() {
+    settings = { ...settings, sfxMuted: !settings.sfxMuted };
     saveSettings(storage, settings);
-    // The toggle click is a user gesture, so it may unlock audio and (re)start music.
-    if (settings.sound) {
+    audio.unlock(); // the toggle click is a user gesture, so effects become audible at once
+  }
+  function onSetSfxVolume(v: number) {
+    settings = { ...settings, sfxVolume: Math.min(1, Math.max(0, v)) };
+    saveSettings(storage, settings);
+  }
+  function toggleMusicMuted() {
+    settings = { ...settings, musicMuted: !settings.musicMuted };
+    saveSettings(storage, settings);
+    // The toggle click is a user gesture, so it may unlock audio and (re)start or stop the music.
+    if (!settings.musicMuted) {
       audio.unlock();
       audio.startMusic();
     } else {
       audio.stopMusic();
     }
   }
-  function onSetVolume(v: number) {
-    settings = { ...settings, volume: Math.min(1, Math.max(0, v)) };
+  function onSetMusicVolume(v: number) {
+    settings = { ...settings, musicVolume: Math.min(1, Math.max(0, v)) };
     saveSettings(storage, settings);
   }
   // A subtle click for a button press. Kept light: only the app-level navigation buttons use it.
@@ -61,8 +72,10 @@
   // settings. The AudioContext itself waits for the first gesture below.
   void audio.loadMusic(`${base}audio/theme.mp3`);
   $effect(() => {
-    audio.setMuted(!settings.sound);
-    audio.setVolume(settings.volume);
+    audio.setSfxMuted(settings.sfxMuted);
+    audio.setSfxVolume(settings.sfxVolume);
+    audio.setMusicMuted(settings.musicMuted);
+    audio.setMusicVolume(settings.musicVolume);
   });
   $effect(() => {
     // The first pointer/click anywhere unlocks the AudioContext (iOS Safari blocks audio before a
@@ -72,7 +85,7 @@
       if (done) return;
       done = true;
       audio.unlock();
-      if (settings.sound) audio.startMusic();
+      if (!settings.musicMuted) audio.startMusic();
     };
     window.addEventListener('pointerdown', onGesture, { once: true });
     window.addEventListener('click', onGesture, { once: true });
@@ -88,7 +101,8 @@
   // The state before the latest action; Fight uses it to say what the grid held before a word was played.
   let prev: RunState | null = $state.raw(null);
   let error: string | null = $state.raw(null);
-  let screen: 'title' | 'cells' | 'intro' | 'run' | 'items' | 'help' | 'history' | 'notes' = $state.raw('title');
+  type Screen = 'title' | 'cells' | 'intro' | 'run' | 'items' | 'help' | 'history' | 'notes' | 'settings';
+  let screen: Screen = $state.raw('title');
   // Run history (Dean, 2026-09-08): finished and abandoned runs, per device, under their own key.
   let history: readonly HistoryEntry[] = $state.raw(loadHistory(storage));
   const BUILD = `${__BUILD_NUMBER__} · ${__BUILD_SHA__}`;
@@ -218,6 +232,16 @@
     tap();
     screen = 'help';
   }
+  // Settings is reachable from every screen via the top-bar gear; Back returns to wherever it opened.
+  let settingsFrom: Screen = $state.raw('title');
+  function toSettings() {
+    tap();
+    if (screen !== 'settings') settingsFrom = screen;
+    screen = 'settings';
+  }
+  function fromSettings() {
+    screen = settingsFrom;
+  }
   // History remembers where it was opened from, so Back returns there (the summary, or the title).
   let historyFrom: 'title' | 'run' = $state.raw('title');
   function toHistory() {
@@ -260,9 +284,14 @@
 <main data-readable={settings.readable ? '' : undefined}>
   <header class="top">
     <h1><img class="brand" src="{base}logo/bookends-wordmark.svg" alt="Lexicell" /></h1>
-    {#if screen === 'run'}
-      <button class="menu" onclick={toTitle}>Menu</button>
-    {/if}
+    <div class="bar-actions">
+      {#if screen === 'run'}
+        <button class="menu" onclick={toTitle}>Menu</button>
+      {/if}
+      {#if screen !== 'settings'}
+        <button class="menu gear" aria-label="Settings" title="Settings" onclick={toSettings}>&#9881;</button>
+      {/if}
+    </div>
   </header>
   <div class="screen">
   <svelte:boundary onerror={recover}>
@@ -273,9 +302,11 @@
     {:else if screen === 'items'}
       <Compendium onBack={toTitle} />
     {:else if screen === 'help'}
-      <Help onBack={toTitle} readable={settings.readable} onToggleReadable={toggleReadable} sound={settings.sound} volume={settings.volume} onToggleSound={toggleSound} {onSetVolume} />
+      <Help onBack={toTitle} />
     {:else if screen === 'notes'}
       <ReleaseNotes onBack={toTitle} />
+    {:else if screen === 'settings'}
+      <SettingsScreen onBack={fromSettings} readable={settings.readable} onToggleReadable={toggleReadable} sfxMuted={settings.sfxMuted} sfxVolume={settings.sfxVolume} musicMuted={settings.musicMuted} musicVolume={settings.musicVolume} onToggleSfxMuted={toggleSfxMuted} {onSetSfxVolume} onToggleMusicMuted={toggleMusicMuted} {onSetMusicVolume} build={RELEASE_NOTES[0]?.build ?? null} sha={__BUILD_SHA__} />
     {:else if screen === 'history'}
       <History runs={history} onBack={fromHistory} onClear={onClearHistory} />
     {:else if screen === 'cells'}
@@ -350,6 +381,20 @@
     border-radius: var(--radius);
     padding: var(--s2) var(--s3);
     touch-action: manipulation;
+  }
+  /* The right-hand controls sit in a row: Menu (run only) beside the always-present Settings gear.
+     Both share the .menu box, so the header footprint on the run screen never grows. */
+  .bar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+  /* The gear is a square .menu: system font so the glyph renders, the same height as Menu. */
+  .gear {
+    font-family: system-ui, sans-serif;
+    letter-spacing: 0;
+    padding-left: var(--s2);
+    padding-right: var(--s2);
   }
   .screen {
     flex: 1;
