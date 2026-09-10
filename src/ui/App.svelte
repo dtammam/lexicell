@@ -19,6 +19,8 @@
   import Evolve from './Evolve.svelte';
   import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
+  import { audio } from './audio';
+  import { sfxForTransition } from './audio-events';
   import { dailyPlayedDay, dailySeed, isDailyRun, markDailyPlayed } from './daily';
   import { dayNumber } from './definitions';
   import { DEFAULT_CELL } from '../content/cells';
@@ -35,6 +37,50 @@
     settings = { ...settings, readable: !settings.readable };
     saveSettings(storage, settings);
   }
+  // Sound (Dean, 2026-09-10): an on/off toggle and a volume slider, per device, beside Readable.
+  function toggleSound() {
+    settings = { ...settings, sound: !settings.sound };
+    saveSettings(storage, settings);
+    // The toggle click is a user gesture, so it may unlock audio and (re)start music.
+    if (settings.sound) {
+      audio.unlock();
+      audio.startMusic();
+    } else {
+      audio.stopMusic();
+    }
+  }
+  function onSetVolume(v: number) {
+    settings = { ...settings, volume: Math.min(1, Math.max(0, v)) };
+    saveSettings(storage, settings);
+  }
+  // A subtle click for a button press. Kept light: only the app-level navigation buttons use it.
+  function tap() {
+    audio.playSfx('tap');
+  }
+  // Music is decoded once (a 404 leaves it silently off); the mute/volume the engine applies follow
+  // settings. The AudioContext itself waits for the first gesture below.
+  void audio.loadMusic(`${base}audio/theme.mp3`);
+  $effect(() => {
+    audio.setMuted(!settings.sound);
+    audio.setVolume(settings.volume);
+  });
+  $effect(() => {
+    // The first pointer/click anywhere unlocks the AudioContext (iOS Safari blocks audio before a
+    // gesture) and, if sound is on, starts the music loop. Once is enough.
+    let done = false;
+    const onGesture = () => {
+      if (done) return;
+      done = true;
+      audio.unlock();
+      if (settings.sound) audio.startMusic();
+    };
+    window.addEventListener('pointerdown', onGesture, { once: true });
+    window.addEventListener('click', onGesture, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', onGesture);
+      window.removeEventListener('click', onGesture);
+    };
+  });
 
   let ctx: EngineContext | null = $state.raw(null);
   let store: Store | null = $state.raw(null);
@@ -92,6 +138,8 @@
       // A fresh run (seed changed, or the first state) gets its start time, once: a Continue after a
       // reload publishes with `run` null too and must not move it (gate W1).
       if ((!run || run.rng.seed !== state.rng.seed) && runStartedAt(storage, state.rng.seed) === null) markRunStarted(storage, state.rng.seed, nowIso());
+      // Sound the state delta (playSfx no-ops when muted, so this respects the Sound toggle).
+      for (const name of sfxForTransition(run, state)) audio.playSfx(name);
       prev = run;
       run = state;
     });
@@ -108,6 +156,7 @@
 
   /** Title: New run. Pick a starting cell first (Dean, 2026-09-08); nothing is abandoned until a cell is chosen. */
   function onPlay() {
+    tap();
     if (!ctx) return;
     screen = 'cells';
   }
@@ -154,15 +203,19 @@
     if (run) dispatch({ type: 'newRun', seed: run.rng.seed, cell: run.cell, mode: run.mode });
   }
   function toTitle() {
+    tap();
     screen = 'title';
   }
   function toItems() {
+    tap();
     screen = 'items';
   }
   function toNotes() {
+    tap();
     screen = 'notes';
   }
   function toHelp() {
+    tap();
     screen = 'help';
   }
   // History remembers where it was opened from, so Back returns there (the summary, or the title).
@@ -220,7 +273,7 @@
     {:else if screen === 'items'}
       <Compendium onBack={toTitle} />
     {:else if screen === 'help'}
-      <Help onBack={toTitle} readable={settings.readable} onToggleReadable={toggleReadable} />
+      <Help onBack={toTitle} readable={settings.readable} onToggleReadable={toggleReadable} sound={settings.sound} volume={settings.volume} onToggleSound={toggleSound} {onSetVolume} />
     {:else if screen === 'notes'}
       <ReleaseNotes onBack={toTitle} />
     {:else if screen === 'history'}
