@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 72, pr: 70, sha: 'pending', date: '2026-09-10', title: 'Cleaner cover', notes: 'The README cover image is cleaner now: the wordmark on a solid ground with no stray white border. Nothing changed in the game.' },
+  { build: 73, pr: 71, sha: 'pending', date: '2026-09-10', title: 'What, why, how', notes: "The README intro now says what the game is, what inspired it (word games plus Binding of Isaac, Balatro and Slay the Spire, with a Plague Inc theme and an Earthbound look), and how it was built. Nothing changed in the game." },
+  { build: 72, pr: 70, sha: '4e054df', date: '2026-09-10', title: 'Cleaner cover', notes: 'The README cover image is cleaner now: the wordmark on a solid ground with no stray white border. Nothing changed in the game.' },
   { build: 71, pr: 69, sha: 'f9f234c', date: '2026-09-10', title: 'The story behind it', notes: "The README's intro now tells where the game came from: the Bookworm Adventures loop, roguelike run variety from Binding of Isaac and Balatro, a Plague Inc theme, a Plasma look with Earthbound in it, and the word-game pull of Wordle and Words With Friends. Nothing changed in the game." },
   { build: 70, pr: 68, sha: 'dd8b5f6', date: '2026-09-10', title: 'A proper README', notes: 'The project has a real README now, with a cover image, phone screenshots and a short guide to running your own copy. Nothing changed in the game itself.' },
   { build: 69, pr: 67, sha: 'a91d9d6', date: '2026-09-10', title: 'Fits your phone', notes: 'The whole game now fits a portrait phone screen without scrolling, even in iOS Safari with its address bar and toolbar showing. Long enemy names no longer shove the HP number out of its box; the name trims with an ellipsis instead.' },
