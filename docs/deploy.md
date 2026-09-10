@@ -107,3 +107,21 @@ desktop and the phone have separate runs.
 That last step is the Phase 1 exit criterion. The saved run lives in
 the browser's localStorage for that origin; clearing site data drops
 it, which is expected.
+
+## Deploy failures: GitHub Pages concurrency
+
+If a "GitHub Pages" run fails at the deploy-pages step with `Deployment
+request failed ... due to in progress deployment. Please cancel <sha>
+first`, an earlier Pages deployment orphaned itself in progress and is
+blocking new ones. Cause: `cancel-in-progress: true` (now `false` in
+`pages.yml`) cancelled a running deploy workflow mid-flight, which left
+its server-side deployment stuck; every later deploy then got a 400.
+With `false`, deploys queue and this does not happen. To clear a stuck
+one by hand:
+
+    gh api --method POST repos/dtammam/lexicell/pages/deployments/<full-sha>/cancel
+
+then re-run the blocked Pages workflow. If the block persists (GitHub's
+backend can lag the cancel), wait: it times the stuck deployment out on
+its own, which took about thirty minutes once. Docker publishing is
+independent and is never affected by this.

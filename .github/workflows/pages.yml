@@ -13,9 +13,14 @@ permissions:
   pages: write
   id-token: write
 
+# Serialize Pages deploys, and NEVER cancel one in progress. cancel-in-progress: true
+# cancelled the running workflow mid-deploy, which orphaned its server-side Pages
+# deployment "in progress" and then blocked every later deploy with a 400 ("please
+# cancel <sha> first"). false queues deploys instead, so back-to-back merges each land.
+# (GitHub's own Pages starter workflow uses false for this reason.)
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
