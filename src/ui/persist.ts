@@ -75,7 +75,7 @@ function looksLikeRunState(value: unknown): value is RunState {
       isNum(v.encounter.enemy.stunned) &&
       Array.isArray(v.encounter.grid) &&
       v.encounter.grid.length === 16 &&
-      v.encounter.grid.every((t) => isRecord(t) && isNum(t.gold) && isNum(t.cracked) && isNum(t.lockedTurns) && isNum(t.venom)) &&
+      v.encounter.grid.every((t) => isRecord(t) && [t.gold, t.cracked, t.lockedTurns, t.venom].every((m) => Number.isInteger(m) && (m as number) >= 0)) &&
       Array.isArray(v.encounter.selection));
   return (
     isNum(v.v) &&

@@ -244,10 +244,12 @@ refilled and settles like a played one (the report says how many
 crumbled). Two verbs in the vocabulary: `goldTiles` (count, value) and
 `crackTiles` (count, turns), both drawing playable, unselected, unmarked
 tiles one draw each. Content: the Midas Membrane trait gilds one tile
-at every turn start (+5); the Diatom Swarm cracks two tiles every third
-turn for three (the end of that turn already ticks once, as a lock is
-ticked, so the player sees 2, then 1, then the crumble). A shuffle or a
-scramble replaces cracked tiles with sound ones. Candidates (the bots
+at every turn start (+5); the Diatom Swarm cracks two tiles every
+second turn for three (the end of that turn already ticks once, as a
+lock is ticked, so the player sees 2, then 1, then the crumble). A
+shuffle or a scramble replaces unlocked cracked tiles with sound ones
+(a locked tile survives a shuffle; no shipped enemy both locks and
+cracks). Candidates (the bots
 and the missed-word line) count the best gold a word's letters can
 carry and `candidateIndices` spends those tiles first, so the mapped
 hit equals the candidate; the word line and the Attack button read
@@ -259,18 +261,24 @@ gold edge and the dashed edge carry the signal and the crack's count
 shows only on wider screens. Also fixed here: a long enemy name ran
 into its HP figure on the bar label.
 
-Balance, no retune: the crack special costs the strong bots a point or
-two and the casual bot one; all criteria pass on Amoeba and every cell
-sits inside ten points of it (Spore's mediocre rate stays under the
-band by design, as in step 3).
+Balance, no retune. The gate measured the crack special at every third
+turn costing the strong bot nothing at all (the 70 HP swarm died in 2.5
+turns, before its own special; 0 crumbles in 500 runs), so it now fires
+every second turn; the tables below are from that. Gold shipped as a
+trait (Midas Membrane, worth about six points to either bot on its
+own), not as an enemy special: the plan's "an enemy special for each"
+became one special (cracks) and one trait (gold), since an enemy that
+gilds the player's tiles makes no sense. All criteria pass on Amoeba
+and every cell sits inside ten points of it (Spore's mediocre rate
+stays under the band by design, as in step 3).
 
 `npx tsx scripts/sim.ts`, shipped:
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    66.8% |           9 |       17.3 |       159 |       23 |   100 |   100 |    96 |    89 |    88 |    86 |    75 |    73 |    73 |
-| mediocre |  500 |    21.0% |           7 |       27.9 |       291 |        1 |   101 |    95 |    83 |    58 |    61 |    63 |    53 |    59 |    65 |
-|   solver |  500 |    87.6% |           9 |       13.1 |        64 |       16 |   100 |   101 |    98 |    95 |    94 |    93 |    89 |    86 |    84 |
+|   greedy |  500 |    67.2% |           9 |       17.3 |       163 |       24 |   100 |   100 |    96 |    89 |    88 |    86 |    75 |    72 |    72 |
+| mediocre |  500 |    20.8% |           7 |       27.9 |       279 |        2 |   101 |    95 |    83 |    58 |    60 |    63 |    52 |    58 |    65 |
+|   solver |  500 |    87.8% |           9 |       13.1 |        66 |       16 |   100 |   101 |    98 |    95 |    94 |    93 |    89 |    86 |    84 |
 
   PASS  mediocre wins 20-40%
   PASS  greedy (best word of <= 7 letters) wins, but < 90%
@@ -281,8 +289,8 @@ band by design, as in step 3).
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    69.2% |           9 |       15.1 |       120 |       19 |    85 |    85 |    82 |    77 |    76 |    75 |    67 |    65 |    65 |
-| mediocre |  500 |    22.6% |           7 |       24.1 |       263 |        2 |    86 |    80 |    70 |    48 |    53 |    54 |    48 |    51 |    56 |
+|   greedy |  500 |    68.4% |           9 |       15.1 |       119 |       16 |    85 |    85 |    82 |    77 |    76 |    75 |    67 |    65 |    65 |
+| mediocre |  500 |    22.6% |           7 |       24.1 |       253 |        3 |    86 |    80 |    70 |    48 |    53 |    55 |    47 |    52 |    56 |
 |   solver |  500 |    88.8% |           9 |       11.3 |        25 |        9 |    85 |    86 |    84 |    82 |    81 |    80 |    77 |    75 |    74 |
 
   PASS  mediocre wins 20-40%
@@ -294,9 +302,9 @@ band by design, as in step 3).
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    70.4% |           9 |       19.8 |       234 |       38 |   115 |   115 |   112 |   105 |   104 |   103 |    91 |    87 |    85 |
-| mediocre |  500 |    29.6% |           9 |       35.9 |       483 |        5 |   116 |   113 |   103 |    79 |    81 |    82 |    65 |    71 |    74 |
-|   solver |  500 |    92.0% |           9 |       14.7 |       116 |       12 |   115 |   116 |   113 |   110 |   109 |   109 |   105 |   101 |   100 |
+|   greedy |  500 |    69.8% |           9 |       19.7 |       229 |       37 |   115 |   115 |   112 |   105 |   104 |   103 |    91 |    87 |    86 |
+| mediocre |  500 |    29.0% |           9 |       35.5 |       464 |        5 |   116 |   113 |   103 |    79 |    81 |    82 |    65 |    70 |    76 |
+|   solver |  500 |    91.8% |           9 |       14.8 |       120 |       11 |   115 |   116 |   113 |   110 |   109 |   109 |   105 |   101 |   100 |
 
   PASS  mediocre wins 20-40%
   PASS  greedy (best word of <= 7 letters) wins, but < 90%
@@ -307,8 +315,8 @@ band by design, as in step 3).
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    83.2% |           9 |       13.8 |        80 |       20 |    90 |    91 |    88 |    84 |    84 |    83 |    78 |    75 |    74 |
-| mediocre |  500 |    17.8% |           6 |       26.5 |       268 |        1 |    91 |    85 |    73 |    49 |    54 |    55 |    48 |    57 |    61 |
+|   greedy |  500 |    83.0% |           9 |       13.8 |        79 |       20 |    90 |    91 |    88 |    84 |    84 |    83 |    78 |    75 |    74 |
+| mediocre |  500 |    17.4% |           6 |       26.5 |       264 |        2 |    91 |    85 |    73 |    49 |    53 |    55 |    48 |    55 |    61 |
 |   solver |  500 |    94.8% |           9 |       10.3 |         9 |        5 |    90 |    91 |    89 |    88 |    87 |    86 |    85 |    83 |    81 |
 
   FAIL  mediocre wins 20-40%
@@ -320,9 +328,9 @@ band by design, as in step 3).
 
 ```
 |      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
-|   greedy |  500 |    60.0% |           9 |       18.5 |       181 |       33 |    86 |    85 |    82 |    76 |    75 |    74 |    65 |    63 |    64 |
-| mediocre |  500 |    26.2% |           8 |       30.4 |       400 |        3 |    87 |    83 |    74 |    56 |    60 |    62 |    53 |    58 |    61 |
-|   solver |  500 |    83.8% |           9 |       14.0 |       107 |       23 |    86 |    86 |    83 |    81 |    80 |    79 |    76 |    73 |    73 |
+|   greedy |  500 |    58.4% |           9 |       18.5 |       182 |       34 |    86 |    85 |    82 |    75 |    74 |    74 |    65 |    62 |    64 |
+| mediocre |  500 |    26.6% |         7.5 |       30.3 |       398 |        2 |    87 |    83 |    74 |    56 |    59 |    62 |    53 |    58 |    62 |
+|   solver |  500 |    83.6% |           9 |       14.0 |       111 |       24 |    86 |    86 |    83 |    81 |    80 |    79 |    76 |    73 |    73 |
 
   PASS  mediocre wins 20-40%
   PASS  greedy (best word of <= 7 letters) wins, but < 90%
