@@ -7,6 +7,7 @@ stays crisp. Deterministic per id: re-running this script reproduces the same fi
 
     python3 scripts/sprites.py            # writes public/sprites/*.png
 """
+import math
 import random
 from pathlib import Path
 
@@ -685,6 +686,11 @@ CURSES = {
 
 
 def template_rows(kind: str, seed: str) -> list[str]:
+    """A per-kind glyph that reads the seed for real variation (Dean, 2026-09-10: many
+    templated items shared one glyph; keep the style, make each one distinct). Every branch
+    jitters position, size, count and accents from rng, so ~200 items spread across the kinds
+    are visually distinct while staying in the 16x16 two-tone blobby style. Deterministic per
+    id: random.Random(seed) is stable, so regeneration reproduces the same files."""
     rng = random.Random(seed)
     grid = [["." for _ in range(SIZE)] for _ in range(SIZE)]
     c = SIZE // 2
@@ -696,54 +702,111 @@ def template_rows(kind: str, seed: str) -> list[str]:
             for x in range(SIZE):
                 if (x - cx + 0.5) ** 2 + (y - cy + 0.5) ** 2 <= r * r:
                     put(x, y, ch)
+    def ray(cx, cy, ang, r0, r1, ch="#"):
+        for step in range(r0, r1 + 1):
+            put(cx + round(step * math.cos(ang)), cy + round(step * math.sin(ang)), ch)
     if kind == "ring":
-        r = rng.choice([5, 6])
-        disc(c, c, r); disc(c, c, r - 2, ".")
-        put(c - 2, c - r + 1, "o"); put(c - 3, c - r + 2, "o")
+        r = rng.choice([4, 5, 6])
+        th = rng.choice([1, 2])
+        cx, cy = c + rng.randint(-1, 1), c + rng.randint(-1, 1)
+        disc(cx, cy, r); disc(cx, cy, r - th, ".")
+        if rng.random() < 0.5:  # a nucleus-like core inside the ring
+            disc(cx, cy, rng.choice([1, 2]))
+        for _ in range(rng.randint(0, 2)):  # satellite beads on the rim
+            ang = rng.uniform(0, 2 * math.pi)
+            put(cx + round(r * math.cos(ang)), cy + round(r * math.sin(ang)))
     elif kind == "blob":
-        for _ in range(3):
-            disc(c + rng.randint(-2, 2), c + rng.randint(-2, 2), rng.randint(3, 5))
-        put(c - 2, c - 3, "o"); put(c - 3, c - 2, "o")
+        for _ in range(rng.choice([2, 3, 4])):
+            disc(c + rng.randint(-3, 3), c + rng.randint(-3, 3), rng.randint(2, 4))
     elif kind == "rod":
         w = rng.choice([2, 3])
-        for y in range(2, SIZE - 2):
-            for x in range(c - w + 1, c + w):
+        top, bot = rng.randint(1, 3), rng.randint(SIZE - 4, SIZE - 2)
+        drift = rng.choice([-2, -1, 0, 0, 1, 2])  # a lean over the length
+        for y in range(top, bot + 1):
+            frac = (y - top) / max(1, bot - top)
+            cx = c + round(drift * frac)
+            for x in range(cx - w + 1, cx + w):
                 put(x, y)
-        for y in range(2, 6):
-            put(c - w + 1, y, "o")
+        if rng.random() < 0.5:  # a nub cap on one end
+            for x in range(c - w, c + w):
+                put(x, top - 1 if rng.random() < 0.5 else bot + 1)
     elif kind == "drop":
-        disc(c, c + 2, 5)
-        for i in range(5):
-            for x in range(c - i // 2, c + i // 2 + 1):
-                put(x, 2 + i)
-        put(c - 2, c + 1, "o"); put(c - 2, c + 2, "o")
+        r = rng.choice([4, 5])
+        cx = c + rng.randint(-1, 1)
+        cy = SIZE - r - rng.randint(1, 3)
+        disc(cx, cy, r)
+        tip = rng.randint(1, 3)
+        topx = cx + rng.choice([-2, -1, 0, 0, 1, 2])  # tilt the tail
+        for y in range(tip, cy):
+            frac = (y - tip) / max(1, cy - tip)
+            halfw = round(frac * (r - 1))
+            base = round(topx + (cx - topx) * frac)
+            for x in range(base - halfw, base + halfw + 1):
+                put(x, y)
     elif kind == "cluster":
-        for _ in range(rng.randint(4, 6)):
-            disc(rng.randint(3, SIZE - 4), rng.randint(3, SIZE - 4), rng.choice([1, 2]))
-        put(4, 4, "o")
+        for _ in range(rng.randint(4, 7)):
+            disc(rng.randint(3, SIZE - 4), rng.randint(3, SIZE - 4), rng.choice([1, 2, 3]))
     elif kind == "wave":
+        amp = rng.choice([2, 3])
+        period = rng.choice([5, 6, 8, 10])
+        phase = rng.randint(0, period - 1)
+        th = rng.choice([1, 2])
+        cy = c + rng.randint(-2, 2)
         for x in range(1, SIZE - 1):
-            y = c + int(round(3 * ((x * 0.8) % 2 - 1))) if False else c + [0, 1, 2, 2, 1, 0, -1, -2, -2, -1][x % 10]
-            put(x, y); put(x, y + 1)
-        put(2, c - 1, "o")
+            y = cy + round(amp * math.sin(2 * math.pi * (x + phase) / period))
+            for t in range(th):
+                put(x, y + t)
     elif kind == "spike":
-        for i in range(6):
-            put(c + i, c - i); put(c + i + 1, c - i); put(c - i, c + i); put(c - i - 1, c + i)
-        disc(c, c, 2)
-        put(c - 1, c - 1, "o")
+        n = rng.choice([4, 5, 6, 8])
+        length = rng.randint(4, 6)
+        cx, cy = c + rng.randint(-1, 1), c + rng.randint(-1, 1)
+        rot = rng.uniform(0, math.pi)
+        r0 = rng.choice([2, 3])
+        disc(cx, cy, r0)
+        for k in range(n):  # thick radial spikes off a solid core
+            ang = rot + 2 * math.pi * k / n
+            ray(cx, cy, ang, r0, r0 + length)
+            ray(cx, cy, ang + 0.12, r0, r0 + length - 1)
     elif kind == "star":
-        for i in range(-6, 7):
-            put(c + i, c); put(c, c + i)
-            if abs(i) <= 4:
-                put(c + i, c + i); put(c + i, c - i)
-        disc(c, c, 2); put(c - 1, c - 1, "o")
+        pts = rng.choice([4, 6, 8])
+        arm = rng.randint(4, 6)
+        cx, cy = c + rng.randint(-1, 1), c + rng.randint(-1, 1)
+        rot = rng.uniform(0, math.pi)
+        disc(cx, cy, rng.choice([1, 2]))
+        for k in range(pts):  # thin starburst rays
+            ray(cx, cy, rot + 2 * math.pi * k / pts, 1, arm)
     elif kind == "shield":
-        for y in range(2, 13):
-            half = 6 if y < 8 else 6 - (y - 8)
+        w = rng.choice([5, 6])
+        top = rng.randint(1, 3)
+        taper = rng.randint(7, 9)
+        bot = rng.randint(12, 14)
+        for y in range(top, bot + 1):
+            half = w if y < taper else max(1, w - (y - taper))
             for x in range(c - half, c + half):
                 put(x, y)
-        for y in range(3, 7):
-            put(c - 4, y, "o")
+        emblem = rng.choice(["bar", "cross", "dot", "chevron", "none"])
+        ey = (top + bot) // 2
+        if emblem == "bar":
+            for x in range(c - 2, c + 2):
+                put(x, ey, ".")
+        elif emblem == "cross":
+            for d in range(-2, 3):
+                put(c + d, ey, "."); put(c, ey + d, ".")
+        elif emblem == "dot":
+            put(c - 1, ey, "."); put(c, ey, ".")
+        elif emblem == "chevron":
+            for i, dy in enumerate((0, 1, 2, 1, 0)):
+                put(c - 2 + i, ey + dy, ".")
+    if rng.random() < 0.3:  # occasionally mirror so leaning shapes point either way
+        grid = [list(reversed(r)) for r in grid]
+    # Highlight accents: a few body pixels lit in the "o" tone, biased up-left for a steady
+    # light. Reading the rng here guarantees two same-silhouette items still differ.
+    body = [(x, y) for y in range(SIZE) for x in range(SIZE) if grid[y][x] == "#"]
+    if body:
+        upleft = [(x, y) for (x, y) in body if x <= c and y <= c]
+        pool = upleft if len(upleft) >= 3 else body
+        for (x, y) in rng.sample(pool, min(rng.randint(1, 3), len(pool))):
+            grid[y][x] = "o"
     return ["".join(r) for r in grid]
 
 
