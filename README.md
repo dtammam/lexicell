@@ -25,21 +25,25 @@ and adds to your phone's home screen as an app.
 
 ---
 
-Lexicell borrows one thing from Bookworm Adventures: its core loop. A four-by-four
-board of letters, no timer, tap to spell a word, and the longer and rarer the word
-the harder it hits. Bookworm Adventures was a mostly deterministic game with a few
-roguelike touches, not a roguelike itself. Lexicell keeps that loop and builds a
-real roguelike around it, an item pool and probabilities and enemies that each play
-differently, in the spirit of Binding of Isaac and Balatro. The theme is rapid
-evolution, borrowed from Plague Inc. The look is a retro pixel style called Plasma,
-unstable on purpose, with tiles that shiver and Earthbound in the veins. The word
-game itself owes the mobile-era pull of Wordle and Words With Friends. A run is
-fifteen to twenty minutes, and your health carries across all nine encounters, so
-every hit in act one still matters in act three.
+**What it is.** Lexicell is a cross-platform word puzzle game with roguelike
+elements. You spell words from a four-by-four letter grid to attack, pick organelles
+and traits between fights, and descend as far as your one health bar will carry you.
+A normal run is fifteen to twenty minutes; Endless mode goes until the deep takes
+you. It runs in any browser, on desktop or phone.
 
-It is a combination of things I have loved over a long time. I built it with AI,
-putting the agentic harness and software habits I use elsewhere to work on a
-challenge that was new to me: game development.
+**What inspired it.** The core loop comes from word games I found very fun: Bookworm
+Adventures, Wordle, and Words With Friends. The roguelike shape around it, an item
+pool, probabilities, and enemies that each play differently, is in the spirit of
+Binding of Isaac, Balatro, and Slay the Spire. The theme is evolution, drawn from
+Plague Inc. The look is a homemade retro pixel style called Plasma, built around
+evolution and instability, with a debt to Earthbound's quirky visuals. It is a lot
+of things I have loved in games over a long time, gathered in one place.
+
+**How it was made.** I built Lexicell with an agentic development process I have used
+on other projects, [Arcade Station](https://github.com/dtammam/arcade_station),
+[tasksync](https://github.com/dtammam/tasksync), and
+[FileTube](https://github.com/dtammam/filetube), now pointed at a domain that was new
+to me: game development. New builds ship continuously, as ideas come up.
 
 Every merge to main is a public release, automatically, to both the link above
 and Docker Hub. The title screen shows the build number, and there is a Release
