@@ -93,9 +93,11 @@ A curse can be onTurnStart `damagePlayer`. `turnStart` applies onTurnStart
 effects then checks player death after the venom bite, before any later
 turn. A curse that brings HP to 0 at turn start is a loss (there is no
 player heal between the drain and the death check). `turnStart` now also
-adds `a.playerDamage` to `stats.damageTaken` so the drain is counted (no
-shipped boon produces onTurnStart player damage, so existing runs are
-unaffected).
+adds `a.playerDamage` to `stats.damageTaken` so the drain is counted. Two
+shipped boons already deal onTurnStart self-damage (symbiont 1, apex 3), so
+their cost now counts as damage taken as well; `damageTaken` is a HUD-only
+stat that nothing reads, so this is gameplay-neutral and every replay outcome
+is unchanged.
 
 ### Turn-start dead-grid guard (robustness)
 

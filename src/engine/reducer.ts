@@ -598,8 +598,9 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
       damage: report.damage + a.enemyDamage,
       redrawn: [...report.redrawn, ...a.redrawn],
     },
-    // A curse can drain the player at turn start (onTurnStart damagePlayer); count it as damage taken.
-    // No shipped boon does, so existing runs keep a.playerDamage === 0 here.
+    // Count onTurnStart player damage as damage taken: a curse's damagePlayer, and the boons symbiont
+    // (1) and apex (3) which already cost HP each turn. damageTaken is a HUD-only stat that nothing
+    // reads, so counting self-damage here is gameplay-neutral and every replay outcome is byte-identical.
     stats: { ...a.state.stats, damageDealt: a.state.stats.damageDealt + a.enemyDamage, damageTaken: a.state.stats.damageTaken + a.playerDamage },
   };
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
