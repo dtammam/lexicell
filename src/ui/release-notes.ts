@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 84, pr: 82, sha: 'pending', date: '2026-09-10', title: 'Seamless music loop', notes: "The background music now plays its quiet intro once and then loops its built-up body seamlessly, instead of restarting from the start each time. It also sits a touch louder." },
+  { build: 85, pr: 83, sha: 'pending', date: '2026-09-10', title: 'Settings', notes: "A settings button is always within reach now, from the title, a fight, anywhere. Sound effects and music each get their own mute and volume, the legible-text switch moves here, and there is a quick way to report a bug." },
+  { build: 84, pr: 82, sha: 'dd7053b', date: '2026-09-10', title: 'Seamless music loop', notes: "The background music now plays its quiet intro once and then loops its built-up body seamlessly, instead of restarting from the start each time. It also sits a touch louder." },
   { build: 83, pr: 81, sha: '8881fc0', date: '2026-09-10', title: 'Music and softer sound', notes: "Background music arrives, playing low under a much softer set of sound effects: warm and calm instead of sharp beeps, with a touch of room to them. Tuned by ear before it landed." },
   { build: 82, pr: 80, sha: 'd6e9f63', date: '2026-09-10', title: 'Sound effects', notes: 'The game has sound now: crisp little effects for selecting tiles, landing a word, taking a hit and winning a run, with a Sound on/off toggle and a volume slider on the How to play screen. Background music arrives once its track is added.' },
   { build: 81, pr: 79, sha: '8d94289', date: '2026-09-10', title: 'Distinct organelles', notes: "The organelle icons are far more varied now: the many that used to share a single glyph each get their own, still drawn in the same little pixel style. No two organelle icons look the same anymore." },
