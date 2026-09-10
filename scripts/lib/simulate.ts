@@ -14,6 +14,10 @@ export interface RunResult {
   readonly scrambles: number;
   /** Shuffle actions the bot took, free or costed. */
   readonly shuffles: number;
+  /** Cursed offers reached (variety wave step 6). */
+  readonly cursedOffersSeen: number;
+  /** Cursed offers whose pair the bot took (rather than leaving the offer). */
+  readonly cursedTaken: number;
   readonly finalHp: number;
   readonly items: readonly string[];
 }
@@ -23,10 +27,18 @@ export function simulateRun(botName: BotName, seed: number, ctx: EngineContext, 
   let state: RunState = newRun(seed, ctx, cell, mode);
   let scrambles = 0;
   let shuffles = 0;
+  let cursedOffersSeen = 0;
+  let cursedTaken = 0;
   // Endless (step 5) runs until the player falls; the guard is per action, so a long deep run needs room.
   for (let guard = 0; guard < 50000; guard++) {
+    // A cursed offer (step 6): count it before the action, and count it taken when the bot picks a pair.
+    const cursed = state.phase === 'pick' && state.curses !== null;
     const actions = nextAction(bot, state, ctx);
     if (!actions) break;
+    if (cursed) {
+      cursedOffersSeen++;
+      if (actions.some((a) => a.type === 'pickItem')) cursedTaken++;
+    }
     for (const a of actions) state = reduce(state, a, ctx);
     if (state.rejected) throw new Error(`seed ${seed}: bot action rejected: ${state.rejected}`);
     // A shuffle sets `scrambled` too (the whole grid moved); count it as a shuffle, not a scramble.
@@ -42,6 +54,8 @@ export function simulateRun(botName: BotName, seed: number, ctx: EngineContext, 
     turns: state.stats.turns,
     scrambles,
     shuffles,
+    cursedOffersSeen,
+    cursedTaken,
     finalHp: state.player.hp,
     items: state.player.items,
   };
@@ -58,6 +72,10 @@ export interface Summary {
   readonly meanTurns: number;
   readonly totalScrambles: number;
   readonly totalShuffles: number;
+  /** Cursed offers reached across all runs (variety wave step 6). */
+  readonly cursedOffersSeen: number;
+  /** Of those, how many the bot took the pair for. */
+  readonly cursedTaken: number;
 }
 
 export function summarise(bot: BotName, results: readonly RunResult[]): Summary {
@@ -85,6 +103,8 @@ export function summarise(bot: BotName, results: readonly RunResult[]): Summary 
     meanTurns: n === 0 ? 0 : results.reduce((a, r) => a + r.turns, 0) / n,
     totalScrambles: results.reduce((a, r) => a + r.scrambles, 0),
     totalShuffles: results.reduce((a, r) => a + r.shuffles, 0),
+    cursedOffersSeen: results.reduce((a, r) => a + r.cursedOffersSeen, 0),
+    cursedTaken: results.reduce((a, r) => a + r.cursedTaken, 0),
   };
 }
 

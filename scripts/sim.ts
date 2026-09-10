@@ -10,6 +10,7 @@
  *   npm run sim -- --json               # machine-readable output
  *   npm run sim -- --variant pre-act1   # a named content variant (scripts/lib/variants.ts)
  *   npm run sim -- --cell aggro         # a starting cell (src/content/cells.ts)
+ *   npm run sim -- --no-curses          # the no-curse baseline (strip the curse pool, step 6)
  */
 import { fileURLToPath } from 'node:url';
 import { CONTENT } from '../src/content/index';
@@ -30,10 +31,17 @@ interface Options {
   cell: string;
   /** Normal is what the criteria judge; endless (step 5) reports how deep the bots get. */
   mode: RunMode;
+  /** Strip the curse pool (variety wave step 6): the no-curse baseline for the pickup / win-rate report. */
+  noCurses: boolean;
+}
+
+/** The content with its curses removed: the no-curse baseline (variety wave step 6). */
+export function stripCurses(content: Content): Content {
+  return { ...content, items: content.items.filter((i) => !i.curse) };
 }
 
 export function parseArgs(argv: readonly string[]): Options {
-  const opts: Options = { runs: 500, bots: [...BOT_NAMES], items: 'all', seedBase: 0, json: false, variant: 'base', cell: 'balanced', mode: 'normal' };
+  const opts: Options = { runs: 500, bots: [...BOT_NAMES], items: 'all', seedBase: 0, json: false, variant: 'base', cell: 'balanced', mode: 'normal', noCurses: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = argv[i + 1];
@@ -59,6 +67,9 @@ export function parseArgs(argv: readonly string[]): Options {
         break;
       case '--json':
         opts.json = true;
+        break;
+      case '--no-curses':
+        opts.noCurses = true;
         break;
       case '--cell':
         if (!v || !CONTENT.cells.some((c) => c.id === v)) throw new Error(`--cell needs one of ${CONTENT.cells.map((c) => c.id).join(', ')}`);
@@ -137,9 +148,38 @@ export function renderTable(summaries: readonly Summary[]): string {
   return [line(head), `|${widths.map((w) => '-'.repeat(w + 2)).join('|')}|`, ...rows.map(line)].join('\n');
 }
 
+/**
+ * The curses report (variety wave step 6): per bot, how many cursed offers it met, how many it took,
+ * the pickup rate, and the win rate WITH curses against a no-curse baseline (same seeds, curses
+ * stripped). A curse is a real tradeoff when pickup is sometimes-not-always and the delta is not
+ * positive (curses available do not raise the win rate).
+ */
+export function renderCurses(withCurses: readonly Summary[], baseline: readonly Summary[]): string {
+  const head = ['bot', 'cursed seen', 'took', 'pickup', 'win (curses)', 'win (no curses)', 'delta'];
+  const rows = withCurses.map((s, i) => {
+    const base = baseline[i] as Summary;
+    const pickup = s.cursedOffersSeen === 0 ? 0 : s.cursedTaken / s.cursedOffersSeen;
+    const delta = s.winRate - base.winRate;
+    return [
+      s.bot,
+      String(s.cursedOffersSeen),
+      String(s.cursedTaken),
+      s.cursedOffersSeen === 0 ? '-' : pct(pickup),
+      pct(s.winRate),
+      pct(base.winRate),
+      `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(1)}pp`,
+    ];
+  });
+  const widths = head.map((h, i) => Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length)));
+  const line = (cells: string[]) => `| ${cells.map((c, i) => c.padStart(widths[i] ?? 0)).join(' | ')} |`;
+  return [line(head), `|${widths.map((w) => '-'.repeat(w + 2)).join('|')}|`, ...rows.map(line)].join('\n');
+}
+
 function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const ctx = nodeContext(contentFor(opts.items, opts.variant));
+  const baseContent = contentFor(opts.items, opts.variant);
+  const content = opts.noCurses ? stripCurses(baseContent) : baseContent;
+  const ctx = nodeContext(content);
   const t0 = performance.now();
   const summaries = opts.bots.map((bot) => simulate(bot, ctx, opts.runs, opts.seedBase, opts.cell, opts.mode));
   const elapsed = (performance.now() - t0) / 1000;
@@ -149,11 +189,19 @@ function main() {
     return;
   }
   const itemsLabel = opts.items === 'all' ? `all ${CONTENT.items.length} items` : opts.items === 'none' ? 'no items' : opts.items.join(',');
-  console.log(`Lexicell sim: ${opts.runs} runs per bot, seeds ${opts.seedBase}..${opts.seedBase + opts.runs - 1}, ${itemsLabel}, variant ${opts.variant}, cell ${opts.cell}, mode ${opts.mode}. ${elapsed.toFixed(1)}s\n`);
+  const cursesLabel = opts.noCurses ? ', no curses' : '';
+  console.log(`Lexicell sim: ${opts.runs} runs per bot, seeds ${opts.seedBase}..${opts.seedBase + opts.runs - 1}, ${itemsLabel}, variant ${opts.variant}, cell ${opts.cell}, mode ${opts.mode}${cursesLabel}. ${elapsed.toFixed(1)}s\n`);
   console.log(renderTable(summaries));
   if (opts.mode === 'endless') {
     console.log('\nEndless: the criteria judge Normal; here the number that matters is the median encounter reached.');
     return;
+  }
+  // Curses (variety wave step 6): pickup rate and the win-rate delta against a same-seed no-curse baseline.
+  const curseItems = baseContent.items.filter((i) => i.curse);
+  if (!opts.noCurses && curseItems.length > 0) {
+    const baseline = opts.bots.map((bot) => simulate(bot, nodeContext(stripCurses(baseContent)), opts.runs, opts.seedBase, opts.cell, opts.mode));
+    console.log(`\nCurses (${curseItems.length} in the pool):`);
+    console.log(renderCurses(summaries, baseline));
   }
   console.log('\nExit criteria:');
   const mark = (v: boolean | null) => (v === null ? 'n/a ' : v ? 'PASS' : 'FAIL');

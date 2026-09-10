@@ -756,4 +756,18 @@ export const ITEMS: readonly ItemDef[] = [
   { id: 'keystone', name: 'Keystone', rarity: 'rare', description: 'Words with no repeated letters deal +5 per letter.', flavor: 'Every piece holds the others up.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'uniqueLetters' }, then: [{ type: 'perUnit', unit: 'letter', then: [{ type: 'addFlat', value: 5 }] }] }] } },
   // Mythic.
   { id: 'protocell', name: 'Protocell', rarity: 'mythic', description: 'Every word heals 40% of its damage, gains 10 shield and poisons the enemy for 8.', flavor: 'The first one. Everything since is a footnote.', hooks: { onWordScored: [{ type: 'lifesteal', fraction: 0.4 }, { type: 'shield', value: 10 }, { type: 'poisonEnemy', value: 8 }] } },
+  // Curses (variety wave step 6). Each carries `curse: true` and self-harm hooks from the existing
+  // verbs; they never appear as a normal boon (drawOffer filters them) and are drawn only as the
+  // cost attached to a boon in a cursed offer. The rarity is cosmetic here (curses are drawn
+  // uniformly, not by weight); it only tints the compendium entry.
+  { id: 'curse-dull', name: 'Blunting', rarity: 'common', curse: true, description: 'Every word deals 5 less damage.', flavor: 'The edge goes first, then the will.', hooks: { onWordScored: [{ type: 'addFlat', value: -5 }] } },
+  { id: 'curse-weak', name: 'Enervation', rarity: 'common', curse: true, description: 'Your words deal 25% less damage.', flavor: 'The strength is there. It just will not come.', hooks: { onWordScored: [{ type: 'addMult', value: -0.25 }] } },
+  { id: 'curse-lumber', name: 'Lumbering', rarity: 'uncommon', curse: true, description: 'Words of 6 or more letters deal half damage.', flavor: 'The long ones drag on the floor.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'minLength', value: 6 }, then: [{ type: 'addMult', value: -0.5 }] }] } },
+  { id: 'curse-thin-skin', name: 'Thin Skin', rarity: 'common', curse: true, description: 'Basic enemy attacks hit for 2 more. Specials and venom are unaffected.', flavor: 'Everything gets a little closer to the quick.', hooks: { onDamageTaken: [{ type: 'reduceDamage', value: -2 }] } },
+  { id: 'curse-bleed', name: 'Hemorrhage', rarity: 'uncommon', curse: true, description: 'Lose 1 HP at the start of every turn.', flavor: 'A slow leak you cannot find the source of.', hooks: { onTurnStart: [{ type: 'damagePlayer', value: 1 }] } },
+  { id: 'curse-frail', name: 'Atrophy', rarity: 'common', curse: true, description: 'Lose 15 max HP when taken.', flavor: 'Less of you to carry the rest.', hooks: { onPick: [{ type: 'maxHp', value: -15 }] } },
+  { id: 'curse-drought', name: 'Drought', rarity: 'common', curse: true, description: 'Vowels are drawn 40% less often.', flavor: 'The wells that make words go dry.', hooks: { onTileDraw: [{ type: 'vowelWeight', value: 0.6 }] } },
+  { id: 'curse-shackle', name: 'Shackle', rarity: 'uncommon', curse: true, description: 'One tile locks for a turn at the start of every turn.', flavor: 'Something takes hold and will not let go.', hooks: { onTurnStart: [{ type: 'lockTiles', count: 1, turns: 1 }] } },
+  { id: 'curse-fester', name: 'Festering', rarity: 'uncommon', curse: true, description: 'One clean tile turns venomous at the start of every turn.', flavor: 'It spreads on its own from here.', hooks: { onTurnStart: [{ type: 'venomTiles', count: 1, value: 1 }] } },
+  { id: 'curse-tremor', name: 'Palsy', rarity: 'rare', curse: true, description: 'Every third turn the grid scrambles.', flavor: 'The hand shakes at the worst moment.', hooks: { onTurnStart: [{ type: 'condition', when: { kind: 'turnEvery', value: 3 }, then: [{ type: 'scramble' }] }] } },
 ];

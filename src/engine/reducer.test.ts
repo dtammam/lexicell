@@ -76,7 +76,10 @@ function expectedItems(seed: number, c: EngineContext = ctx): number {
   const healed = log.some((a) => a.type === 'restHeal') ? 0 : 1;
   const eventState = states.find((st) => st.phase === 'event');
   const trade = c.content.events.find((e) => e.id === eventState?.event)?.choices[0];
-  return 6 + healed + (trade?.rarePick ? 1 : 0);
+  // A cursed offer (variety wave step 6) the greedy helper takes adds its curse on top of the boon:
+  // one extra item per cursed pick it walked through (it never skips).
+  const cursedPicks = states.filter((st) => st.phase === 'pick' && st.curses !== null).length;
+  return 6 + healed + (trade?.rarePick ? 1 : 0) + cursedPicks;
 }
 
 function assertInvariants(s: RunState, c: EngineContext) {
@@ -96,6 +99,13 @@ function assertInvariants(s: RunState, c: EngineContext) {
   if (s.phase === 'event') expect(s.event).not.toBeNull();
   if (s.phase !== 'event') expect(s.event).toBeNull();
   if (s.phase === 'summary') expect(s.outcome).not.toBeNull();
+  // Curses (variety wave step 6): non-null only on a cursed pick, aligned 1:1 with the offer.
+  if (s.phase !== 'pick') expect(s.curses).toBeNull();
+  if (s.curses !== null) {
+    expect(s.phase).toBe('pick');
+    expect(s.curses.length).toBe(s.offer?.length);
+    for (const id of s.curses) expect(c.content.items.find((i) => i.id === id)?.curse, id).toBe(true);
+  }
   expect(JSON.parse(JSON.stringify(s))).toEqual(s);
 }
 
@@ -180,9 +190,11 @@ describe('submitWord', () => {
       const prev = states[i - 1]!;
       const cur = states[i]!;
       if (prev.phase === 'pick' && cur.phase === 'fight') {
-        expect(cur.encounter?.playerHpAtStart).toBeGreaterThanOrEqual(prev.player.hp);
+        // A cursed pick (step 6) adds the curse too, and its onPick max-HP cut can lower HP: the
+        // never-less rule holds only for a normal pick.
+        if (prev.curses === null) expect(cur.encounter?.playerHpAtStart).toBeGreaterThanOrEqual(prev.player.hp);
         expect(cur.encounter?.playerHpAtStart).toBeLessThanOrEqual(cur.player.maxHp);
-        expect(cur.player.items).toHaveLength(prev.player.items.length + 1);
+        expect(cur.player.items).toHaveLength(prev.player.items.length + (prev.curses ? 2 : 1));
       }
     }
   });
@@ -1163,7 +1175,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(9);
+      expect(a.final.v).toBe(10);
     }
   });
 });
@@ -1404,7 +1416,7 @@ describe('variety wave step 5: Normal and Endless (save v9)', () => {
     const again = dive(3, 16);
     expect(JSON.stringify(again.final)).toBe(JSON.stringify(final));
     expect(JSON.parse(JSON.stringify(final))).toEqual(final);
-    expect(final.v).toBe(9);
+    expect(final.v).toBe(10);
   });
 
   it('a normal run never extends its kinds or passes the ninth slot', () => {
@@ -1632,7 +1644,7 @@ describe('variety wave step 4: gold and cracked tiles (save v8)', () => {
       const b = greedyRun(seed, c);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(9);
+      expect(a.final.v).toBe(10);
     }
   });
 });
@@ -1762,7 +1774,7 @@ describe('variety wave step 3: evolution (save v7)', () => {
       const b = greedyRun(seed, flat);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(9);
+      expect(a.final.v).toBe(10);
       const evolves = a.states.filter((st) => st.phase === 'evolve').length;
       if (a.final.outcome === 'won') {
         expect(evolves).toBe(2);
@@ -1797,7 +1809,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       // The same kinds land in the run, and the run's RNG has spent the three draws before the kit.
       const run = newRun(seed, flat);
       expect(run.kinds).toEqual(kinds);
-      expect(run.v).toBe(9);
+      expect(run.v).toBe(10);
       expect(run.event).toBeNull();
     }
     for (const kind of ['elite', 'rest', 'event']) expect([...(seen[kind] ?? [])].sort(), kind).toEqual(NON_BOSS_AFTER_FIRST);
@@ -2013,7 +2025,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(a.log).toEqual(b.log);
       const kinds = a.states.map((st) => st.phase).filter((p) => p === 'rest' || p === 'event');
-      expect(a.final.v).toBe(9);
+      expect(a.final.v).toBe(10);
       // Over the four seeds at least one run passes through a rest or an event before the summary.
       if (kinds.length > 0) return;
     }
@@ -2357,6 +2369,156 @@ describe('starting cells (save v4)', () => {
       expect(a.cell).toBe(c.id);
       expect(a.phase).toBe('summary');
     }
+  });
+});
+
+describe('variety wave step 6: curses (save v10)', () => {
+  const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+  const curseIds = new Set(CONTENT.items.filter((i) => i.curse).map((i) => i.id));
+  const boonIds = new Set(CONTENT.items.filter((i) => !i.curse).map((i) => i.id));
+
+  /** A staged fight at `index` with a one-HP, harmless amoeba and no items, every slot a plain fight. */
+  function fightAt(seed: number, index: number): RunState {
+    const base = newRun(seed, flat);
+    const enc = base.encounter as Encounter;
+    return {
+      ...base,
+      encounterIndex: index,
+      kinds: base.kinds.map((): EncounterKindT => 'fight'),
+      player: { ...base.player, items: [] },
+      encounter: { ...enc, enemy: { id: 'amoeba', hp: 1, maxHp: 1, damage: 0, poison: 0, stunned: 0 } },
+    };
+  }
+  /** Kill the staged enemy with the first candidate word, returning the offer that follows. */
+  function offerAfter(seed: number, index: number): { before: RunState; after: RunState } {
+    const before = fightAt(seed, index);
+    const word = candidateWords(before, flat)[0];
+    if (!word) throw new Error(`seed ${seed}: no word`);
+    return { before, after: play(before, word.word, flat) };
+  }
+
+  it('a cursed offer aligns one curse per boon slot, off the run RNG, only act 2+, about one in five; act 1 is never cursed', () => {
+    let cursed = 0;
+    let plain = 0;
+    let act1Cursed = 0;
+    for (let seed = 0; seed < 120; seed++) {
+      const { after } = offerAfter(seed, 3); // index 3: act 2, a plain fight
+      expect(after.phase).toBe('pick');
+      for (const id of after.offer ?? []) expect(boonIds.has(id), `boon slot ${id}`).toBe(true); // a curse never appears as a boon
+      if (after.curses === null) {
+        plain++;
+      } else {
+        cursed++;
+        expect(after.curses.length).toBe((after.offer ?? []).length);
+        for (const id of after.curses) expect(curseIds.has(id), `curse slot ${id}`).toBe(true);
+        expect(new Set(after.curses).size).toBe(after.curses.length); // drawn without replacement
+      }
+      const a1 = offerAfter(seed, 1).after; // index 1: act 1, never cursable
+      expect(a1.curses, `seed ${seed} act 1`).toBeNull();
+      if (a1.curses !== null) act1Cursed++;
+    }
+    expect(act1Cursed).toBe(0);
+    // A real chance: sometimes cursed, sometimes not (not 0%, not 100%). Roughly one in five over 120.
+    expect(cursed, 'some cursed').toBeGreaterThan(0);
+    expect(plain, 'some plain').toBeGreaterThan(0);
+    expect(cursed).toBeGreaterThan(10);
+    expect(cursed).toBeLessThan(50);
+  });
+
+  it('the roll is drawn only when eligible: an act-2 offer spends exactly one draw more than the act-1 offer (plus one per curse when cursed)', () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const a1 = offerAfter(seed, 1); // act 1: no roll
+      const a3 = offerAfter(seed, 3); // act 2: a roll, plus curse draws if it hits
+      // The grid and pool are identical, so drawOffer spends the same draws in both; the difference is the roll.
+      const d1 = a1.after.rng.counter - a1.before.rng.counter;
+      const d3 = a3.after.rng.counter - a3.before.rng.counter;
+      const extra = a3.after.curses === null ? 1 : 1 + a3.after.curses.length;
+      expect(d3 - d1, `seed ${seed}`).toBe(extra);
+    }
+  });
+
+  it('a cursed offer replays byte-identical', () => {
+    // Find a seed whose act-2 offer is cursed, then confirm two identical setups produce the same offer and curses.
+    let seed = 0;
+    for (; seed < 200; seed++) if (offerAfter(seed, 3).after.curses !== null) break;
+    expect(seed, 'a cursed seed under 200').toBeLessThan(200);
+    const a = offerAfter(seed, 3).after;
+    const b = offerAfter(seed, 3).after;
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(a.curses).not.toBeNull();
+    expect(JSON.parse(JSON.stringify(a))).toEqual(a);
+  });
+
+  it('endless act-3 slots are cursable too (encounterDefFor act 3)', () => {
+    // A generated slot past the ninth is act 3, so its normal offer can be cursed.
+    let cursed = 0;
+    for (let seed = 0; seed < 80; seed++) {
+      const before = { ...fightAt(seed, 12), mode: 'endless' as const };
+      const word = candidateWords(before, flat)[0];
+      if (!word) continue;
+      const after = play(before, word.word, flat);
+      if (after.phase === 'pick' && after.curses !== null) cursed++;
+    }
+    expect(cursed, 'some endless offers cursed').toBeGreaterThan(0);
+  });
+
+  it('pickItem takes the boon AND its curse, firing both onPick in order (boon first)', () => {
+    // Cocoon (onPick: +15 shield, +5 max HP) paired with Atrophy (onPick: -15 max HP). Both must fire:
+    // shield rises by 15 (the boon), and max HP ends at 100 + 5 - 15 = 90 (the curse), not 105.
+    const base = fightAt(1, 3);
+    const staged: RunState = { ...base, phase: 'pick', encounter: null, offer: ['cocoon', 'thick-skin', 'spores'], curses: ['curse-frail', 'curse-dull', 'curse-bleed'] };
+    const after = reduce(staged, { type: 'pickItem', index: 0 }, flat);
+    expect(after.player.items).toEqual(['cocoon', 'curse-frail']); // boon before curse
+    expect(after.player.shield).toBe(15);
+    expect(after.player.maxHp).toBe(base.player.maxHp + 5 - 15);
+    expect(after.offer).toBeNull();
+    expect(after.curses).toBeNull();
+    expect(after.encounterIndex).toBe(4); // advanced to the next slot
+  });
+
+  it('skipOffer leaves the whole offer and advances; it is rejected on a normal offer', () => {
+    const base = fightAt(2, 3);
+    const cursed: RunState = { ...base, phase: 'pick', encounter: null, offer: ['lens', 'thick-skin', 'spores'], curses: ['curse-frail', 'curse-dull', 'curse-bleed'] };
+    const skipped = reduce(cursed, { type: 'skipOffer' }, flat);
+    expect(skipped.player.items).toEqual([]); // nothing taken
+    expect(skipped.curses).toBeNull();
+    expect(skipped.encounterIndex).toBe(4); // advanced
+    expect(skipped.rejected).toBeNull();
+    // A normal offer (curses null) is mandatory: skipOffer changes nothing.
+    const normal: RunState = { ...base, phase: 'pick', encounter: null, offer: ['lens'], curses: null };
+    expect(reduce(normal, { type: 'skipOffer' }, flat).rejected).toBe('no cursed offer to leave');
+    // Off a pick entirely, skipOffer is rejected.
+    expect(reduce(newRun(1, flat), { type: 'skipOffer' }, flat).rejected).toBe('no cursed offer to leave');
+  });
+
+  it('an onTurnStart HP drain to zero is a loss, caught at the turn-start death check', () => {
+    const base = newRun(1, flat);
+    const enc = base.encounter as Encounter;
+    const staged: RunState = {
+      ...base,
+      player: { ...base.player, hp: 1, items: ['curse-bleed'] },
+      encounter: { ...enc, enemy: { id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0, poison: 0, stunned: 0 } },
+    };
+    const word = candidateWords(staged, flat).sort((a, b) => b.damage - a.damage)[0];
+    if (!word) throw new Error('no word');
+    // The played turn deals 0 enemy damage; the next turn start drains 1 (Hemorrhage), 1 HP to 0: a loss.
+    const after = play(staged, word.word, flat);
+    expect(after.phase).toBe('summary');
+    expect(after.outcome).toBe('lost');
+    expect(after.player.hp).toBe(0);
+    expect(after.stats.damageTaken).toBeGreaterThanOrEqual(1);
+  });
+
+  it('a cell run through cursed offers replays byte-identical and stays JSON-plain', () => {
+    for (const seed of [0, 1, 2, 3, 4]) {
+      const a = greedyRun(seed, flat);
+      const b = greedyRun(seed, flat);
+      expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
+      expect(a.final.v).toBe(10);
+      const sawCursed = a.states.some((st) => st.phase === 'pick' && st.curses !== null);
+      if (sawCursed) return;
+    }
+    throw new Error('no seed in 0..4 reached a cursed offer');
   });
 });
 

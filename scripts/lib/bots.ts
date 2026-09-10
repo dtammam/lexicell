@@ -138,6 +138,105 @@ export function offerScore(item: ItemDef): number {
   return hooksScore(item.hooks) + RARITY_TIEBREAK[item.rarity];
 }
 
+/**
+ * How bad a curse looks (variety wave step 6): read the SIGN of each effect, in the same 2-per-effect
+ * units as hooksScore, so a boon's offerScore and a curse's cost compare directly. A cost the curse
+ * only pays under a condition (long words, every third turn) is half-weighted, since it does not
+ * always fire. Reading signs is the whole heuristic; the bots decide with it below.
+ */
+export function curseCost(item: ItemDef): number {
+  let cost = 0;
+  const walk = (effects: readonly Effect[], weight: number) => {
+    for (const e of effects) {
+      if (e.type === 'condition') {
+        walk(e.then, weight * 0.5);
+        continue;
+      }
+      if (e.type === 'perUnit') {
+        walk(e.then, weight);
+        continue;
+      }
+      switch (e.type) {
+        case 'addFlat':
+        case 'addMult':
+        case 'maxHp':
+          if (e.value < 0) cost += 2 * weight;
+          break;
+        case 'vowelWeight':
+          if (e.value < 1) cost += 2 * weight;
+          break;
+        // The compounding curses (extra damage every hit, HP drain / a lock / venom every turn) are
+        // weighted heavier: they fire for the length of the fight, so a bot that plays long games
+        // suffers them far more than the raw sign suggests. Steering every bot off these keeps them
+        // from dragging the slow, weak player out of its win-rate band.
+        case 'reduceDamage':
+          if (e.value < 0) cost += 4 * weight;
+          break;
+        case 'damagePlayer':
+          cost += 5 * weight;
+          break;
+        case 'lockTiles':
+        case 'venomTiles':
+          cost += 4 * weight;
+          break;
+        case 'scramble':
+          cost += 3 * weight;
+          break;
+        default:
+          break;
+      }
+    }
+  };
+  for (const effects of Object.values(item.hooks)) walk(effects ?? [], 1);
+  return cost;
+}
+
+/** A boon strong enough that the greedy bot takes it with its curse (variety wave step 6). */
+export const GREEDY_CURSE_BAR = 4;
+/**
+ * The margin by which a boon must beat its curse for the mediocre bot to take the pair. It is
+ * NEGATIVE on purpose, a finding that overrides the first bot spec ("mediocre skips more readily"):
+ * a cursed offer REPLACES a normal offer, so leaving one forfeits the boon entirely, and for the
+ * slow, weak player that hurts MORE than eating the curse. Measured on the balanced cell: at margin
+ * +5 (skips a lot) mediocre wins 18.4%, at +2 it wins 19.4% (both out of the 20-40 band); at -3
+ * (takes the boon unless its curse clearly outweighs it, skipping only the worst) it wins 23.4%, in
+ * band and near the 24.4% no-curse baseline. So the mediocre model is "grab the organelle, wear the
+ * curse", skipping only a dreadful pair. Greedy and solver stay selective, so pickup is still
+ * sometimes-not-always across the bots and the win-rate delta stays negative.
+ */
+export const MEDIOCRE_CURSE_MARGIN = -3;
+
+/**
+ * A cursed offer (variety wave step 6): choose a boon+curse slot to take, or null to leave the whole
+ * offer. Greedy takes the strongest boon when it clears the bar, curse and all; the solver takes the
+ * best net-positive slot; the mediocre bot takes the best slot down to a negative margin (grab the
+ * organelle, wear the curse), leaving only a pair whose curse clearly outweighs its boon.
+ */
+export function chooseCursed(name: BotName, state: RunState, ctx: EngineContext): number | null {
+  const offer = state.offer ?? [];
+  const curses = state.curses ?? [];
+  const item = (id: string): ItemDef => ctx.content.items.find((i) => i.id === id) as ItemDef;
+  const boon = (i: number): number => offerScore(item(offer[i] as string));
+  const cost = (i: number): number => curseCost(item(curses[i] as string));
+  if (offer.length === 0) return null;
+  if (name === 'greedy') {
+    let bestI = 0;
+    for (let i = 1; i < offer.length; i++) if (boon(i) > boon(bestI)) bestI = i;
+    return boon(bestI) >= GREEDY_CURSE_BAR ? bestI : null;
+  }
+  const margin = name === 'mediocre' ? MEDIOCRE_CURSE_MARGIN : 0;
+  let bestI = -1;
+  let bestNet = margin;
+  for (let i = 0; i < offer.length; i++) {
+    const net = boon(i) - cost(i);
+    if (net > bestNet) {
+      bestNet = net;
+      bestI = i;
+    }
+  }
+  return bestI >= 0 ? bestI : null;
+}
+
 /** Every bot takes the trait whose hooks score highest; ties keep the first offered. */
 export function chooseTrait(state: RunState, ctx: EngineContext): number {
   const scores = (state.offer ?? []).map((id) => hooksScore(ctx.content.traits.find((t) => t.id === id)?.hooks ?? {}));
@@ -210,7 +309,14 @@ export function tradeCost(choice: EventChoice): number {
 
 export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Action[] | null {
   if (state.phase === 'summary') return null;
-  if (state.phase === 'pick') return [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];
+  if (state.phase === 'pick') {
+    // A cursed offer (variety wave step 6): take a boon+curse pair or leave the whole offer.
+    if (state.curses !== null) {
+      const choice = chooseCursed(bot.name, state, ctx);
+      return choice === null ? [{ type: 'skipOffer' }] : [{ type: 'pickItem', index: choice }];
+    }
+    return [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];
+  }
   if (state.phase === 'evolve') return [{ type: 'pickTrait', index: chooseTrait(state, ctx) }];
   if (state.phase === 'rest') {
     const low = state.player.hp < state.player.maxHp * REST_HEAL_BELOW;

@@ -11,14 +11,19 @@
   const owned = $derived(run.player.items.map((id) => itemDef(id).name));
   // A rest (variety wave step 2): the same three-offer with a heal beside it; one or the other.
   const rest = $derived(run.phase === 'rest');
+  // A cursed offer (variety wave step 6): every option drags a curse with it; take one pair or leave it all.
+  const curses = $derived(run.curses);
+  const cursed = $derived(run.phase === 'pick' && curses !== null);
   const healAmount = $derived(Math.min(run.player.maxHp - run.player.hp, Math.round(run.player.maxHp * CONTENT.tuning.restHeal)));
-  const title = $derived(rest ? 'A quiet pool' : run.pendingPicks > 0 ? 'Choose a starting item' : 'Choose an item');
+  const title = $derived(cursed ? 'A cursed offer' : rest ? 'A quiet pool' : run.pendingPicks > 0 ? 'Choose a starting item' : 'Choose an item');
   const hint = $derived(
-    rest
-      ? 'Nothing hunts here. Rest and heal, or take one organelle instead. Either way the next fight starts right after.'
-      : run.pendingPicks > 0
-        ? 'Tap one. You keep it for the whole run, and your first fight starts right after.'
-        : 'Tap one to add it to your cell. The next fight starts right after.',
+    cursed
+      ? 'Every one comes with a curse. Take an organelle and its curse together, or leave the whole offer. The next fight starts right after.'
+      : rest
+        ? 'Nothing hunts here. Rest and heal, or take one organelle instead. Either way the next fight starts right after.'
+        : run.pendingPicks > 0
+          ? 'Tap one. You keep it for the whole run, and your first fight starts right after.'
+          : 'Tap one to add it to your cell. The next fight starts right after.',
   );
 </script>
 
@@ -35,15 +40,32 @@
   {/if}
   {#each offer as id, i (id)}
     {@const item = itemDef(id)}
-    <button class="offer" onclick={() => { dispatch({ type: 'pickItem', index: i }); }}>
+    {@const curseId = cursed && curses ? curses[i] : undefined}
+    {@const curse = curseId ? itemDef(curseId) : null}
+    <button class="offer" class:cursed onclick={() => { dispatch({ type: 'pickItem', index: i }); }}>
       <ItemIcon {id} size={40} />
       <span class="text">
         <span class="name">{item.name} <small class={item.rarity}>{item.rarity}</small></span>
         <span class="desc">{item.description}</span>
         <span class="flavor">{item.flavor}</span>
+        {#if curse}
+          <span class="curse">
+            <span class="curse-label">Curse</span>
+            <span class="curse-name">{curse.name}</span>
+            <span class="curse-desc">{curse.description}</span>
+          </span>
+        {/if}
       </span>
     </button>
   {/each}
+  {#if cursed}
+    <button class="offer leave" onclick={() => { dispatch({ type: 'skipOffer' }); }}>
+      <span class="text">
+        <span class="name">Leave it</span>
+        <span class="desc">Take nothing and no curse. Move straight to the next fight.</span>
+      </span>
+    </button>
+  {/if}
   {#if owned.length > 0}
     <p class="owned">You carry: {owned.join(', ')}</p>
   {/if}
@@ -84,6 +106,37 @@
   }
   .offer.heal {
     border-color: var(--life);
+  }
+  .offer.cursed {
+    border-color: var(--harm);
+  }
+  .offer.leave {
+    border-style: dashed;
+  }
+  .curse {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    margin-top: var(--s2);
+    padding-top: var(--s2);
+    border-top: 1px dashed var(--harm);
+  }
+  .curse-label {
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--harm);
+  }
+  .curse-name {
+    font-family: var(--font-head);
+    font-size: var(--name);
+    color: var(--harm);
+  }
+  .curse-desc {
+    color: var(--harm);
+    font-size: var(--text);
+    line-height: 1.35;
   }
   .offer:active {
     transform: translate(3px, 3px);

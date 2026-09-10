@@ -7,9 +7,12 @@
   let { onBack }: { onBack: () => void } = $props();
 
   const ORDER: readonly Rarity[] = ['common', 'uncommon', 'rare', 'mythic'];
+  // Curses (variety wave step 6) are never drafted as boons, so they stand apart from the rarity groups.
+  const draftable = CONTENT.items.filter((i) => !i.curse);
+  const curses = CONTENT.items.filter((i) => i.curse);
   const groups: readonly { rarity: Rarity; items: readonly ItemDef[] }[] = ORDER.map((rarity) => ({
     rarity,
-    items: CONTENT.items.filter((i) => i.rarity === rarity),
+    items: draftable.filter((i) => i.rarity === rarity),
   }));
 </script>
 
@@ -18,7 +21,7 @@
     <h2>Organelles</h2>
     <button class="btn" onclick={onBack}>Back</button>
   </header>
-  <p class="hint">{CONTENT.items.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1, mythic 0.35, and never more than two commons at once.</p>
+  <p class="hint">{draftable.length} to find. Offers draw three you do not carry, weighted common 3, uncommon 2, rare 1, mythic 0.35, and never more than two commons at once. After act 1, an offer may come cursed.</p>
   <div class="list">
     {#each groups as group (group.rarity)}
       <h3 class={group.rarity}>{group.rarity} ({group.items.length})</h3>
@@ -33,6 +36,19 @@
         </div>
       {/each}
     {/each}
+    {#if curses.length > 0}
+      <h3 class="curse">curses ({curses.length})</h3>
+      {#each curses as item (item.id)}
+        <div class="entry">
+          <ItemIcon id={item.id} size={32} />
+          <span class="text">
+            <span class="name">{item.name}</span>
+            <span class="desc">{item.description}</span>
+            <span class="flavor">{item.flavor}</span>
+          </span>
+        </div>
+      {/each}
+    {/if}
   </div>
 </section>
 
@@ -88,6 +104,9 @@
   h3.mythic {
     color: var(--mythic);
     text-shadow: 0 0 6px var(--mythic);
+  }
+  h3.curse {
+    color: var(--harm);
   }
   .entry {
     display: flex;

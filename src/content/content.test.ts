@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { WORDS_PATH } from '../../scripts/lib/load-dictionary';
+import type { Effect } from '../engine/effects';
 import { CONTENT } from './index';
 
 describe('content bundle', () => {
@@ -104,6 +105,48 @@ describe('content bundle', () => {
   it('every item has a generated icon under public/sprites/items (scripts/sprites.py)', () => {
     const root = WORDS_PATH.replace(/src\/content\/dictionary\/words\.txt$/, '');
     for (const item of CONTENT.items) expect(existsSync(`${root}public/sprites/items/${item.id}.png`), item.id).toBe(true);
+  });
+
+  it('curses (variety wave step 6): at least eight, each carries the flag, a cost hook from the existing verbs, description and flavor, a sprite; boons carry no flag', () => {
+    const root = WORDS_PATH.replace(/src\/content\/dictionary\/words\.txt$/, '');
+    const curses = CONTENT.items.filter((i) => i.curse);
+    expect(curses.length).toBeGreaterThanOrEqual(8);
+    // Every curse must be an actual cost: at least one hook effect is a negative number or a
+    // self-harm verb. A curse with only upside would be a free item, not a curse.
+    const isCost = (e: Effect): boolean => {
+      switch (e.type) {
+        case 'addFlat':
+        case 'addMult':
+        case 'reduceDamage':
+        case 'maxHp':
+          return e.value < 0;
+        case 'vowelWeight':
+          return e.value < 1;
+        case 'damagePlayer':
+          return e.value > 0;
+        case 'lockTiles':
+        case 'venomTiles':
+        case 'scramble':
+          return true;
+        default:
+          return false;
+      }
+    };
+    const anyCost = (effects: readonly Effect[]): boolean =>
+      effects.some((e) => (e.type === 'condition' ? anyCost(e.then) : e.type === 'perUnit' ? anyCost(e.then) : isCost(e)));
+    for (const c of curses) {
+      expect(c.curse, c.id).toBe(true);
+      expect(c.description.length, c.id).toBeGreaterThan(0);
+      expect(c.flavor.length, c.id).toBeGreaterThan(0);
+      expect(c.flavor, c.id).not.toMatch(/\d/);
+      const hookHasCost = Object.values(c.hooks).some((effects) => anyCost(effects ?? []));
+      expect(hookHasCost, `${c.id}: no cost hook`).toBe(true);
+      expect(existsSync(`${root}public/sprites/items/${c.id}.png`), c.id).toBe(true);
+    }
+    // Self-venom stays at or under the cap, like an enemy special (content test above).
+    for (const c of curses) for (const h of Object.values(c.hooks)) for (const e of h ?? []) if (e.type === 'venomTiles') expect(e.value, c.id).toBeLessThanOrEqual(CONTENT.tuning.venomMax);
+    // Every non-curse item leaves the flag off, so drawOffer's `!i.curse` filter and the compendium split are exact.
+    for (const i of CONTENT.items.filter((x) => !x.curse)) expect(i.curse, i.id).toBeUndefined();
   });
 
   it('has five starting cells with unique ids, balanced first with no traits, every starting item real, HP in a sane band', () => {

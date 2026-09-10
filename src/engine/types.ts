@@ -39,6 +39,12 @@ export interface ItemDef {
   /** One line of voice (Dean, 2026-09-08). Never mechanics; the description carries those. */
   readonly flavor: string;
   readonly hooks: Partial<Record<Hook, readonly Effect[]>>;
+  /**
+   * Curse (variety wave step 6): a self-harm item that never appears as a normal boon. Curses
+   * are drawn only as the attached cost in a cursed offer (see reducer.makeOffer / RunState.curses)
+   * and are filtered out of drawOffer. A curse uses the same effect verbs as any item, inverted.
+   */
+  readonly curse?: true;
 }
 
 /**
@@ -272,7 +278,7 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 9;
+  readonly v: 10;
   readonly rng: Rng;
   /** The starting cell's id (content.cells). v4; v3 saves load as 'balanced'. */
   readonly cell: string;
@@ -294,6 +300,13 @@ export interface RunState {
   readonly player: PlayerState;
   readonly encounter: Encounter | null;
   readonly offer: readonly string[] | null;
+  /**
+   * A cursed offer (variety wave step 6, v10): the curse attached to each `offer` slot, aligned by
+   * index. Non-null ONLY during a cursed `pick` phase, where its length equals `offer.length`; null
+   * everywhere else. About one in five normal post-fight and post-boss offers after act 1 is cursed;
+   * pickItem takes the boon AND its curse, skipOffer leaves the whole offer.
+   */
+  readonly curses: readonly string[] | null;
   readonly outcome: Outcome | null;
   readonly lastTurn: TurnReport | null;
   /** Why the last action was rejected, if it was. Cleared by the next accepted action. */
