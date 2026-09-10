@@ -25,15 +25,21 @@ and adds to your phone's home screen as an app.
 
 ---
 
-Lexicell is Bookworm Adventures at its core: a four-by-four board of letters, no
-timer, tap to spell a word, the longer and rarer the word the harder it hits.
-Around that sits roguelike run variety in the spirit of Binding of Isaac and
-Balatro, where a run is shaped by the organelles you draw and the traits you
-evolve rather than by the words the game allows. It has the one-more-word pull of
-Wordle and the nostalgic 80s look of Plague Inc, rendered in a saturated pixel
-style with hard shadows called Plasma. A run is fifteen to twenty minutes, and
-your health carries across all nine encounters, so every hit in act one is a hit
-that matters in act three.
+Lexicell borrows one thing from Bookworm Adventures: its core loop. A four-by-four
+board of letters, no timer, tap to spell a word, and the longer and rarer the word
+the harder it hits. Bookworm Adventures was a mostly deterministic game with a few
+roguelike touches, not a roguelike itself. Lexicell keeps that loop and builds a
+real roguelike around it, an item pool and probabilities and enemies that each play
+differently, in the spirit of Binding of Isaac and Balatro. The theme is rapid
+evolution, borrowed from Plague Inc. The look is a retro pixel style called Plasma,
+unstable on purpose, with tiles that shiver and Earthbound in the veins. The word
+game itself owes the mobile-era pull of Wordle and Words With Friends. A run is
+fifteen to twenty minutes, and your health carries across all nine encounters, so
+every hit in act one still matters in act three.
+
+It is a combination of things I have loved over a long time. I built it with AI,
+putting the agentic harness and software habits I use elsewhere to work on a
+challenge that was new to me: game development.
 
 Every merge to main is a public release, automatically, to both the link above
 and Docker Hub. The title screen shows the build number, and there is a Release
