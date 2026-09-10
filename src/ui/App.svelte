@@ -93,15 +93,19 @@
     if (!ctx) return;
     screen = 'cells';
   }
-  /** Cell chosen: replace whatever run existed (Title asked first when one did), then the intro. */
-  function onCellPick(cellId: string, mode: RunMode) {
+  /**
+   * Cell chosen: replace whatever run existed (Title asked first when one did), then the intro.
+   * A pasted seed (share card round-trip) is used verbatim; blank/invalid arrives as undefined and
+   * the game rolls one from the clock, exactly as before.
+   */
+  function onCellPick(cellId: string, mode: RunMode, seedIn?: number) {
     if (!ctx) return;
     // Abandoning a live run records it as such (Dean, question 1); a run that already ended was recorded then.
     const live = store?.state ?? persist.load();
     if (live && live.phase !== 'summary') record(live, 'abandoned');
     persist.clear();
     if (!store) openStore(ctx);
-    store?.dispatch({ type: 'newRun', seed: seed(), cell: cellId, mode });
+    store?.dispatch({ type: 'newRun', seed: seedIn ?? seed(), cell: cellId, mode });
     screen = 'intro';
   }
   function onBegin() {
@@ -114,6 +118,10 @@
   /** Summary: New run keeps the same cell for a quick retry; the title's New run goes through the picker. */
   function newRun() {
     dispatch(run ? { type: 'newRun', seed: seed(), cell: run.cell, mode: run.mode } : { type: 'newRun', seed: seed() });
+  }
+  /** Summary: Replay this seed starts the same run again (same seed, cell and mode), so a shared seed round-trips. */
+  function replayRun() {
+    if (run) dispatch({ type: 'newRun', seed: run.rng.seed, cell: run.cell, mode: run.mode });
   }
   function toTitle() {
     screen = 'title';
@@ -202,7 +210,7 @@
     {:else if run.phase === 'evolve'}
       <Evolve {run} {dispatch} />
     {:else}
-      <Summary {run} onNewRun={newRun} onHistory={toHistory} />
+      <Summary {run} onNewRun={newRun} onHistory={toHistory} onReplay={replayRun} />
     {/if}
     {#snippet failed()}
       <p class="error">The saved run could not be drawn. Starting a new one.</p>

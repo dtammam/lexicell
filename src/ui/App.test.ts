@@ -775,9 +775,9 @@ describe('App', () => {
     expect(await findByText('Enc 14')).toBeTruthy();
     await attackOnce('short');
     expect(await findByText('The deep took you', 15000)).toBeTruthy();
-    expect(getByText('Endless')).toBeTruthy();
-    expect(getByText('14')).toBeTruthy();
-    expect(queryByText('14 / 9')).toBeNull();
+    // The share card names the encounter reached; Endless has no "/ 9" total.
+    expect(getByText('Encounter 14')).toBeTruthy();
+    expect(queryByText('Encounter 14 / 9')).toBeNull();
   }, 30000);
 
   it('a finished run does not offer Continue on the title', async () => {
@@ -948,8 +948,11 @@ describe('App', () => {
       await attackOnce();
     }
     expect(getByText(/^You (won|died)$/)).toBeTruthy();
-    expect(getByText('Encounters reached')).toBeTruthy();
+    // The share card (step 7): the encounter reached and the seed, with Share / Replay / Copy controls.
+    expect(getByText(/^Encounter \d+ \/ 9$/)).toBeTruthy();
     expect(getByText(String(SEED))).toBeTruthy();
+    expect(getButton('Share')).toBeTruthy();
+    expect(getButton('Replay this seed')).toBeTruthy();
     await click(getButton('New run'));
     // A new run from the summary skips the intro: the player has just finished one.
     expect(await findByText('Choose a starting item')).toBeTruthy();

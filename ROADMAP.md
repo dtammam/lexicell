@@ -20,11 +20,10 @@ Ordered by Dean's priority.
 
 ### Variety wave, remaining steps
 
-Plan: `docs/exec-plans/active/variety-wave.md`. Steps 1-6 shipped (PRs
-#61, #62, #64, #65, #66, #76); curses closed step 6. Left, in order:
+Plan: `docs/exec-plans/active/variety-wave.md`. Steps 1-7 shipped (PRs
+#61, #62, #64, #65, #66, #76, #77); curses closed step 6, the share card
+closed step 7. Left, in order:
 
-- **Step 7, share card and copy-seed** (UI): a result you can share and
-  a seed you can copy to hand someone the same run.
 - **Step 8, daily seed** (UI): one seed a day, framed as "today's
   challenge / today's evolution".
 
@@ -104,6 +103,7 @@ order and count. Sim tables and full gate narratives live in the exec
 plans (`docs/exec-plans/completed/`) and the release notes; this list is
 the honest index.
 
+- **build 79 / PR #77** - Variety wave step 7, share card and copy-seed (UI only, no engine or save change): the post-run summary is now a screenshot-ready card tinted by the act reached, wearing the cell's body sprite for that act, showing the seed, the best word and its damage, the organelles as glyphs, and the best word's definition. A Copy button copies the seed (navigator.clipboard with a synchronous textarea/execCommand fallback); a Share button calls navigator.share with a one-line result summary and the play link, falling back to copying that line where the API is absent. The cell picker gains an optional Seed input (blank or invalid rolls a random seed as before, a run of digits clamps to uint32), and the summary gains Replay this seed, so copy-seed and new-run-from-seed round-trip: same seed and cell replays the same run. No canvas, no generated image (both out of scope). Card and picker verified fitting 390x844 with no scroll via the headless render harness.
 - **build 78 / PR #76** - Variety wave step 6, curses: after act 1 about one in five normal post-fight and post-boss offers arrives cursed (seeded off the run RNG, save bumped to v10), every option carrying a boon AND an attached curse built from ten inverted existing verbs; take one pair or Leave it. Elite, event, rest and starting offers are never cursable. Sim (500 runs/bot, seeds 0..499, balanced): all exit criteria PASS - mediocre 23.4% (band), greedy 83.4% (< 90), no dead grids; pickup sometimes-not-always (greedy 49.8%, mediocre 99.4%, solver 62.7%) and every balanced delta negative (curses never raise the win rate). Tuning during the wave: the compounding curses were softened (Hemorrhage 1/turn, Thin Skin +2/hit, Shackle 1 tile) and the mediocre bot's curse margin went negative once the sim showed that leaving a cursed offer, which replaces a normal one, forfeits the boon and hurts the weak player more than the curse does. Disclosed residual (tracker #10): the gambler cell greedy sits ~11pp above Amoeba, a PRE-EXISTING cell-balance gap (11.0pp in the no-curse baseline), not caused by curses.
 - **build 76 / PR #74** - Title-screen logo enlarged (the wordmark CSS width no longer collapses against its shrink-wrapped parent); the title build number now reads from RELEASE_NOTES so it matches the Release notes page on both the Pages and Docker builds (was the Pages CI run count, e.g. 59, versus the Docker count).
 - **build 75 / PR #73** - GitHub Pages deploy concurrency fixed: `cancel-in-progress: false` so back-to-back merges queue instead of orphaning a deployment (builds 72-74 had been blocked on the play link; the Docker image was always current). Cause and manual recovery documented in `docs/deploy.md`.

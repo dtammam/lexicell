@@ -45,6 +45,12 @@
   --shield: #8ecbff; /* the shield, and nothing else (effects wave) */
   --select: #ff9f43; /* a selected tile that is not yet a word */
 
+  /* Act accents: the signature colour of each act's arena backdrop (Arena.svelte --bg1), promoted
+     here so the share card can tint itself by the act a run reached without inventing a hex. */
+  --act-1: #1fb5a8;
+  --act-2: #7b3fff;
+  --act-3: #ff3355;
+
   /* Tiles */
   --tile: #2f1a5e;
   --tile-ink: #fff3ff;

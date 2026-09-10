@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 78, pr: 76, sha: 'pending', date: '2026-09-10', title: 'Curses', notes: "After act 1, an offer sometimes comes cursed: every option drags a downside along with it, so you take the good with the bad or leave the whole offer. The compendium lists the ten curses in their own section." },
+  { build: 79, pr: 77, sha: 'pending', date: '2026-09-10', title: 'Share your run', notes: "The end-of-run summary is now a card you can screenshot, tinted by the act you reached and showing your cell, best word and organelles. Copy the seed or hit Share, and start a run from a pasted seed so two people can play the exact same run." },
+  { build: 78, pr: 76, sha: 'ec243f0', date: '2026-09-10', title: 'Curses', notes: "After act 1, an offer sometimes comes cursed: every option drags a downside along with it, so you take the good with the bad or leave the whole offer. The compendium lists the ten curses in their own section." },
   { build: 77, pr: 75, sha: '95af908', date: '2026-09-10', title: 'Logo in the header', notes: "The app header now shows the Lexicell logo instead of the word, at the same size, so it reads at a glance during a run. Nothing else changed in the game." },
   { build: 76, pr: 74, sha: '4833fd9', date: '2026-09-10', title: 'Bigger logo', notes: "The Lexicell logo on the title screen is a proper size now, and the build number shown there matches the release notes on every version. Nothing else changed in the game." },
   { build: 75, pr: 73, sha: '3ef5bce', date: '2026-09-10', title: 'Deploys stop colliding', notes: "Fixed the web deploy so back-to-back updates no longer block each other; a few builds had been slow to reach the play link. Nothing changed in the game." },
