@@ -18,5 +18,6 @@ export const TRAITS: readonly TraitDef[] = [
   { id: 'vowel-sense', name: 'Vowel Sense', description: 'Vowels are drawn more often; +3 on every word.', flavor: 'You can smell an E from here.', hooks: { onTileDraw: [{ type: 'vowelWeight', value: 1.2 }], onWordScored: [{ type: 'addFlat', value: 3 }] } },
   { id: 'rare-taste', name: 'Rare Taste', description: 'J, Q, X and Z are drawn more often and score +6 each.', flavor: 'The hard letters are the sweet ones.', hooks: { onTileDraw: [{ type: 'letterWeight', letters: 'jqxz', value: 1.5 }], onWordScored: [{ type: 'letterBonus', letters: 'jqxz', value: 6 }] } },
   { id: 'adrenal', name: 'Adrenal', description: 'Below 40% HP, +50% damage.', flavor: 'Fear, made useful.', hooks: { onWordScored: [{ type: 'condition', when: { kind: 'hpBelow', fraction: 0.4 }, then: [{ type: 'addMult', value: 0.5 }] }] } },
+  { id: 'midas', name: 'Midas Membrane', description: 'Each turn starts with one tile turned to gold: +5 damage when you play it.', flavor: 'Everything you touch is worth a little more.', hooks: { onTurnStart: [{ type: 'goldTiles', count: 1, value: 5 }] } },
   { id: 'colonial', name: 'Colonial', description: '+5% damage per organelle you carry.', flavor: 'Many small hands.', hooks: { onWordScored: [{ type: 'perUnit', unit: 'item', then: [{ type: 'addMult', value: 0.05 }] }] } },
 ];

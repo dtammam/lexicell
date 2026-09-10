@@ -318,11 +318,12 @@ describe('App', () => {
   });
 
   it('a save that passes the shape check but breaks a screen is dropped and a new run starts', async () => {
-    // Sixteen numbers where tiles should be: persist cannot tell, Fight throws on tile.letter.
+    // Tiles with every mark typed but a letter that is not a string: persist cannot tell (it types the marks,
+    // not the letter), Fight throws on tile.letter.toUpperCase.
     await startRun();
     cleanup();
     const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { encounter: { grid: unknown[] } };
-    blob.encounter.grid = Array.from({ length: 16 }, () => 7);
+    blob.encounter.grid = Array.from({ length: 16 }, () => ({ letter: 7, lockedTurns: 0, venom: 0, gold: 0, cracked: 0 }));
     localStorage.setItem(SAVE_KEY, JSON.stringify(blob));
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     render(App);
@@ -465,7 +466,7 @@ describe('App', () => {
     expect(getByText('How to play')).toBeTruthy();
     expect(getByText(/Rare letter, worth the most: K 5, J 6, X 6, Q 8, Z 8/)).toBeTruthy();
     expect(getByText(/Tiles do not need to touch/)).toBeTruthy();
-    expect(document.querySelectorAll('.legend .tile')).toHaveLength(6);
+    expect(document.querySelectorAll('.legend .tile')).toHaveLength(8);
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(false);
     await click(getButton('Readable type: off'));
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(true);
@@ -705,6 +706,42 @@ describe('App', () => {
     await click(document.querySelector('button.offer'));
     expect(await findByText('Enc 4/9')).toBeTruthy();
     expect(getByText(/Traits: Predatory\./)).toBeTruthy();
+  }, 30000);
+
+  it('grid rules: a gold tile and a cracked tile carry their badges, the legend lists them, and the preview counts the gold (step 4)', async () => {
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = blob.encounter as NonNullable<RunState['encounter']>;
+    const letters = enc.grid.map((t) => t.letter);
+    const word = ctx.solver.solve(letters).filter((w) => w.length >= 4)[0] as string;
+    const idx = tilesForWord(word, letters, letters.map((_, i) => i)) ?? [];
+    const goldAt = idx[0] as number;
+    const crackAt = letters.findIndex((_, i) => !idx.includes(i));
+    const grid = enc.grid.map((t, i) => (i === goldAt ? { ...t, gold: 5 } : i === crackAt ? { ...t, cracked: 2 } : t));
+    const seeded: RunState = { ...blob, player: { ...blob.player, items: [] }, encounter: { ...enc, grid, enemy: { ...enc.enemy, id: 'amoeba', damage: 0, hp: 100000, maxHp: 100000 } } };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await findByText('Enc 1/9');
+    expect(tiles()[goldAt]?.classList.contains('gold')).toBe(true);
+    expect(tiles()[goldAt]?.querySelector('.value')?.textContent).toBe('+5');
+    expect(tiles()[crackAt]?.classList.contains('cracked')).toBe(true);
+    expect(tiles()[crackAt]?.querySelector('.value')?.textContent).toBe('\u23F32');
+    const plain = candidateWords({ ...seeded, encounter: { ...enc, grid: enc.grid, enemy: { ...enc.enemy, id: 'amoeba', damage: 0, hp: 100000, maxHp: 100000 } } }, ctx).find((c) => c.word === word)?.damage ?? -1;
+    for (const i of idx) await click(tiles()[i] ?? null);
+    expect(document.querySelector('.preview')?.textContent).toBe(String(plain + 5));
+    await click(attackButton());
+    expect(await findByText('gold +5')).toBeTruthy();
+    // The cracked tile ticked to 1 (it was not played).
+    expect(document.querySelectorAll('button.tile.cracked')).toHaveLength(1);
+    expect(document.querySelector('button.tile.cracked .value')?.textContent).toBe('\u23F31');
+    // The legend on the How to play card names both.
+    cleanup();
+    render(App);
+    await click(await findByText('How to play', 15000));
+    expect(getByText(/^Gold: adds that much damage/)).toBeTruthy();
+    expect(getByText(/^Cracked: crumbles/)).toBeTruthy();
   }, 30000);
 
   it('a finished run does not offer Continue on the title', async () => {

@@ -51,6 +51,10 @@ export type Effect =
    * tile has no cure (shuffle skips locked tiles), and lockTiles clears the selection while venomTiles does not.
    */
   | { readonly type: 'venomTiles'; readonly count: number; readonly value: number }
+  /** Gild `count` playable, unselected, plain tiles: each adds `value` damage when played (variety wave step 4). */
+  | { readonly type: 'goldTiles'; readonly count: number; readonly value: number }
+  /** Crack `count` playable, unselected, sound tiles: each crumbles and is refilled after `turns` turns (an enemy special). */
+  | { readonly type: 'crackTiles'; readonly count: number; readonly turns: number }
   | { readonly type: 'scramble' }
   | { readonly type: 'condition'; readonly when: Condition; readonly then: readonly Effect[] }
   /* Effects wave (2026-09-08), Dean's six agrees. */
@@ -104,6 +108,8 @@ export const EFFECT_ORDER: readonly EffectType[] = [
   'freeShuffle',
   'lockTiles',
   'venomTiles',
+  'goldTiles',
+  'crackTiles',
   'redrawTiles',
   'scramble',
   'vowelWeight',
@@ -220,6 +226,9 @@ export function scaleEffect(e: Effect, times: number, multCap: number): Effect |
     case 'lockTiles':
       return { ...e, count: e.count * times };
     case 'venomTiles':
+      return { ...e, count: e.count * times };
+    case 'goldTiles':
+    case 'crackTiles':
       return { ...e, count: e.count * times };
     case 'vowelWeight':
     case 'letterWeight':

@@ -129,6 +129,15 @@ describe('content bundle', () => {
     for (const c of CONTENT.cells) for (const act of [1, 2, 3]) expect(existsSync(`public/sprites/cell-${c.id}-${act}.png`), `${c.id} act ${act}`).toBe(true);
   });
 
+  it('grid rules (step 4): one enemy cracks tiles with sane turns, one trait gilds them, and gold values stay small', () => {
+    const crackers = [...CONTENT.enemies, ...CONTENT.bosses].filter((e) => e.special?.effects.some((x) => x.type === 'crackTiles'));
+    expect(crackers.map((e) => e.id)).toEqual(['diatom-swarm']);
+    for (const e of crackers) for (const x of e.special?.effects ?? []) if (x.type === 'crackTiles') expect(x.turns).toBeGreaterThanOrEqual(1);
+    const gilders = CONTENT.traits.filter((t) => Object.values(t.hooks).some((h) => h?.some((x) => x.type === 'goldTiles')));
+    expect(gilders.map((t) => t.id)).toEqual(['midas']);
+    for (const t of gilders) for (const h of Object.values(t.hooks)) for (const x of h ?? []) if (x.type === 'goldTiles') expect(x.value).toBeLessThanOrEqual(10);
+  });
+
   it('every boss has a special and a trait, and no enemy carries both a lock and a venom special', () => {
     for (const b of CONTENT.bosses) {
       expect(b.special, b.id).toBeDefined();

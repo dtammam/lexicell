@@ -108,6 +108,12 @@ daily flag.
   (acts 2 and 3 up) absorbs the traits: balanced greedy 68.2%, mediocre 22.2%, solver 87.6%; cells 18.0
   (Spore, by design) to 29.2 mediocre, greedy max 84.8%. Gate round: persist drops item and trait ids content no
   longer has (a held one would have thrown from every hook); four tests and chooseTrait bound.
+- Step 4 (PR #65): built. `Tile.gold` and `Tile.cracked` (save v8, v7 migrates with plain tiles), verbs
+  `goldTiles` and `crackTiles`, the Midas Membrane trait and the Diatom Swarm's crack special, gold-aware
+  candidates and an exact `scoreSelection` preview. Dead letter deferred as planned; gold is a trait, not an
+  enemy special (an enemy gilding the player's tiles makes no sense); the crack special fires every second turn
+  after the gate measured every third never landing against a strong player. No retune: balanced
+  greedy 66.8%, mediocre 21.0%, solver 87.6%; cells 17.8 (Spore, by design) to 29.6 mediocre, greedy max 83.2%.
 
 ## Acceptance per step
 

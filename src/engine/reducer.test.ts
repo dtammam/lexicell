@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
 import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
-import { candidateIndices, candidateWords, type Candidate } from './candidates';
+import { bestGold, candidateIndices, candidateWords, type Candidate } from './candidates';
 import { gatherEffects } from './hooks';
-import { biasFor, isDead, refill, settle } from './grid';
-import { hitRange, kindAt, letterBias, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, selectedWord, type Action, type EngineContext } from './reducer';
+import { biasFor, isDead, plainTile, refill, settle } from './grid';
+import { hitRange, kindAt, letterBias, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, scoreSelection, selectedWord, type Action, type EngineContext } from './reducer';
 import { scoreWord } from './scoring';
 import { createRng, pick } from './rng';
 import { tilesForWord } from './solver';
-import type { Content, Encounter, EncounterDef as EncounterDefT, EnemyDef, EventChoice as EventChoiceT, ItemDef, RunState } from './types';
+import type { Content, Encounter, EncounterDef as EncounterDefT, EnemyDef, EventChoice as EventChoiceT, ItemDef, RunState, Tile } from './types';
 
 /** Shipped content opens on a starting-kit pick; most tests here want the first fight directly. */
 /** Flat hits (variance 0) so the arithmetic in these tests stays exact; the variety-wave block tests the roll. */
@@ -548,7 +548,7 @@ describe('gravity: refilled columns settle', () => {
     const s2 = reduce({ ...s0, encounter: { ...enc0, grid } }, { type: 'shuffle' }, ctx);
     if (s2.phase !== 'fight') return;
     const g2 = (s2.encounter as Encounter).grid;
-    expect(g2[2]).toEqual({ letter: grid[14]?.letter, lockedTurns: 2, venom: 0 });
+    expect(g2[2]).toEqual({ letter: grid[14]?.letter, lockedTurns: 2, venom: 0, gold: 0, cracked: 0 });
     expect(s2.lastTurn?.used).toHaveLength(15);
   });
 });
@@ -599,8 +599,8 @@ describe('shuffle (costs the turn)', () => {
     const g2 = (s2.encounter as Encounter).grid;
     // Gravity: a locked survivor rises to the top of its column. Index 3 is already row 0;
     // index 9 (row 2, column 1) settles to index 1.
-    expect(g2[3]).toEqual({ letter: grid[3]?.letter, lockedTurns: 1, venom: 0 });
-    expect(g2[1]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1, venom: 0 });
+    expect(g2[3]).toEqual({ letter: grid[3]?.letter, lockedTurns: 1, venom: 0, gold: 0, cracked: 0 });
+    expect(g2[1]).toEqual({ letter: grid[9]?.letter, lockedTurns: 1, venom: 0, gold: 0, cracked: 0 });
     expect(g2.filter((t) => t.lockedTurns > 0)).toHaveLength(2);
     // Fourteen fresh draws: identical to the old multiset only by a 1-in-astronomical chance.
     const oldLetters = grid.filter((_, i) => i !== 3 && i !== 9).map((t) => t.letter).sort();
@@ -712,10 +712,10 @@ describe('boss mechanic and dead-grid guard', () => {
     let scrambles = 0;
     for (let seed = 20; seed < 40; seed++) {
       const base = newRun(seed, ctx);
-      const grid = base.encounter!.grid.map(() => ({ letter: 'e', lockedTurns: 5, venom: 0 }));
-      grid[13] = { letter: 'c', lockedTurns: 0, venom: 0 };
-      grid[14] = { letter: 'a', lockedTurns: 0, venom: 0 };
-      grid[15] = { letter: 't', lockedTurns: 0, venom: 0 };
+      const grid = base.encounter!.grid.map(() => ({ letter: 'e', lockedTurns: 5, venom: 0, gold: 0, cracked: 0 }));
+      grid[13] = { letter: 'c', lockedTurns: 0, venom: 0, gold: 0, cracked: 0 };
+      grid[14] = { letter: 'a', lockedTurns: 0, venom: 0, gold: 0, cracked: 0 };
+      grid[15] = { letter: 't', lockedTurns: 0, venom: 0, gold: 0, cracked: 0 };
       const s0: RunState = { ...base, encounter: { ...base.encounter!, grid, enemy: { ...base.encounter!.enemy, hp: 10_000 } } };
       const s1 = play(s0, 'cat');
       expect(s1.phase).toBe('fight');
@@ -1163,7 +1163,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(7);
+      expect(a.final.v).toBe(8);
     }
   });
 });
@@ -1317,6 +1317,227 @@ describe('variety wave step 1: the enrage clock', () => {
   });
 });
 
+describe('variety wave step 4: gold and cracked tiles (save v8)', () => {
+  const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+  /** A fresh fight with an unkillable, harmless enemy and no items, so only the grid moves. */
+  function quiet(seed: number): RunState {
+    const s = newRun(seed, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    return { ...s, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0 } } };
+  }
+  const mark = (s: RunState, at: number, patch: Partial<Tile>): RunState => {
+    const enc = s.encounter as Encounter;
+    return { ...s, encounter: { ...enc, grid: enc.grid.map((t, i) => (i === at ? { ...t, ...patch } : t)) } };
+  };
+
+  it('a fresh tile is plain: gold 0, cracked 0; every tile in a new grid is', () => {
+    expect(plainTile('a')).toEqual({ letter: 'a', lockedTurns: 0, venom: 0, gold: 0, cracked: 0 });
+    for (const t of (newRun(1, flat).encounter as Encounter).grid) expect([t.gold, t.cracked]).toEqual([0, 0]);
+  });
+
+  it('gold on a played tile adds to the hit after the multiplier and before armour; the selection preview, the candidate and the hit agree', () => {
+    const s0 = quiet(3);
+    const cands = candidateWords(s0, flat);
+    const pick = cands.find((c) => c.word.length === 4); // four letters: Tardigrade King's armour 5 halves it below
+    if (!pick) throw new Error('no word');
+    const idx = candidateIndices(s0, pick.word) ?? [];
+    const at = idx[0] as number;
+    const s = mark(s0, at, { gold: 5 });
+    // Candidates: the word can carry the gold (its letter is in the word), so its damage rises by 5; a word without that letter does not.
+    const c2 = candidateWords(s, flat);
+    expect(c2.find((c) => c.word === pick.word)?.damage).toBe(pick.damage + 5);
+    const letter = (s.encounter as Encounter).grid[at]?.letter ?? '';
+    const without = cands.find((c) => !c.word.includes(letter));
+    if (without) expect(c2.find((c) => c.word === without.word)?.damage).toBe(without.damage);
+    // candidateIndices spends the gold tile first; the exact preview and the hit match the candidate.
+    const mapped = candidateIndices(s, pick.word) ?? [];
+    expect(mapped).toContain(at);
+    let sel = s;
+    for (const i of mapped) sel = reduce(sel, { type: 'toggleTile', index: i }, flat);
+    expect(scoreSelection(sel, flat)).toBe(pick.damage + 5);
+    const hit = reduce(sel, { type: 'submitWord' }, flat);
+    expect(hit.lastTurn?.damage).toBe(pick.damage + 5);
+    expect(hit.lastTurn?.gold).toBe(5);
+    expect(hit.stats.bestWordDamage).toBe(pick.damage); // the stat is the word's own score
+    // The gold left with the tile.
+    expect((hit.encounter as Encounter).grid.every((t) => t.gold === 0)).toBe(true);
+    // A multiplier does not touch gold: Predatory (+15%) lifts the word, then the 5 rides on top; preview, candidate and hit (gate W1).
+    const doubled: RunState = { ...sel, player: { ...sel.player, traits: ['predatory'] } };
+    expect(scoreSelection(doubled, flat)).toBe(Math.floor(pick.damage * 1.15) + 5);
+    expect(reduce(doubled, { type: 'submitWord' }, flat).lastTurn?.damage).toBe(Math.floor(pick.damage * 1.15) + 5);
+    expect(candidateWords(doubled, flat).find((c) => c.word === pick.word)?.damage).toBe(Math.floor(pick.damage * 1.15) + 5);
+    // Armour halves gold with the rest: a 4-letter word into armour 5 lands floor((word + 5) / 2); the candidate says the same (gate W2).
+    const armoured: RunState = { ...sel, encounter: { ...(sel.encounter as Encounter), enemy: { ...(sel.encounter as Encounter).enemy, id: 'tardigrade-king' } } };
+    expect(scoreSelection(armoured, flat)).toBe(Math.floor((pick.damage + 5) / 2));
+    expect(reduce(armoured, { type: 'submitWord' }, flat).lastTurn?.damage).toBe(Math.floor((pick.damage + 5) / 2));
+    expect(candidateWords(armoured, flat).find((c) => c.word === pick.word)?.damage).toBe(Math.floor((pick.damage + 5) / 2));
+    // A word that avoids the gold tile lands no gold (gate W5): only the tiles played count.
+    if (without) {
+      const avoided = play(s, without.word, flat);
+      expect(avoided.lastTurn?.damage).toBe(without.damage);
+      expect(avoided.lastTurn?.gold).toBe(0);
+    }
+    // Gold under a lock is not playable and counts for nobody (gate W4): every shared word keeps its plain damage.
+    const locked = mark(s, at, { lockedTurns: 2 });
+    for (const c of candidateWords(locked, flat)) expect(c.damage, c.word).toBe(cands.find((p) => p.word === c.word)?.damage);
+    // Not a word: no preview.
+    expect(scoreSelection(s, flat)).toBeNull();
+  });
+
+  it('candidateIndices spends the richest gold tile of a letter even when a plain mapping would take another (gate W3)', () => {
+    // Find a word with a letter that has at least two playable tiles on the grid, and mark gold on the copy the plain mapping skips.
+    for (let seed = 0; seed < 40; seed++) {
+      const s0 = quiet(seed);
+      const letters = (s0.encounter as Encounter).grid.map((t) => t.letter);
+      const cand = candidateWords(s0, flat).find((c) => {
+        const idx = candidateIndices(s0, c.word) ?? [];
+        return c.word.length >= 4 && idx.some((i) => letters.filter((l) => l === letters[i]).length >= 2 && new Set(c.word).size === c.word.length);
+      });
+      if (!cand) continue;
+      const plainIdx = candidateIndices(s0, cand.word) ?? [];
+      const i0 = plainIdx.find((i) => letters.filter((l) => l === letters[i]).length >= 2) as number;
+      const other = letters.findIndex((l, i) => l === letters[i0] && i !== i0 && !plainIdx.includes(i));
+      if (other < 0) continue;
+      // Gold 3 on the copy the plain mapping takes, gold 5 on the copy it skips: the candidate promises 5, the mapping delivers 5.
+      const s = mark(mark(s0, i0, { gold: 3 }), other, { gold: 5 });
+      expect(candidateWords(s, flat).find((c) => c.word === cand.word)?.damage).toBe(cand.damage + 5);
+      const idx = candidateIndices(s, cand.word) ?? [];
+      expect(idx).toContain(other);
+      expect(idx).not.toContain(i0);
+      let sel = s;
+      for (const i of idx) sel = reduce(sel, { type: 'toggleTile', index: i }, flat);
+      expect(reduce(sel, { type: 'submitWord' }, flat).lastTurn?.damage).toBe(cand.damage + 5);
+      return;
+    }
+    throw new Error('no seed under 40 offered a word with a doubled letter');
+  });
+
+  it('a Midas turn spends exactly one draw past the refill, and a crumble spends exactly its own refill (gate W6); two calm turns make two gold tiles (gate W8)', () => {
+    const s0 = quiet(11);
+    const midas: RunState = { ...s0, player: { ...s0.player, traits: ['midas'] } };
+    // Same word, with and without Midas: the counter differs by the one gilding draw, and the gilded tile is playable and unselected.
+    const word = candidateWords(s0, flat)[0];
+    if (!word) throw new Error('no word');
+    const plain = play(s0, word.word, flat);
+    const gilded = play(midas, word.word, flat);
+    expect(gilded.rng.counter - plain.rng.counter).toBe(1);
+    expect((gilded.encounter as Encounter).grid.filter((t) => t.gold > 0)).toHaveLength(1);
+    // A second calm turn (a word avoiding the gold tile) gilds a second, different tile.
+    const g1 = gilded.encounter as Encounter;
+    const goldAt = g1.grid.findIndex((t) => t.gold > 0);
+    const avoiding = candidateWords(gilded, flat).find((c) => !(candidateIndices(gilded, c.word) ?? []).includes(goldAt));
+    if (!avoiding) throw new Error('no word avoiding the gold tile');
+    const twice = play(gilded, avoiding.word, flat);
+    expect((twice.encounter as Encounter).grid.filter((t) => t.gold > 0)).toHaveLength(2);
+    // A crumble: a cracked tile at the bottom of a column the word does not touch. The turn's rng and grid equal the
+    // twin turn's (no crack) followed by one refill of that tile; the tile stays where it is (a bottom tile settles nowhere).
+    for (let seed = 0; seed < 40; seed++) {
+      const t0 = quiet(seed);
+      const w = candidateWords(t0, flat)[0];
+      if (!w) continue;
+      const idx = candidateIndices(t0, w.word) ?? [];
+      const cols = new Set(idx.map((i) => i % 4));
+      const j = [12, 13, 14, 15].find((k) => !cols.has(k % 4));
+      if (j === undefined) continue;
+      const twin = play(t0, w.word, flat);
+      if (twin.phase !== 'fight' || twin.lastTurn?.scrambled) continue;
+      const cracked = play(mark(t0, j, { cracked: 1 }), w.word, flat);
+      const [expectedGrid, expectedRng] = refill(twin.rng, (twin.encounter as Encounter).grid, [j], letterBias(twin, flat));
+      expect(cracked.rng).toEqual(expectedRng);
+      expect((cracked.encounter as Encounter).grid).toEqual(settle(expectedGrid, [j]));
+      expect(cracked.lastTurn?.crumbled).toBe(1);
+      // And a crumble at the TOP of an untouched column settles: the survivors below rise one row and the fresh tile lands at the bottom.
+      const top = [0, 1, 2, 3].find((k) => !cols.has(k % 4));
+      if (top !== undefined) {
+        const crumbledTop = play(mark(t0, top, { cracked: 1 }), w.word, flat);
+        const before = (twin.encounter as Encounter).grid;
+        const after = (crumbledTop.encounter as Encounter).grid;
+        for (let r = 0; r < 3; r++) expect(after[top + r * 4]?.letter, `row ${r}`).toBe(before[top + (r + 1) * 4]?.letter);
+      }
+      return;
+    }
+    throw new Error('no seed under 40 left a column untouched');
+  });
+
+  it('bestGold takes the richest gold tiles the word has letters for, one per occurrence', () => {
+    expect(bestGold('cat', [])).toBe(0);
+    expect(bestGold('cat', [{ letter: 'a', gold: 5 }])).toBe(5);
+    expect(bestGold('cat', [{ letter: 'z', gold: 5 }])).toBe(0);
+    expect(bestGold('cat', [{ letter: 'a', gold: 5 }, { letter: 'a', gold: 3 }])).toBe(5);
+    expect(bestGold('aardvark', [{ letter: 'a', gold: 5 }, { letter: 'a', gold: 3 }, { letter: 'a', gold: 1 }, { letter: 'a', gold: 1 }])).toBe(9);
+  });
+
+  it('goldTiles gilds playable, unselected, plain tiles, one draw each; a Midas turn start makes one gold tile a turn', () => {
+    const s = quiet(5);
+    const midas: RunState = { ...s, player: { ...s.player, traits: ['midas'] } };
+    const t1 = reduce(midas, { type: 'shuffle' }, flat);
+    const golds = (t1.encounter as Encounter).grid.filter((t) => t.gold > 0);
+    expect(golds).toHaveLength(1);
+    expect(golds[0]?.gold).toBe(5);
+    const t2 = reduce(t1, { type: 'shuffle' }, flat);
+    // A shuffle redraws every unlocked tile, so the first gold went with it; the new turn gilds one again.
+    expect((t2.encounter as Encounter).grid.filter((t) => t.gold > 0)).toHaveLength(1);
+  });
+
+  it('crackTiles cracks sound tiles; a cracked tile ticks at the end of the turn, crumbles at zero, is refilled and settles; playing it first spends it', () => {
+    const s0 = quiet(7);
+    const enc = s0.encounter as Encounter;
+    const s = mark(mark(s0, 0, { cracked: 2 }), 5, { cracked: 1 });
+    const word = candidateWords(s, flat).find((c) => !(candidateIndices(s, c.word) ?? []).includes(0) && !(candidateIndices(s, c.word) ?? []).includes(5));
+    if (!word) throw new Error('no word avoiding tiles 0 and 5');
+    const after = play(s, word.word, flat);
+    const g = (after.encounter as Encounter).grid;
+    // Tile 5 (cracked 1) crumbled: refilled and settled, the report counts it; tile 0 ticked to 1 and still stands.
+    expect(after.lastTurn?.crumbled).toBe(1);
+    expect(g.filter((t) => t.cracked > 0)).toHaveLength(1);
+    expect(g.filter((t) => t.cracked > 0)[0]?.cracked).toBe(1);
+    expect(g.filter((t) => t.cracked > 0)[0]?.letter).toBe(enc.grid[0]?.letter);
+    expect(g.filter((t) => t.cracked === 1 && t.letter === enc.grid[0]?.letter)).toHaveLength(1);
+    // Playing a cracked tile spends it like any other.
+    const through = candidateWords(s, flat).find((c) => (candidateIndices(s, c.word) ?? []).includes(5));
+    if (through) {
+      const spent = play(s, through.word, flat);
+      expect(spent.lastTurn?.crumbled).toBe(0);
+      expect(spent.phase).toBe('fight');
+    }
+    // The special: Diatom Swarm cracks two tiles every second turn (turn 2) for 3, never the tiles being played; the
+    // end of that same turn ticks them to 2 (as a lock is ticked), so the player sees 2, then 1, then the crumble.
+    const swarm: RunState = { ...s0, encounter: { ...enc, turn: 2, enemy: { ...enc.enemy, id: 'diatom-swarm', damage: 0 } } };
+    const best = candidateWords(swarm, flat).sort((a, b) => b.damage - a.damage)[0];
+    if (!best) throw new Error('no word');
+    const idx = candidateIndices(swarm, best.word) ?? [];
+    const hit = play(swarm, best.word, flat);
+    const cracked = (hit.encounter as Encounter).grid.filter((t) => t.cracked > 0);
+    expect(cracked).toHaveLength(Math.min(2, 16 - idx.length));
+    for (const t of cracked) expect(t.cracked).toBe(2);
+    // Two turns on, both crumble at the end of turn 4 (the special fires again that turn, so two fresh cracks appear).
+    let later = hit;
+    for (let i = 0; i < 2 && later.phase === 'fight'; i++) {
+      const w = candidateWords(later, flat).find((c) => (candidateIndices(later, c.word) ?? []).every((k) => (later.encounter as Encounter).grid[k]?.cracked === 0));
+      if (!w) break;
+      later = play(later, w.word, flat);
+    }
+    if (later.phase === 'fight' && later.stats.turns === hit.stats.turns + 2) {
+      expect(later.lastTurn?.crumbled).toBe(cracked.length);
+      expect((later.encounter as Encounter).grid.filter((t) => t.cracked > 0).every((t) => t.cracked === 2)).toBe(true);
+    }
+    // A shuffle replaces cracked tiles with sound ones.
+    expect((reduce(s, { type: 'shuffle' }, flat).encounter as Encounter).grid.every((t) => t.cracked === 0)).toBe(true);
+  });
+
+  it('a run with gold and cracks replays byte-identical and stays JSON-plain', () => {
+    for (const seed of [0, 1, 2]) {
+      const c = nodeContext({ ...flat.content, traits: CONTENT.traits.filter((t) => t.id === 'midas') });
+      const a = greedyRun(seed, c);
+      const b = greedyRun(seed, c);
+      expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
+      expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
+      expect(a.final.v).toBe(8);
+    }
+  });
+});
+
 describe('variety wave step 3: evolution (save v7)', () => {
   const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
   const traitIds = new Set(CONTENT.traits.map((t) => t.id));
@@ -1442,7 +1663,7 @@ describe('variety wave step 3: evolution (save v7)', () => {
       const b = greedyRun(seed, flat);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(7);
+      expect(a.final.v).toBe(8);
       const evolves = a.states.filter((st) => st.phase === 'evolve').length;
       if (a.final.outcome === 'won') {
         expect(evolves).toBe(2);
@@ -1477,7 +1698,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       // The same kinds land in the run, and the run's RNG has spent the three draws before the kit.
       const run = newRun(seed, flat);
       expect(run.kinds).toEqual(kinds);
-      expect(run.v).toBe(7);
+      expect(run.v).toBe(8);
       expect(run.event).toBeNull();
     }
     for (const kind of ['elite', 'rest', 'event']) expect([...(seen[kind] ?? [])].sort(), kind).toEqual(NON_BOSS_AFTER_FIRST);
@@ -1693,7 +1914,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(a.log).toEqual(b.log);
       const kinds = a.states.map((st) => st.phase).filter((p) => p === 'rest' || p === 'event');
-      expect(a.final.v).toBe(7);
+      expect(a.final.v).toBe(8);
       // Over the four seeds at least one run passes through a rest or an event before the summary.
       if (kinds.length > 0) return;
     }
