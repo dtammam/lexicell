@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { candidateIndices, candidateWords } from '../src/engine/candidates';
 import { newRun } from '../src/engine/reducer';
-import { chooseTrait, GREEDY_MAX_LENGTH, makeBot, nextAction, spendingVenom } from './lib/bots';
+import { chooseCursed, chooseTrait, curseCost, GREEDY_MAX_LENGTH, makeBot, nextAction, spendingVenom } from './lib/bots';
 import { nodeContext } from './lib/context';
 import { simulate, simulateRun, summarise } from './lib/simulate';
-import { contentFor, exitCriteria, parseArgs, renderTable } from './sim';
+import { contentFor, exitCriteria, parseArgs, renderTable, stripCurses } from './sim';
 
+import type { ItemDef } from '../src/engine/types';
 import { CONTENT } from '../src/content/index';
 
 /** No starting kit here so newRun lands in the first fight and candidates exist at once. */
@@ -66,14 +67,40 @@ describe('bots', () => {
   it('a run is reproducible from its seed', () => {
     expect(simulateRun('mediocre', 17, ctx)).toEqual(simulateRun('mediocre', 17, ctx));
   });
+
+  it('curseCost reads effect signs; the bots decide with it (variety wave step 6)', () => {
+    const cost = (id: string) => curseCost(CONTENT.items.find((i) => i.id === id) as ItemDef);
+    // Every shipped curse reads as a cost.
+    for (const c of CONTENT.items.filter((i) => i.curse)) expect(curseCost(c), c.id).toBeGreaterThan(0);
+    // A boon reads as no cost (no negative or self-harm effect).
+    expect(cost('lens')).toBe(0); // Photoreceptor: +70% damage
+    // A cursed offer: a strong boon paired with a mild curse, and weak boons paired with harsh curses.
+    const at = (offer: string[], curses: string[]) => ({ ...newRun(1, ctx), phase: 'pick' as const, encounter: null, offer, curses });
+    // Greedy and solver take a strong boon (curse and all); mediocre grabs the organelle down to a negative margin.
+    const strongMild = at(['protocell', 'lens'], ['curse-dull', 'curse-weak']);
+    expect(chooseCursed('greedy', strongMild, ctx)).not.toBeNull();
+    expect(chooseCursed('solver', strongMild, ctx)).not.toBeNull();
+    expect(chooseCursed('mediocre', strongMild, ctx)).not.toBeNull();
+    // Weak commons with harsh curses: greedy leaves it (no boon clears the bar); mediocre still grabs
+    // the least-bad organelle (a cursed offer replaces a normal one, so leaving forfeits the boon).
+    const weakHarsh = at(['spores', 'bandage'], ['curse-bleed', 'curse-shackle']);
+    expect(chooseCursed('greedy', weakHarsh, ctx)).toBeNull();
+    expect(chooseCursed('mediocre', weakHarsh, ctx)).not.toBeNull();
+    // A single dreadful pair (a weak boon under the harshest curse) is one even mediocre leaves.
+    const dreadful = at(['spores'], ['curse-bleed']);
+    expect(chooseCursed('mediocre', dreadful, ctx)).toBeNull();
+    // nextAction turns a leave into a skipOffer and a take into a pickItem.
+    expect(nextAction(makeBot('greedy', 1), weakHarsh, ctx)).toEqual([{ type: 'skipOffer' }]);
+    expect(nextAction(makeBot('greedy', 1), strongMild, ctx)?.[0]?.type).toBe('pickItem');
+  });
 });
 
 describe('summary', () => {
   it('computes win rate, median, and per-encounter HP means over runs that reached each encounter', () => {
     const s = summarise('greedy', [
-      { seed: 0, won: true, encounterReached: 9, hpAtEncounterStart: [100, 80, 60, 50, 40, 30, 20, 10, 5], turns: 30, scrambles: 0, shuffles: 0, finalHp: 5, items: [] },
-      { seed: 1, won: false, encounterReached: 2, hpAtEncounterStart: [100, 20], turns: 8, scrambles: 1, shuffles: 0, finalHp: 0, items: [] },
-      { seed: 2, won: false, encounterReached: 4, hpAtEncounterStart: [100, 60, 40, 10], turns: 12, scrambles: 0, shuffles: 2, finalHp: 0, items: [] },
+      { seed: 0, won: true, encounterReached: 9, hpAtEncounterStart: [100, 80, 60, 50, 40, 30, 20, 10, 5], turns: 30, scrambles: 0, shuffles: 0, cursedOffersSeen: 0, cursedTaken: 0, finalHp: 5, items: [] },
+      { seed: 1, won: false, encounterReached: 2, hpAtEncounterStart: [100, 20], turns: 8, scrambles: 1, shuffles: 0, cursedOffersSeen: 0, cursedTaken: 0, finalHp: 0, items: [] },
+      { seed: 2, won: false, encounterReached: 4, hpAtEncounterStart: [100, 60, 40, 10], turns: 12, scrambles: 0, shuffles: 2, cursedOffersSeen: 0, cursedTaken: 0, finalHp: 0, items: [] },
     ]);
     expect(s.winRate).toBeCloseTo(1 / 3);
     expect(s.medianEncounter).toBe(4);
@@ -118,6 +145,11 @@ describe('cli', () => {
     expect(() => contentFor(['nope'])).toThrow(/unknown item ids/);
     expect(parseArgs(['--variant', 'pre-act1']).variant).toBe('pre-act1');
     expect(() => parseArgs(['--variant', 'easy'])).toThrow(/unknown variant/);
+    // --no-curses (variety wave step 6): off by default, strips the curse pool when set.
+    expect(parseArgs([]).noCurses).toBe(false);
+    expect(parseArgs(['--no-curses']).noCurses).toBe(true);
+    expect(stripCurses(contentFor('all')).items.some((i) => i.curse)).toBe(false);
+    expect(contentFor('all').items.some((i) => i.curse)).toBe(true);
   });
 
   it('shipped content is act-1-eased with a starting kit; pre-act1 restores the baseline', () => {

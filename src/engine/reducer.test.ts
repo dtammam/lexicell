@@ -2496,17 +2496,17 @@ describe('variety wave step 6: curses (save v10)', () => {
     const enc = base.encounter as Encounter;
     const staged: RunState = {
       ...base,
-      player: { ...base.player, hp: 2, items: ['curse-bleed'] },
+      player: { ...base.player, hp: 1, items: ['curse-bleed'] },
       encounter: { ...enc, enemy: { id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0, poison: 0, stunned: 0 } },
     };
     const word = candidateWords(staged, flat).sort((a, b) => b.damage - a.damage)[0];
     if (!word) throw new Error('no word');
-    // The played turn deals 0 enemy damage; the next turn start drains 2 (Hemorrhage), 2 HP to 0: a loss.
+    // The played turn deals 0 enemy damage; the next turn start drains 1 (Hemorrhage), 1 HP to 0: a loss.
     const after = play(staged, word.word, flat);
     expect(after.phase).toBe('summary');
     expect(after.outcome).toBe('lost');
     expect(after.player.hp).toBe(0);
-    expect(after.stats.damageTaken).toBeGreaterThanOrEqual(2);
+    expect(after.stats.damageTaken).toBeGreaterThanOrEqual(1);
   });
 
   it('a cell run through cursed offers replays byte-identical and stays JSON-plain', () => {

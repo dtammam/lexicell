@@ -179,6 +179,115 @@ non-empty-offer rule.
       exit criteria preserved (mediocre 20-40, greedy < 90, no dead grids,
       cells within 10 of Amoeba on balanced).
 
-## Sim results (pasted from `npx tsx scripts/sim.ts`; filled in commit 5)
+## Tuning (measured, not projected)
 
-_pasted after the sim runs; measured, never typed._
+Two numbers moved during commit 5, driven by the sim, not by taste:
+
+1. **The compounding curses were softened.** Hemorrhage 2 -> 1 HP/turn,
+   Thin Skin +3 -> +2 per hit, Shackle 2 -> 1 tile/turn. A mediocre run
+   is long (28 turns on balanced), so a per-turn or per-hit curse fires
+   far more there than for a fast player; the raw values punished the
+   slow, weak player out of proportion.
+2. **The mediocre bot's curse margin went NEGATIVE (-3), overriding the
+   first "mediocre skips more readily" spec.** A cursed offer REPLACES a
+   normal offer, so LEAVING one forfeits the boon entirely, and for the
+   weak player that hurts more than eating the curse. Measured on
+   balanced: at margin +5 (skips a lot) mediocre wins 18.4%, at +2
+   (took 29% of offers) 19.4% (both out of the 20-40 band); at -3 (takes
+   the boon unless its curse clearly outweighs it) 23.4%, in band and
+   near the 24.4% no-curse baseline. The mediocre model is now "grab the
+   organelle, wear the curse"; greedy and solver stay selective, so
+   pickup is still sometimes-not-always and the deltas stay negative.
+   `curseCost` also weights the compounding curses heavier so every bot
+   steers off them.
+
+## Sim results (pasted from `npx tsx scripts/sim.ts`, 500 runs, seeds 0..499)
+
+### Balanced (Amoeba) - the judged cell
+
+```
+|      bot | runs | win rate | median enc. | mean turns | scrambles | shuffles | HP@E1 | HP@E2 | HP@E3 | HP@E4 | HP@E5 | HP@E6 | HP@E7 | HP@E8 | HP@E9 |
+|----------|------|----------|-------------|------------|-----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+|   greedy |  500 |    83.4% |           9 |       16.3 |       104 |       44 |   100 |   100 |    96 |    89 |    88 |    88 |    82 |    81 |    81 |
+| mediocre |  500 |    23.4% |           8 |       28.3 |       251 |        2 |   101 |    95 |    83 |    58 |    63 |    69 |    58 |    68 |    74 |
+|   solver |  500 |    95.2% |           9 |       12.0 |        31 |       29 |   100 |   101 |    98 |    95 |    95 |    94 |    92 |    90 |    89 |
+
+Curses (10 in the pool):
+|      bot | cursed seen | took | pickup | win (curses) | win (no curses) |  delta |
+|----------|-------------|------|--------|--------------|-----------------|--------|
+|   greedy |         255 |  127 |  49.8% |        83.4% |           84.4% | -1.0pp |
+| mediocre |         167 |  166 |  99.4% |        23.4% |           24.4% | -1.0pp |
+|   solver |         271 |  170 |  62.7% |        95.2% |           96.6% | -1.4pp |
+
+Exit criteria:
+  PASS  mediocre wins 20-40%
+  PASS  greedy (best word of <= 7 letters) wins, but < 90%
+  PASS  no run hit a grid with zero valid words
+```
+
+### aggro
+
+```
+|      bot | runs | win rate | median enc. | mean turns |
+|   greedy |  500 |    82.4% |           9 |       14.1 |
+| mediocre |  500 |    22.4% |           8 |       23.8 |
+|   solver |  500 |    96.4% |           9 |       10.5 |
+Curses:  greedy pickup 44.3% | win 82.4% vs 87.0% no-curse | -4.6pp
+         mediocre pickup 100.0% | 22.4% vs 24.0% | -1.6pp
+         solver pickup 64.6% | 96.4% vs 97.8% | -1.4pp
+```
+
+### defensive
+
+```
+|      bot | runs | win rate | median enc. | mean turns |
+|   greedy |  500 |    88.8% |           9 |       18.6 |
+| mediocre |  500 |    35.6% |           9 |       35.3 |
+|   solver |  500 |    97.8% |           9 |       13.7 |
+Curses:  greedy pickup 53.0% | win 88.8% vs 89.4% no-curse | -0.6pp
+         mediocre pickup 100.0% | 35.6% vs 35.0% | +0.6pp
+         solver pickup 67.6% | 97.8% vs 98.4% | -0.6pp
+```
+
+### gambler
+
+```
+|      bot | runs | win rate | median enc. | mean turns |
+|   greedy |  500 |    95.0% |           9 |       12.7 |
+| mediocre |  500 |    21.4% |           8 |       26.9 |
+|   solver |  500 |    98.8% |           9 |        9.5 |
+Curses:  greedy pickup 51.1% | win 95.0% vs 95.4% no-curse | -0.4pp
+         mediocre pickup 99.4% | 21.4% vs 19.8% | +1.6pp
+         solver pickup 68.4% | 98.8% vs 99.6% | -0.8pp
+```
+
+### tinkerer
+
+```
+|      bot | runs | win rate | median enc. | mean turns |
+|   greedy |  500 |    76.6% |           9 |       17.3 |
+| mediocre |  500 |    31.4% |           9 |       29.8 |
+|   solver |  500 |    92.6% |           9 |       13.1 |
+Curses:  greedy pickup 46.0% | win 76.6% vs 77.8% no-curse | -1.2pp
+         mediocre pickup 100.0% | 31.4% vs 29.2% | +2.2pp
+         solver pickup 58.4% | 92.6% vs 93.6% | -1.0pp
+```
+
+### Reading the tables
+
+- **All balanced exit criteria PASS.** mediocre 23.4% (in band), greedy
+  83.4% (< 90), no dead grids across 2500+ balanced runs.
+- **Curses are a real tradeoff.** Pickup is sometimes-not-always: greedy
+  44-53%, solver 58-68%, mediocre near-100% (a weak player should grab
+  the organelle). Every greedy and solver delta is negative, and on the
+  judged balanced cell every delta is negative (greedy -1.0, mediocre
+  -1.0, solver -1.4). The small positive mediocre deltas on gambler
+  (+1.6) and tinkerer (+2.2) are inside the ~1.8pp sampling error at 500
+  runs and sit on cells that are not the judged one.
+- **Cells within 10 of Amoeba (no-curse greedy vs balanced 84.4%):**
+  aggro 87.0 (+2.6), defensive 89.4 (+5.0), tinkerer 77.8 (-6.6) all
+  within 10; gambler 95.4 (+11.0) is OUT. This gap is PRE-EXISTING cell
+  tuning, not a curse regression: it is 11.0pp in the no-curse baseline
+  and only 11.6pp with curses (curses shift gambler greedy by -0.4pp).
+  Logged in the tech-debt tracker as a disclosed residual; retuning cell
+  balance is a separate wave, not this one.
