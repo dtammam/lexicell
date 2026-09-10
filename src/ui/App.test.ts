@@ -12,6 +12,7 @@ import { tick } from 'svelte';
 import App from './App.svelte';
 import { SAVE_KEY } from './persist';
 import { cleanup, click, findByText, getButton, getByText, queryButton, queryByText, render } from './test-utils';
+import { dailySeed } from './daily';
 
 // The real App: real context (the ?raw dictionary), real store, real reducer, jsdom's localStorage.
 // Date.now is the run seed, so it is pinned per test to keep every assertion reproducible.
@@ -503,7 +504,7 @@ describe('App', () => {
     await attackOnce('short');
     expect(await findByText('You won')).toBeTruthy();
     const stored = JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { v: number; runs: { seed: number; outcome: string; encounterReached: number }[] };
-    expect(stored.v).toBe(1);
+    expect(stored.v).toBe(2);
     expect(stored.runs).toHaveLength(1);
     expect(stored.runs[0]).toMatchObject({ seed: nearEnd.rng.seed, outcome: 'won', encounterReached: 9 });
     // Summary links to History; the row shows the win.
@@ -577,6 +578,40 @@ describe('App', () => {
     await click(getButton('History'));
     await click(getButton('Back'));
     expect(getByText('You won')).toBeTruthy();
+  }, 30000);
+
+  it("daily challenge: the title offers today's seed, starting it locks the control for the day across a reload, and an abandoned daily is still recorded daily (step 8)", async () => {
+    const daySeed = dailySeed(new Date(Date.now()));
+    render(App);
+    await findByText('New run', 15000);
+    // The daily control is offered with today's seed.
+    expect(getByText("Today's challenge")).toBeTruthy();
+    expect(getByText(`Seed ${daySeed}`)).toBeTruthy();
+    // Starting it (no save yet, so no confirm) launches a run on the daily seed with the default cell.
+    // The click lands on the label span; it bubbles to the button (its own text also carries the seed).
+    await click(getByText("Today's challenge"));
+    await click(await findByText('Divide and conquer'));
+    await findByText('Choose a starting item', 15000);
+    const started = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    expect(started.rng.seed).toBe(daySeed);
+    expect(started.cell).toBe('balanced');
+    expect(started.mode).toBe('normal');
+    expect(localStorage.getItem('lexicell.daily')).toBe(String(Math.floor(Date.now() / 86_400_000)));
+    // A fresh load the same day shows the done state, not the offer, and keeps Continue.
+    cleanup();
+    render(App);
+    await findByText('Continue', 15000);
+    expect(queryByText("Today's challenge")).toBeNull();
+    expect(getByText("Today's challenge played")).toBeTruthy();
+    // Abandoning the on-disk daily for a new run records it as abandoned AND daily.
+    await click(getButton('New run'));
+    await click(getButton('Yes, start over'));
+    await pickCell();
+    await click(await findByText('Divide and conquer'));
+    const runs = (JSON.parse(localStorage.getItem('lexicell.history') ?? 'null') as { v: number; runs: { outcome: string; seed: number; daily: boolean }[] });
+    expect(runs.v).toBe(2);
+    expect(runs.runs).toHaveLength(1);
+    expect(runs.runs[0]).toMatchObject({ outcome: 'abandoned', seed: daySeed, daily: true });
   }, 30000);
 
   it('clarity: the enemy shows its next move, names appear once, the backdrop has a veil, and organelles light up for a word they fire on', async () => {

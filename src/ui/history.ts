@@ -10,7 +10,7 @@ import type { StorageLike } from './persist';
 
 export const HISTORY_KEY = 'lexicell.history';
 export const RUN_STARTED_KEY = 'lexicell.run.started';
-export const HISTORY_VERSION = 1;
+export const HISTORY_VERSION = 2;
 /** The oldest fall off past this many (Dean, question 2). */
 export const HISTORY_CAP = 200;
 
@@ -36,6 +36,8 @@ export interface HistoryEntry {
   readonly cell?: string;
   /** Run mode (step 5); absent on entries written before modes existed, which were all normal. */
   readonly mode?: string;
+  /** True for a run started as the daily challenge (step 8). v1 entries migrate to false. */
+  readonly daily: boolean;
 }
 
 interface HistoryFile {
@@ -68,8 +70,14 @@ export function looksLikeEntry(v: unknown): v is HistoryEntry {
     v.items.every((i) => typeof i === 'string') &&
     typeof v.build === 'string' &&
     (v.cell === undefined || typeof v.cell === 'string') &&
-    (v.mode === undefined || typeof v.mode === 'string')
+    (v.mode === undefined || typeof v.mode === 'string') &&
+    typeof v.daily === 'boolean'
   );
+}
+
+/** A v1 entry predates the daily flag; every v1 run was a plain run, so it migrates to daily:false. */
+function migrateV1(v: unknown): unknown {
+  return isRecord(v) ? { ...v, daily: false } : v;
 }
 
 /** The stored runs, newest last. Anything unreadable is an empty history. */
@@ -87,8 +95,11 @@ export function loadHistory(storage: StorageLike): HistoryEntry[] {
   } catch {
     return [];
   }
-  if (!isRecord(parsed) || parsed.v !== HISTORY_VERSION || !Array.isArray(parsed.runs)) return [];
-  return parsed.runs.filter(looksLikeEntry);
+  if (!isRecord(parsed) || !Array.isArray(parsed.runs)) return [];
+  if (parsed.v === HISTORY_VERSION) return parsed.runs.filter(looksLikeEntry);
+  // v1 -> v2: the only schema change is the added `daily` flag; fill it false and validate as v2.
+  if (parsed.v === 1) return parsed.runs.map(migrateV1).filter(looksLikeEntry);
+  return [];
 }
 
 function write(storage: StorageLike, runs: readonly HistoryEntry[]): void {
@@ -135,7 +146,7 @@ export function runStartedAt(storage: StorageLike, seed: number): string | null 
 }
 
 /** Build the entry for a run that just ended (or was abandoned at `state`). */
-export function entryFrom(state: RunState, outcome: HistoryOutcome, endedAt: string, startedAt: string | null, build: string): HistoryEntry {
+export function entryFrom(state: RunState, outcome: HistoryOutcome, endedAt: string, startedAt: string | null, build: string, daily: boolean): HistoryEntry {
   return {
     seed: state.rng.seed,
     startedAt,
@@ -152,6 +163,7 @@ export function entryFrom(state: RunState, outcome: HistoryOutcome, endedAt: str
     build,
     cell: state.cell,
     mode: state.mode,
+    daily,
   };
 }
 
@@ -159,7 +171,7 @@ export function exportJson(runs: readonly HistoryEntry[]): string {
   return JSON.stringify({ v: HISTORY_VERSION, exportedAt: new Date().toISOString(), runs }, null, 2);
 }
 
-const CSV_HEAD = ['seed', 'startedAt', 'endedAt', 'outcome', 'encounterReached', 'turns', 'damageDealt', 'damageTaken', 'bestWord', 'bestWordDamage', 'items', 'build', 'cell', 'mode'];
+const CSV_HEAD = ['seed', 'startedAt', 'endedAt', 'outcome', 'encounterReached', 'turns', 'damageDealt', 'damageTaken', 'bestWord', 'bestWordDamage', 'items', 'build', 'cell', 'mode', 'daily'];
 
 function csvCell(v: string | number | null): string {
   const s = v === null ? '' : String(v);
@@ -171,7 +183,7 @@ export function exportCsv(runs: readonly HistoryEntry[]): string {
   const lines = [CSV_HEAD.join(',')];
   for (const r of runs) {
     lines.push(
-      [r.seed, r.startedAt, r.endedAt, r.outcome, r.encounterReached, r.turns, r.damageDealt, r.damageTaken, r.bestWord, r.bestWordDamage, r.items.join(';'), r.build, r.cell ?? '', r.mode ?? 'normal']
+      [r.seed, r.startedAt, r.endedAt, r.outcome, r.encounterReached, r.turns, r.damageDealt, r.damageTaken, r.bestWord, r.bestWordDamage, r.items.join(';'), r.build, r.cell ?? '', r.mode ?? 'normal', String(r.daily)]
         .map(csvCell)
         .join(','),
     );

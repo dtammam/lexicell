@@ -19,6 +19,9 @@
   import Evolve from './Evolve.svelte';
   import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
+  import { dailyPlayedDay, dailySeed, isDailyRun, markDailyPlayed } from './daily';
+  import { dayNumber } from './definitions';
+  import { DEFAULT_CELL } from '../content/cells';
 
   // The seed is the only wall-clock the game reads, and it is read here, never in the engine.
   const seed = () => Date.now() >>> 0;
@@ -45,8 +48,23 @@
   const BUILD = `${__BUILD_NUMBER__} · ${__BUILD_SHA__}`;
   const nowIso = () => new Date(Date.now()).toISOString();
   function record(state: RunState, outcome: 'won' | 'lost' | 'abandoned') {
-    history = appendRun(storage, entryFrom(state, outcome, nowIso(), runStartedAt(storage, state.rng.seed), BUILD));
+    const startedAt = runStartedAt(storage, state.rng.seed);
+    // A run is the daily when its seed is the daily seed of the day it started; that stamp survives a
+    // reload, so a daily begun yesterday and finished today still records as daily.
+    history = appendRun(storage, entryFrom(state, outcome, nowIso(), startedAt, BUILD, isDailyRun(state.rng.seed, startedAt)));
   }
+  // The daily challenge (step 8): today's seed, the day it was last played (kept reactive so the
+  // control flips to its done state after starting), and today's daily outcome if it finished.
+  let dailyDay: number | null = $state.raw(dailyPlayedDay(storage));
+  const todayDaily = $derived(dailySeed(new Date(Date.now())));
+  const dailyOpen = $derived(dailyDay !== dayNumber(new Date(Date.now())));
+  const dailyOutcome = $derived.by(() => {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const r = history[i];
+      if (r && r.daily && r.seed === todayDaily) return r.outcome;
+    }
+    return null;
+  });
   // True when a run can be continued: a live in-memory run, or an unfinished save on disk before a
   // store exists. A run that reached its summary is not continuable, in memory or on disk (a title
   // visit after a win used to offer Continue and ask before New run; run-history wave).
@@ -107,6 +125,18 @@
     if (!store) openStore(ctx);
     store?.dispatch({ type: 'newRun', seed: seedIn ?? seed(), cell: cellId, mode });
     screen = 'intro';
+  }
+  /**
+   * Title: Today's challenge. Starts the daily run (today's seed, the default cell, normal mode) the
+   * same way a cell pick does, so a live run is recorded as abandoned first. The day is stamped at the
+   * start (not the finish), so abandoning the daily still counts as today's and it cannot be farmed.
+   */
+  function startDaily() {
+    if (!ctx) return;
+    const now = new Date(Date.now());
+    markDailyPlayed(storage, now);
+    dailyDay = dayNumber(now);
+    onCellPick(DEFAULT_CELL, 'normal', dailySeed(now));
   }
   function onBegin() {
     screen = 'run';
@@ -198,7 +228,7 @@
     {:else if screen === 'cells'}
       <CellPick onPick={onCellPick} onBack={toTitle} />
     {:else if screen === 'title' || !run}
-      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} onHistory={toHistory} onNotes={toNotes} />
+      <Title {hasSave} {onPlay} {onContinue} onItems={toItems} onHelp={toHelp} onHistory={toHistory} onNotes={toNotes} onDaily={startDaily} dailySeed={todayDaily} dailyOpen={dailyOpen} dailyOutcome={dailyOutcome} />
     {:else if screen === 'intro'}
       <Intro {onBegin} cell={run?.cell ?? 'balanced'} />
     {:else if run.phase === 'fight'}

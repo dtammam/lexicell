@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 79, pr: 77, sha: 'pending', date: '2026-09-10', title: 'Share your run', notes: "The end-of-run summary is now a card you can screenshot, tinted by the act you reached and showing your cell, best word and organelles. Copy the seed or hit Share, and start a run from a pasted seed so two people can play the exact same run." },
+  { build: 80, pr: 78, sha: 'pending', date: '2026-09-10', title: 'Daily challenge', notes: "The title now offers a daily challenge: one seed a day, the same run for everyone, played once and then locked until tomorrow. Your history marks which runs were the daily." },
+  { build: 79, pr: 77, sha: '47d55d1', date: '2026-09-10', title: 'Share your run', notes: "The end-of-run summary is now a card you can screenshot, tinted by the act you reached and showing your cell, best word and organelles. Copy the seed or hit Share, and start a run from a pasted seed so two people can play the exact same run." },
   { build: 78, pr: 76, sha: 'ec243f0', date: '2026-09-10', title: 'Curses', notes: "After act 1, an offer sometimes comes cursed: every option drags a downside along with it, so you take the good with the bad or leave the whole offer. The compendium lists the ten curses in their own section." },
   { build: 77, pr: 75, sha: '95af908', date: '2026-09-10', title: 'Logo in the header', notes: "The app header now shows the Lexicell logo instead of the word, at the same size, so it reads at a glance during a run. Nothing else changed in the game." },
   { build: 76, pr: 74, sha: '4833fd9', date: '2026-09-10', title: 'Bigger logo', notes: "The Lexicell logo on the title screen is a proper size now, and the build number shown there matches the release notes on every version. Nothing else changed in the game." },

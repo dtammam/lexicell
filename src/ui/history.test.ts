@@ -30,7 +30,7 @@ function fake(initial: Record<string, string> = {}, refuse = false): StorageLike
 const ctx = nodeContext({ ...CONTENT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
 
 function entry(seed: number, over: Partial<HistoryEntry> = {}): HistoryEntry {
-  return { ...entryFrom(newRun(seed, ctx), 'lost', '2026-09-08T20:00:00.000Z', '2026-09-08T19:50:00.000Z', '118 · abc1234'), ...over };
+  return { ...entryFrom(newRun(seed, ctx), 'lost', '2026-09-08T20:00:00.000Z', '2026-09-08T19:50:00.000Z', '118 · abc1234', false), ...over };
 }
 
 describe('run history', () => {
@@ -98,10 +98,10 @@ describe('run history', () => {
 
   it('entryFrom reads the run without touching it, capping the encounter at 9', () => {
     const run = newRun(3, ctx);
-    const e = entryFrom(run, 'abandoned', '2026-09-08T20:00:00.000Z', null, 'b');
+    const e = entryFrom(run, 'abandoned', '2026-09-08T20:00:00.000Z', null, 'b', false);
     expect(e).toMatchObject({ seed: run.rng.seed, outcome: 'abandoned', encounterReached: 1, turns: 0, items: [], startedAt: null, build: 'b' });
-    expect(entryFrom({ ...run, encounterIndex: 8 }, 'won', 'x', null, 'b').encounterReached).toBe(9);
-    expect(entryFrom({ ...run, encounterIndex: 40 }, 'won', 'x', null, 'b').encounterReached).toBe(9);
+    expect(entryFrom({ ...run, encounterIndex: 8 }, 'won', 'x', null, 'b', false).encounterReached).toBe(9);
+    expect(entryFrom({ ...run, encounterIndex: 40 }, 'won', 'x', null, 'b', false).encounterReached).toBe(9);
   });
 
   it('remembers when a run started, per seed', () => {
@@ -115,13 +115,13 @@ describe('run history', () => {
   it('JSON export re-parses to the same entries; CSV has a header, one row per run, and escapes quotes, commas and semicolons', () => {
     const runs = [entry(1), entry(2, { bestWord: 'a"b,c', items: ['x;y', 'z'], outcome: 'won', build: 'line one\nline two' })];
     const back = JSON.parse(exportJson(runs)) as { v: number; runs: HistoryEntry[] };
-    expect(back.v).toBe(1);
+    expect(back.v).toBe(2);
     expect(back.runs).toEqual(runs);
     const csv = exportCsv(runs);
     const lines = csv.trimEnd().split('\r\n');
     expect(lines).toHaveLength(3);
-    expect(lines[0]).toBe('seed,startedAt,endedAt,outcome,encounterReached,turns,damageDealt,damageTaken,bestWord,bestWordDamage,items,build,cell,mode');
-    expect(lines[1]).toMatch(/,balanced,normal$/);
+    expect(lines[0]).toBe('seed,startedAt,endedAt,outcome,encounterReached,turns,damageDealt,damageTaken,bestWord,bestWordDamage,items,build,cell,mode,daily');
+    expect(lines[1]).toMatch(/,balanced,normal,false$/);
     expect(lines[2]).toContain('"a""b,c"');
     expect(lines[2]).toContain('"x;y;z"');
     expect(csv).toContain('"line one\nline two"');
@@ -133,11 +133,39 @@ describe('run history', () => {
   it('an endless run records how deep it got, uncapped, and its mode (step 5)', () => {
     const s = newRun(3, ctx, 'balanced', 'endless');
     const deep = { ...s, phase: 'summary' as const, outcome: 'lost' as const, encounter: null, encounterIndex: 13 };
-    const e = entryFrom(deep, 'lost', '2026-09-09T00:00:00.000Z', null, '1 · x');
+    const e = entryFrom(deep, 'lost', '2026-09-09T00:00:00.000Z', null, '1 · x', false);
     expect(e.encounterReached).toBe(14);
     expect(e.mode).toBe('endless');
     const normal = { ...newRun(3, ctx), phase: 'summary' as const, outcome: 'won' as const, encounter: null, encounterIndex: 8 };
-    expect(entryFrom(normal, 'won', '2026-09-09T00:00:00.000Z', null, '1 · x').encounterReached).toBe(9);
-    expect(exportCsv([e]).split('\n')[0]?.trimEnd().endsWith(',cell,mode')).toBe(true);
+    expect(entryFrom(normal, 'won', '2026-09-09T00:00:00.000Z', null, '1 · x', false).encounterReached).toBe(9);
+    expect(exportCsv([e]).split('\n')[0]?.trimEnd().endsWith(',cell,mode,daily')).toBe(true);
+  });
+
+  it('entryFrom stamps the daily flag it is given (step 8)', () => {
+    const run = newRun(3, ctx);
+    expect(entryFrom(run, 'won', 'x', null, 'b', true).daily).toBe(true);
+    expect(entryFrom(run, 'won', 'x', null, 'b', false).daily).toBe(false);
+  });
+
+  it('migrates a real v1 history blob to v2 with daily:false, and reads a v2 blob as-is (step 8)', () => {
+    // A genuine v1 entry has no `daily` field: strip it to model what was on disk before the bump.
+    const withoutDaily: Record<string, unknown> = { ...entry(11) };
+    delete withoutDaily.daily;
+    expect('daily' in withoutDaily).toBe(false);
+    const v1 = fake({ [HISTORY_KEY]: JSON.stringify({ v: 1, runs: [withoutDaily] }) });
+    const migrated = loadHistory(v1);
+    expect(migrated).toHaveLength(1);
+    expect(migrated[0]?.daily).toBe(false);
+    expect(migrated[0]?.seed).toBe(11);
+    // A v2 blob (the current version) is read unchanged, daily flag preserved.
+    const dailyEntry = entry(12, { daily: true });
+    const v2 = fake({ [HISTORY_KEY]: JSON.stringify({ v: 2, runs: [dailyEntry] }) });
+    expect(loadHistory(v2)).toEqual([dailyEntry]);
+    // A v1 entry that was itself missing more than the daily flag is still dropped by the validator.
+    const brokenV1 = fake({ [HISTORY_KEY]: JSON.stringify({ v: 1, runs: [{ ...withoutDaily, seed: 'no' }] }) });
+    expect(loadHistory(brokenV1)).toEqual([]);
+    // In a v2 blob (no migration to backfill it), a non-boolean or missing daily is invalid and dropped.
+    expect(loadHistory(fake({ [HISTORY_KEY]: JSON.stringify({ v: 2, runs: [{ ...entry(13), daily: 'yes' }] }) }))).toEqual([]);
+    expect(loadHistory(fake({ [HISTORY_KEY]: JSON.stringify({ v: 2, runs: [withoutDaily] }) }))).toEqual([]);
   });
 });

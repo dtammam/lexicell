@@ -28,12 +28,21 @@ export async function defineWord(word: string): Promise<string | null> {
   return map.get(word.toLowerCase()) ?? null;
 }
 
+/**
+ * The day number a date falls in: whole days since the Unix epoch, so the boundary is UTC midnight
+ * and the same instant maps to the same day on every device. The word of the day and the daily seed
+ * (src/ui/daily.ts) both derive from this, so they flip together at the same moment.
+ */
+export function dayNumber(date: Date): number {
+  return Math.floor(date.getTime() / 86_400_000);
+}
+
 /** Deterministic word of the day: the same word for everyone on the same date, from the defined words only. */
 export async function wordOfTheDay(date: Date, minLength = 5, maxLength = 8): Promise<{ word: string; gloss: string } | null> {
   const map = await loadDefinitions();
   const candidates = Array.from(map.keys()).filter((w) => w.length >= minLength && w.length <= maxLength);
   if (candidates.length === 0) return null;
-  const day = Math.floor(date.getTime() / 86_400_000);
+  const day = dayNumber(date);
   // Multiplicative hash of the day number; no engine RNG involved, this is presentation only.
   const index = Math.abs(Math.imul(day, 2654435761) >>> 0) % candidates.length;
   const word = candidates[index];
