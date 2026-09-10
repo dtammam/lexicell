@@ -106,6 +106,7 @@ order and count. Sim tables and full gate narratives live in the exec
 plans (`docs/exec-plans/completed/`) and the release notes; this list is
 the honest index.
 
+- **build 75 / PR #73** - GitHub Pages deploy concurrency fixed: `cancel-in-progress: false` so back-to-back merges queue instead of orphaning a deployment (builds 72-74 had been blocked on the play link; the Docker image was always current). Cause and manual recovery documented in `docs/deploy.md`.
 - **build 73 / PR #71** - README intro restructured to say what the game
   is, what inspired it (word games plus Binding of Isaac, Balatro and
   Slay the Spire, a Plague Inc theme, an Earthbound look) and how it was
