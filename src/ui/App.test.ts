@@ -464,18 +464,49 @@ describe('App', () => {
     expect(after.lastTurn?.word).toBe(word);
   });
 
-  it('How to play opens from the title with the tile legend, and Readable type toggles and persists per device', async () => {
+  it('How to play opens from the title with the tile legend and no settings controls (moved to Settings)', async () => {
     render(App);
     await click(await findByText('How to play', 15000));
     expect(getByText('How to play')).toBeTruthy();
     expect(getByText(/Rare letter, worth the most: K 5, J 6, X 6, Q 8, Z 8/)).toBeTruthy();
     expect(getByText(/Tiles do not need to touch/)).toBeTruthy();
     expect(document.querySelectorAll('.legend .tile')).toHaveLength(8);
+    // Reading, sound and the bug report moved to Settings; Help holds none of their controls now.
+    expect(queryButton('Readable type: off')).toBeNull();
+    expect(queryButton('Sound effects: on')).toBeNull();
+    expect(queryByText(/gear at the top/)).toBeTruthy();
+    await click(getButton('Back'));
+    expect(await findByText('New run')).toBeTruthy();
+  });
+
+  it('Settings opens from the top-bar gear, shows the four controls plus a bug report, toggles Readable and persists the five-field blob', async () => {
+    render(App);
+    await findByText('New run', 15000);
+    // The gear is in the persistent top bar on the title (and every screen).
+    const gear = document.querySelector<HTMLButtonElement>('[aria-label="Settings"]');
+    expect(gear).not.toBeNull();
+    await click(gear);
+    expect(getByText('Settings')).toBeTruthy();
+    // Sound effects mute + volume, music mute + volume, legible text, submit a bug.
+    expect(getButton('Sound effects: on')).toBeTruthy();
+    expect(getButton('Music: on')).toBeTruthy();
+    expect(getButton('Readable type: off')).toBeTruthy();
+    expect(document.querySelectorAll('input[type="range"]')).toHaveLength(2);
+    const bug = document.querySelector('a[href^="mailto:dean@tamm.am"]');
+    expect(bug).not.toBeNull();
+    expect(bug?.getAttribute('href')).toContain('subject=Lexicell%20bug');
+    // The mailto stamps the build the title shows and the build sha ('test' here).
+    expect(bug?.getAttribute('href')).toContain(`build%20${RELEASE_NOTES[0]?.build}`);
+    // Readable flips the whole app and persists in the new five-field shape.
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(false);
     await click(getButton('Readable type: off'));
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(true);
-    expect(JSON.parse(localStorage.getItem('lexicell.settings') ?? 'null')).toEqual({ readable: true, sound: true, volume: 0.7 });
-    expect(getButton('Readable type: on')).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem('lexicell.settings') ?? 'null')).toEqual({ readable: true, sfxMuted: false, sfxVolume: 0.7, musicMuted: false, musicVolume: 0.7 });
+    // Muting sound effects flips the label and persists on its own field.
+    await click(getButton('Sound effects: on'));
+    expect(getButton('Sound effects: off')).toBeTruthy();
+    expect((JSON.parse(localStorage.getItem('lexicell.settings') ?? 'null') as { sfxMuted: boolean }).sfxMuted).toBe(true);
+    // Back returns to where it opened (the title); the readable choice survives a reload.
     await click(getButton('Back'));
     expect(await findByText('New run')).toBeTruthy();
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(true);
@@ -483,6 +514,16 @@ describe('App', () => {
     render(App);
     await findByText('New run', 15000);
     expect(document.querySelector('main')?.hasAttribute('data-readable')).toBe(true);
+  });
+
+  it('the Settings gear is reachable during a fight and Back returns to the run', async () => {
+    await startRun();
+    const gear = document.querySelector<HTMLButtonElement>('[aria-label="Settings"]');
+    expect(gear).not.toBeNull();
+    await click(gear);
+    expect(getByText('Settings')).toBeTruthy();
+    await click(getButton('Back'));
+    expect(await findByText('Enc 1/9')).toBeTruthy();
   });
 
   it('the first fight shows the two tile signals in the report line', async () => {

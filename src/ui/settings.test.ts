@@ -29,35 +29,47 @@ describe('settings', () => {
   });
 
   it('validates each field on its own; a bad value falls back to its default without dropping the others', () => {
-    // A bad readable keeps the good sound/volume; a bad sound keeps the good readable/volume, etc.
-    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: 'yes', sound: false, volume: 0.3 }) }))).toEqual({ readable: false, sound: false, volume: 0.3 });
-    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: true, sound: 'off', volume: 0.3 }) }))).toEqual({ readable: true, sound: true, volume: 0.3 });
-    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: true, sound: false, volume: 'loud' }) }))).toEqual({ readable: true, sound: false, volume: DEFAULT_SETTINGS.volume });
+    // A bad readable keeps the good audio fields; a bad mute keeps the good volume, etc.
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: 'yes', sfxMuted: true, sfxVolume: 0.3, musicMuted: false, musicVolume: 0.4 }) }))).toEqual({ readable: false, sfxMuted: true, sfxVolume: 0.3, musicMuted: false, musicVolume: 0.4 });
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: true, sfxMuted: 'off', sfxVolume: 0.3, musicMuted: false, musicVolume: 0.4 }) }))).toEqual({ readable: true, sfxMuted: DEFAULT_SETTINGS.sfxMuted, sfxVolume: 0.3, musicMuted: false, musicVolume: 0.4 });
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: true, sfxMuted: true, sfxVolume: 'loud', musicMuted: true, musicVolume: 0.9 }) }))).toEqual({ readable: true, sfxMuted: true, sfxVolume: DEFAULT_SETTINGS.sfxVolume, musicMuted: true, musicVolume: 0.9 });
   });
 
-  it('clamps volume into 0..1 and rejects non-finite volume', () => {
-    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: false, sound: true, volume: 5 }) })).volume).toBe(1);
-    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: false, sound: true, volume: -2 }) })).volume).toBe(0);
-    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: false, sound: true, volume: Number.NaN }) })).volume).toBe(DEFAULT_SETTINGS.volume);
+  it('clamps each volume into 0..1 and rejects non-finite volumes', () => {
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ sfxVolume: 5, musicVolume: 5 }) })).sfxVolume).toBe(1);
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ sfxVolume: 5, musicVolume: 5 }) })).musicVolume).toBe(1);
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ sfxVolume: -2, musicVolume: -2 }) })).sfxVolume).toBe(0);
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ sfxVolume: -2, musicVolume: -2 }) })).musicVolume).toBe(0);
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ sfxVolume: Number.NaN, musicVolume: Number.NaN }) })).sfxVolume).toBe(DEFAULT_SETTINGS.sfxVolume);
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ sfxVolume: Number.NaN, musicVolume: Number.NaN }) })).musicVolume).toBe(DEFAULT_SETTINGS.musicVolume);
   });
 
-  it('is backward-compatible: an old blob with only readable loads with the new sound/volume defaults', () => {
-    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: true }) }))).toEqual({ readable: true, sound: DEFAULT_SETTINGS.sound, volume: DEFAULT_SETTINGS.volume });
+  it('is backward-compatible: an old blob with only readable loads with the new audio defaults', () => {
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: true }) }))).toEqual({ ...DEFAULT_SETTINGS, readable: true });
     expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: false }) }))).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('round-trips all three fields and never throws when storage refuses a write', () => {
+  it('is backward-compatible: an old { readable, sound, volume } blob maps sound onto both mutes and volume onto both buses', () => {
+    // sound:false muted both buses; the single old volume set both.
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: true, sound: false, volume: 0.5 }) }))).toEqual({ readable: true, sfxMuted: true, sfxVolume: 0.5, musicMuted: true, musicVolume: 0.5 });
+    // sound:true left both audible; the old volume still fills both new volumes.
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: false, sound: true, volume: 0.25 }) }))).toEqual({ readable: false, sfxMuted: false, sfxVolume: 0.25, musicMuted: false, musicVolume: 0.25 });
+    // An old volume out of range still clamps.
+    expect(loadSettings(fake({ [SETTINGS_KEY]: JSON.stringify({ readable: false, sound: true, volume: 9 }) })).sfxVolume).toBe(1);
+  });
+
+  it('round-trips all five fields and never throws when storage refuses a write', () => {
     const s = fake();
-    saveSettings(s, { readable: true, sound: false, volume: 0.25 });
-    expect(loadSettings(s)).toEqual({ readable: true, sound: false, volume: 0.25 });
+    saveSettings(s, { readable: true, sfxMuted: false, sfxVolume: 0.2, musicMuted: true, musicVolume: 0.9 });
+    expect(loadSettings(s)).toEqual({ readable: true, sfxMuted: false, sfxVolume: 0.2, musicMuted: true, musicVolume: 0.9 });
     expect(() => {
-      saveSettings(fake({}, true), { readable: true, sound: true, volume: 0.7 });
+      saveSettings(fake({}, true), DEFAULT_SETTINGS);
     }).not.toThrow();
   });
 
   it('lives under its own key, never the run save', () => {
     const s = fake();
-    saveSettings(s, { readable: true, sound: true, volume: 0.7 });
+    saveSettings(s, DEFAULT_SETTINGS);
     expect([...s.data.keys()]).toEqual([SETTINGS_KEY]);
     expect(SETTINGS_KEY).not.toBe('lexicell.run');
   });
