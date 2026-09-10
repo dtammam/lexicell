@@ -79,6 +79,15 @@ module tests in the same commit, `scripts/sim.ts` still runs.
    sentences a player would enjoy. The test beside the file keeps the
    order and the numbering honest.
 
+7. **ROADMAP before merge (Dean, 2026-09-10).** Every PR updates
+   `ROADMAP.md` before it merges, the same discipline as the release
+   notes: move the item from Open to Shipped when it lands, or add a
+   Shipped line at the top matching its release-notes entry (same build
+   and PR number, one factual line, plus what the gate caught or what
+   is still open when it matters). Open and Shipped stay honest and in
+   order; a merge that changes nothing a player sees still gets its
+   Shipped line.
+
 ### The two-reviewer gate
 
 Spawn the seats by agent type, never as ad-hoc prompts: `quality-assurance` (correctness, regressions, engine contract, standards, comment accuracy; has Bash, runs the instruments) and `adversarial-reviewer` (assumes both you and QA missed something; measures every claim, mutation-tests bindings, leaves the tree byte-identical). Your task prompt carries the wave brief: branch, commit range, exec plan, and the named attack surfaces. Both report CRITICAL/WARNING/SUGGESTION with a concrete failure scenario each, then APPROVE or REQUEST CHANGES. Both must APPROVE before merge. If an agent type does not resolve yet (registry refresh lag), brief the discipline inline from the agent file.
