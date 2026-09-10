@@ -173,7 +173,7 @@
     border: 2px solid var(--shade);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: var(--s2) var(--s3) var(--s3);
+    padding: var(--s2) var(--s3);
     display: flex;
     flex-direction: column;
     gap: var(--s1);
@@ -329,14 +329,32 @@
     white-space: nowrap;
     font-family: var(--font-hud);
     font-size: var(--hud-s);
+    /* HUD lines are single rows of pixel caps: line-height 1, not the body's 1.5, so the rows,
+       stats and bar labels stay short and the tallest fight fits the small viewport (2026-09-10). */
+    line-height: 1;
     letter-spacing: 0.05em;
     color: var(--ink);
+  }
+  /* The enemy name yields before its HP number: the name ellipsizes, the HP stays pinned and
+     fully inside the box (2026-09-10, Elite prefix on a long name shoved "72 / 72" out). */
+  .bar-label {
+    align-items: baseline;
+  }
+  .bar-label strong {
+    min-width: 0;
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bar-label span {
+    flex: none;
+    white-space: nowrap;
   }
   .stage {
     display: flex;
     justify-content: space-around;
     align-items: flex-end;
-    min-height: 52px;
+    min-height: 48px;
   }
   .fighter {
     position: relative;
@@ -436,7 +454,7 @@
     border: 1px solid var(--shade);
     background: var(--line);
     overflow: hidden;
-    margin-bottom: var(--s1);
+    /* No own margin: the .bars flex column already gaps its rows (2026-09-10). */
   }
   .fill {
     position: absolute;
