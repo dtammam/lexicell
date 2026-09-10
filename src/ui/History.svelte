@@ -67,7 +67,7 @@
         <button class="row" onclick={() => { open = open === i ? null : i; }}>
           <span class="hud outcome">{r.outcome === 'won' ? 'WON' : r.outcome === 'lost' ? 'LOST' : 'LEFT'}</span>
           <span class="meta">
-            <span class="line">{when(r.endedAt)} <span class="hud">E{r.encounterReached}</span> <span class="hud">{r.turns}t</span></span>
+            <span class="line">{when(r.endedAt)} <span class="hud">E{r.encounterReached}</span> <span class="hud">{r.turns}t</span>{#if r.daily}<span class="hud daily">DAILY</span>{/if}</span>
             <span class="line best">{r.bestWord ? `${r.bestWord.toUpperCase()} for ${r.bestWordDamage}` : 'no word played'}</span>
           </span>
           <span class="icons">
@@ -176,6 +176,9 @@
   }
   .best {
     color: var(--score);
+  }
+  .daily {
+    color: var(--select);
   }
   .icons {
     flex: none;

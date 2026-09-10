@@ -18,10 +18,30 @@
     onHelp,
     onHistory,
     onNotes,
-  }: { hasSave: boolean; onPlay: () => void; onContinue: () => void; onItems: () => void; onHelp: () => void; onHistory: () => void; onNotes: () => void } = $props();
+    onDaily,
+    dailySeed,
+    dailyOpen,
+    dailyOutcome,
+  }: {
+    hasSave: boolean;
+    onPlay: () => void;
+    onContinue: () => void;
+    onItems: () => void;
+    onHelp: () => void;
+    onHistory: () => void;
+    onNotes: () => void;
+    onDaily: () => void;
+    /** Today's daily seed, shown so a player sees it is the same run for everyone. */
+    dailySeed: number;
+    /** True when today's daily has not been started yet. */
+    dailyOpen: boolean;
+    /** Today's daily result if it finished (won/lost/abandoned), else null. */
+    dailyOutcome: 'won' | 'lost' | 'abandoned' | null;
+  } = $props();
 
-  // Two-step abandon: with a save, "New run" first asks, then replaces it. Closes tracker #4.
-  let confirming = $state.raw(false);
+  // Two-step abandon: with a save, starting a new or daily run first asks, then replaces it. Closes
+  // tracker #4, and keeps the daily from silently discarding a live run when tapped by mistake.
+  let confirming: 'new' | 'daily' | null = $state.raw(null);
   let wotd: { word: string; gloss: string } | null = $state.raw(null);
 
   $effect(() => {
@@ -37,13 +57,20 @@
     };
   });
 
-  function newRun() {
-    if (hasSave && !confirming) {
-      confirming = true;
+  const outcomeWord = { won: 'won', lost: 'lost', abandoned: 'left' } as const;
+
+  // A save asks before either start replaces it; without one, start straight away.
+  function request(what: 'new' | 'daily') {
+    if (hasSave) {
+      confirming = what;
       return;
     }
-    confirming = false;
-    onPlay();
+    run(what);
+  }
+  function run(what: 'new' | 'daily') {
+    confirming = null;
+    if (what === 'new') onPlay();
+    else onDaily();
   }
 </script>
 
@@ -57,14 +84,25 @@
     {#if confirming}
       <!-- Two plain choices and nothing else (Dean, 2026-09-08: a tester read the red button as a
            message and "Continue" as "continue to a new game"). -->
-      <p class="ask">Abandon the current run and start over?</p>
-      <button class="btn harm" onclick={newRun}>Yes, start over</button>
-      <button class="btn life" onclick={() => { confirming = false; }}>Keep my run</button>
+      <p class="ask">Abandon the current run and start {confirming === 'daily' ? "today's challenge" : 'over'}?</p>
+      <button class="btn harm" onclick={() => { run(confirming === 'daily' ? 'daily' : 'new'); }}>Yes, start over</button>
+      <button class="btn life" onclick={() => { confirming = null; }}>Keep my run</button>
     {:else}
       {#if hasSave}
         <button class="btn life" onclick={onContinue}>Continue</button>
       {/if}
-      <button class="btn" class:life={!hasSave} onclick={newRun}>New run</button>
+      {#if dailyOpen}
+        <button class="btn daily" onclick={() => { request('daily'); }}>
+          <span>Today's challenge</span>
+          <small class="seed">Seed {dailySeed}</small>
+        </button>
+      {:else}
+        <div class="daily done">
+          <span>Today's challenge {dailyOutcome ? outcomeWord[dailyOutcome] : 'played'}</span>
+          <small class="seed">Seed {dailySeed} · back tomorrow</small>
+        </div>
+      {/if}
+      <button class="btn" class:life={!hasSave} onclick={() => { request('new'); }}>New run</button>
       <button class="btn" onclick={onItems}>Organelles</button>
       <button class="btn" onclick={onHistory}>History</button>
       <button class="btn" onclick={onHelp}>How to play</button>
@@ -87,7 +125,9 @@
   .title {
     display: flex;
     flex-direction: column;
-    gap: var(--s5);
+    /* s4, not s5: the daily control is a seventh row, so the sections sit a little closer to keep the
+       whole title inside one phone screen (390x844) without an internal scroll. */
+    gap: var(--s4);
     padding-top: var(--s5);
   }
   .mark {
@@ -126,6 +166,34 @@
     display: flex;
     flex-direction: column;
     gap: var(--s2);
+  }
+  /* The daily is the headline action: the select accent sets it apart from New run, and its seed
+     rides a second line so a player sees it is the same run for everyone. */
+  .daily {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  button.daily {
+    background: var(--select);
+    color: var(--ground);
+  }
+  .daily .seed {
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    letter-spacing: 0.05em;
+  }
+  .daily.done {
+    padding: var(--s3) var(--s2);
+    border: 2px dashed var(--shade);
+    border-radius: var(--radius);
+    background: var(--panel);
+    color: var(--muted);
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
+    line-height: 1.25;
+    text-align: center;
   }
   .build {
     margin: 0;
