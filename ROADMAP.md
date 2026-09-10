@@ -85,11 +85,12 @@ lost.
   style Dean likes. After regeneration all 210 PNGs are unique by md5
   (101 -> 210, zero residual duplicates). Still placeholder art; real art
   is a separate future job.
-- **Sound.** The audio engine, procedural sound effects and a Sound /
-  volume control shipped (build 82, PR #80): native Web Audio, no
-  dependency, effects for tiles, words, hits, defeats and run
-  win/loss. Background music is built and waits only on Dean's track
-  file at `public/audio/theme.mp3`; drop it in and it loops gaplessly.
+- **Sound.** Shipped. The audio engine and Sound / volume control landed
+  in build 82 (PR #80); the effects were resynthesized soft and calm and
+  the background music track ("Before the Surge") landed in build 83
+  (PR #81), looped gaplessly and mixed low under the effects. Native Web
+  Audio, no dependency. Future polish (per-screen tracks, more effects) is
+  optional and unscheduled.
 - **A custom domain or redirect for the play link** (for example
   lexi.cell), instead of the raw github.io URL.
 - **Publish to an app store** of some kind.
@@ -103,6 +104,7 @@ order and count. Sim tables and full gate narratives live in the exec
 plans (`docs/exec-plans/completed/`) and the release notes; this list is
 the honest index.
 
+- **build 83 / PR #81** - Sound effects resynthesized soft and calm (Dean: the first pass was too bleepy and abrupt): sine bodies, muffled filtered noise, gentle envelopes, a bus lowpass and a small reverb. Also lands the background music track (public/audio/theme.mp3, "Before the Surge"), looped gaplessly and mixed low under the effects.
 - **build 82 / PR #80** - Audio engine (UI only, no engine or save change): a native Web Audio singleton (`src/ui/audio.ts`), no third-party audio dependency. The AudioContext is created lazily on the first pointer/click (iOS Safari blocks audio before a gesture); every method no-ops where Web Audio is absent, so importing it in a test does nothing. Ten procedural sound effects synthesized from oscillators plus a filtered-noise buffer with fast ADSR envelopes, in a single per-effect params table: tileSelect, tileDeselect, wordLand, damage, defeat, win, lose, itemPick, curseTaken, tap. A pure `sfxForTransition(prev, next)` in `src/ui/audio-events.ts` maps a state delta to effect names and is unit tested without any audio. Music is decode-then-loop (fetch + decodeAudioData into an AudioBuffer, looped gaplessly), fetched from `${BASE_URL}audio/theme.mp3`; the track file is not in the repo, so music stays silently off until Dean drops `public/audio/theme.mp3` (README there). A Sound on/off toggle and a volume slider on the How to play screen persist per device in Settings (v-less, back-compatible with old `{readable}`-only blobs). `npm test` and `npm run lint` green.
 - **build 81 / PR #79** - Sprite variety (content/tooling only, no engine, save or UI logic): `scripts/sprites.py` `template_rows` now derives real per-item variation from the seed in every kind - ring radius/thickness/core, blob and cluster counts, rod lean and cap, tilted drop tails, wave amplitude/period/phase, radial spike and star counts and rotation, shield width and an engraved emblem, plus up-left highlight accents and an occasional mirror. Five kinds (drop, wave, spike, star, shield) had been byte-identical across every item that used them. Regenerating all item PNGs took md5-unique glyphs from 101/210 to 210/210 (zero duplicates), keeping the same placeholder pixel style. `npm test` 315/315, `npm run lint` clean.
 - **build 80 / PR #78** - Variety wave step 8, daily challenge (UI plus a history-schema bump, no engine or RunState-save change): the title now offers a daily run on a deterministic seed derived from the date (a uint32 multiplicative hash of the same day number the word of the day uses, so both flip together at UTC midnight; same day means the same run on every device). It starts the default cell in normal mode, Wordle-style. One run per day: a single localStorage slot (`lexicell.daily`) holding the day number is written the moment the daily starts, so starting then abandoning still counts and it cannot be farmed; the control shows a locked "done" state with the outcome until the date rolls over. History marks daily runs (`readonly daily: boolean`), so HISTORY_VERSION bumped 1 -> 2 with a migration that fills `daily:false` on old entries. This closes the variety wave: steps 1-8 all shipped (PRs #61, #62, #64, #65, #66, #76, #77, #78). Verified fitting 390x844 with no scroll in both the available and done states via the headless render harness.

@@ -3,6 +3,13 @@
  * music loop, all synthesized or decoded in the browser. No audio library ships to the device
  * (CLAUDE.md dependency rule): this is the native Web Audio API and nothing else.
  *
+ * The effects are deliberately soft (Dean, 2026-09-10, after a first bleepy pass: "too rough, too
+ * abrupt, too saw-wave-y, I need it subtle, calm, not annoying"). So: sine bodies, muffled filtered
+ * noise for the tactile thup of a card on felt, gentle attacks and long soft releases, a lowpass over
+ * the whole bus so nothing is bright, low gains, and a small reverb for air so nothing is dry. The
+ * per-effect parameters in renderSfx are the one place to tune by ear; this exact synthesis was
+ * approved from the tap-to-hear Sound Kit before it landed here.
+ *
  * Everything is guarded. If window.AudioContext is absent (tests, SSR) every method is a safe
  * no-op and never throws, so importing this module in a unit test does nothing. The mapping from
  * game state to effect names lives in audio-events.ts, which is pure and tested; this file is the
@@ -24,86 +31,43 @@ export type SfxName =
   | 'curseTaken'
   | 'tap';
 
-/** One oscillator voice inside an effect. Times are seconds from the moment the effect plays. */
-interface Voice {
-  readonly type: OscillatorType;
+/** A soft sine (or triangle) body: gentle attack, long exponential release, its own lowpass. */
+interface ToneOpts {
   readonly freq: number;
-  /** Optional exponential glide target; the pitch slides from freq to this across the voice. */
-  readonly glideTo?: number;
-  readonly start: number;
-  readonly dur: number;
-  /** Peak gain, 0..1. Kept low on purpose: these stack and must never spike. */
-  readonly gain: number;
+  /** Optional exponential glide target across dur. */
+  readonly to?: number;
+  readonly dur?: number;
+  readonly gain?: number;
+  readonly attack?: number;
+  /** Defaults to dur; the fall to silence after the attack. */
+  readonly release?: number;
+  readonly type?: OscillatorType;
+  readonly cutoff?: number;
+  readonly detune?: number;
 }
 
-/** A short burst of filtered white noise, for thuds and clicks. */
-interface NoiseSpec {
-  readonly start: number;
-  readonly dur: number;
-  readonly gain: number;
-  /** Lowpass cutoff in Hz. Keeps the noise soft, no harsh high-frequency hiss. */
-  readonly cutoff: number;
+/** A short, filtered noise burst: the tactile thup, kept dark by a lowpass. */
+interface NoiseOpts {
+  readonly dur?: number;
+  readonly cutoff?: number;
+  readonly q?: number;
+  readonly gain?: number;
+  readonly attack?: number;
+  readonly release?: number;
+  /** Optional lowpass sweep target across dur, for a soft card-flip. */
+  readonly sweepTo?: number;
 }
-
-interface SfxSpec {
-  readonly voices: readonly Voice[];
-  readonly noise?: NoiseSpec;
-}
-
-/**
- * Per-effect synthesis, tuned to feel comforting and precise, not annoying. This is the one table
- * to edit when tuning by ear: frequencies in Hz, durations in seconds, gains 0..1. Notes named for
- * reference use the equal-tempered scale (A4 = 440).
- */
-const SFX: Readonly<Record<SfxName, SfxSpec>> = {
-  // A short high triangle blip on selecting a tile.
-  tileSelect: { voices: [{ type: 'triangle', freq: 880, start: 0, dur: 0.07, gain: 0.16 }] },
-  // A touch lower on deselect, so ear tells them apart.
-  tileDeselect: { voices: [{ type: 'triangle', freq: 620, start: 0, dur: 0.07, gain: 0.14 }] },
-  // A pleasant two-note chime when a word lands (C5 then G5).
-  wordLand: {
-    voices: [
-      { type: 'triangle', freq: 523.25, start: 0, dur: 0.16, gain: 0.16 },
-      { type: 'triangle', freq: 783.99, start: 0.08, dur: 0.18, gain: 0.16 },
-    ],
-  },
-  // A short filtered-noise thud with a low sine underneath, for taking a hit.
-  damage: {
-    voices: [{ type: 'sine', freq: 130, glideTo: 90, start: 0, dur: 0.14, gain: 0.22 }],
-    noise: { start: 0, dur: 0.1, gain: 0.24, cutoff: 480 },
-  },
-  // A descending blip when an enemy is killed.
-  defeat: { voices: [{ type: 'triangle', freq: 660, glideTo: 220, start: 0, dur: 0.22, gain: 0.18 }] },
-  // A short rising arpeggio on a run win (C5 E5 G5 C6).
-  win: {
-    voices: [
-      { type: 'triangle', freq: 523.25, start: 0.0, dur: 0.12, gain: 0.16 },
-      { type: 'triangle', freq: 659.25, start: 0.09, dur: 0.12, gain: 0.16 },
-      { type: 'triangle', freq: 783.99, start: 0.18, dur: 0.12, gain: 0.16 },
-      { type: 'triangle', freq: 1046.5, start: 0.27, dur: 0.2, gain: 0.16 },
-    ],
-  },
-  // A low descending tone on a loss.
-  lose: { voices: [{ type: 'sine', freq: 220, glideTo: 98, start: 0, dur: 0.5, gain: 0.2 }] },
-  // A soft pluck when an organelle is picked up.
-  itemPick: { voices: [{ type: 'triangle', freq: 440, start: 0, dur: 0.16, gain: 0.15 }] },
-  // A darker, dissonant low tone for taking a cursed pick (a minor second beating low).
-  curseTaken: {
-    voices: [
-      { type: 'sawtooth', freq: 138.59, start: 0, dur: 0.38, gain: 0.12 },
-      { type: 'sine', freq: 130.81, start: 0, dur: 0.4, gain: 0.14 },
-    ],
-  },
-  // A subtle UI click.
-  tap: {
-    voices: [{ type: 'triangle', freq: 1000, start: 0, dur: 0.03, gain: 0.06 }],
-    noise: { start: 0, dur: 0.02, gain: 0.05, cutoff: 2200 },
-  },
-};
 
 /** How quickly master gain changes settle (setTargetAtTime time constant), so mute/volume never click. */
 const GAIN_SETTLE = 0.02;
 const MUSIC_FADE = 1.2;
+/**
+ * Background music level on its own bus, kept low on purpose (Dean, 2026-09-10: "quiet enough so
+ * the other sounds shine through"). The song sits under the effects; nudge this one number to taste.
+ */
+const MUSIC_LEVEL = 0.28;
+/** A gentle safety lowpass over the whole effects bus, so nothing is ever harsh. */
+const BUS_LOWPASS = 6000;
 
 type ACtor = typeof AudioContext;
 function audioContextCtor(): ACtor | undefined {
@@ -115,8 +79,11 @@ function audioContextCtor(): ACtor | undefined {
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private sfxGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
+  /** The effects bus: voices feed sfxDry and the reverb; both sum through a soft lowpass into master. */
+  private sfxDry: GainNode | null = null;
+  private sfxWet: GainNode | null = null;
+  private verb: ConvolverNode | null = null;
   private noiseBuffer: AudioBuffer | null = null;
 
   private muted = false;
@@ -149,18 +116,35 @@ class AudioEngine {
     try {
       const ctx = new Ctor();
       const master = ctx.createGain();
-      const sfxGain = ctx.createGain();
-      const musicGain = ctx.createGain();
       master.gain.value = this.muted ? 0 : this.volume;
-      sfxGain.gain.value = 1;
-      musicGain.gain.value = 0; // music fades in when it starts
-      sfxGain.connect(master);
-      musicGain.connect(master);
       master.connect(ctx.destination);
+
+      // Music bus: straight into master, fades in when a track starts.
+      const musicGain = ctx.createGain();
+      musicGain.gain.value = 0;
+      musicGain.connect(master);
+
+      // Effects bus: a soft lowpass into master; a dry path and a small reverb both feed it.
+      const busLp = ctx.createBiquadFilter();
+      busLp.type = 'lowpass';
+      busLp.frequency.value = BUS_LOWPASS;
+      busLp.connect(master);
+      const sfxDry = ctx.createGain();
+      sfxDry.gain.value = 0.9;
+      sfxDry.connect(busLp);
+      const verb = ctx.createConvolver();
+      verb.buffer = this.impulse(ctx, 1.7, 2.6);
+      const sfxWet = ctx.createGain();
+      sfxWet.gain.value = 0.22;
+      verb.connect(sfxWet);
+      sfxWet.connect(busLp);
+
       this.ctx = ctx;
       this.master = master;
-      this.sfxGain = sfxGain;
       this.musicGain = musicGain;
+      this.sfxDry = sfxDry;
+      this.sfxWet = sfxWet;
+      this.verb = verb;
       void ctx.resume().catch(() => undefined);
       if (this.wantMusic) this.playMusicSource();
     } catch {
@@ -187,57 +171,129 @@ class AudioEngine {
 
   /** Synthesize and play a named effect. No-op before unlock, or when muted. */
   playSfx(name: SfxName): void {
-    if (!this.ctx || !this.sfxGain || this.muted) return;
-    const spec = SFX[name];
-    if (!spec) return;
-    const ctx = this.ctx;
-    const now = ctx.currentTime;
-    for (const v of spec.voices) this.playVoice(v, now);
-    if (spec.noise) this.playNoise(spec.noise, now);
+    if (!this.ctx || !this.sfxDry || this.muted) return;
+    this.renderSfx(name, this.ctx.currentTime + 0.01);
   }
 
-  private playVoice(v: Voice, now: number): void {
+  /**
+   * The kit. Each effect is a small arrangement of soft tones and muffled noise, offset in seconds
+   * from t. These parameters are the approved feel; tune here by ear.
+   */
+  private renderSfx(name: SfxName, t: number): void {
+    switch (name) {
+      case 'tileSelect':
+        this.noise(t, { dur: 0.05, cutoff: 1400, gain: 0.09, release: 0.06 });
+        this.tone(t, { freq: 320, dur: 0.09, gain: 0.05, cutoff: 1200, release: 0.1 });
+        break;
+      case 'tileDeselect':
+        this.noise(t, { dur: 0.05, cutoff: 1000, gain: 0.08, release: 0.06 });
+        this.tone(t, { freq: 240, dur: 0.09, gain: 0.045, cutoff: 1000, release: 0.1 });
+        break;
+      case 'wordLand':
+        this.tone(t, { freq: 392, dur: 0.5, gain: 0.11, attack: 0.02, cutoff: 2200, release: 0.45 });
+        this.tone(t + 0.06, { freq: 587, dur: 0.5, gain: 0.09, attack: 0.02, cutoff: 2400, release: 0.5 });
+        this.noise(t, { dur: 0.06, cutoff: 1600, gain: 0.05, release: 0.1 });
+        break;
+      case 'itemPick':
+        this.noise(t, { dur: 0.14, cutoff: 700, sweepTo: 2200, gain: 0.1, release: 0.16 });
+        this.tone(t + 0.02, { freq: 330, to: 440, dur: 0.22, gain: 0.08, cutoff: 2000, release: 0.25 });
+        break;
+      case 'damage':
+        this.noise(t, { dur: 0.2, cutoff: 320, gain: 0.14, attack: 0.004, release: 0.22 });
+        this.tone(t, { freq: 110, to: 80, dur: 0.24, gain: 0.12, cutoff: 500, release: 0.28 });
+        break;
+      case 'defeat':
+        this.tone(t, { freq: 392, to: 196, dur: 0.4, gain: 0.11, cutoff: 1800, release: 0.4 });
+        this.noise(t, { dur: 0.08, cutoff: 1000, gain: 0.05, release: 0.14 });
+        break;
+      case 'win': {
+        const notes = [392, 494, 587];
+        notes.forEach((freq, i) => {
+          this.tone(t + i * 0.12, { freq, dur: 0.7, gain: 0.1, attack: 0.03, cutoff: 2400, release: 0.7 });
+        });
+        this.tone(t + 0.36, { freq: 784, dur: 0.8, gain: 0.08, attack: 0.04, cutoff: 2600, release: 0.9 });
+        break;
+      }
+      case 'lose':
+        this.tone(t, { freq: 220, to: 130, dur: 0.8, gain: 0.11, attack: 0.03, cutoff: 1200, release: 0.9 });
+        this.tone(t + 0.05, { freq: 164, to: 98, dur: 0.9, gain: 0.07, attack: 0.03, cutoff: 900, release: 1.0 });
+        break;
+      case 'curseTaken':
+        this.tone(t, { freq: 130, dur: 0.5, gain: 0.11, attack: 0.02, cutoff: 900, release: 0.5 });
+        this.tone(t, { freq: 138, dur: 0.5, gain: 0.06, attack: 0.02, cutoff: 900, release: 0.5 });
+        this.noise(t, { dur: 0.12, cutoff: 500, gain: 0.05, release: 0.2 });
+        break;
+      case 'tap':
+        this.noise(t, { dur: 0.03, cutoff: 1500, gain: 0.06, release: 0.05 });
+        break;
+    }
+  }
+
+  /** Route a finished voice into both the dry path and the reverb. */
+  private sfxSend(node: AudioNode): void {
+    if (this.sfxDry) node.connect(this.sfxDry);
+    if (this.verb) node.connect(this.verb);
+  }
+
+  private tone(t: number, o: ToneOpts): void {
     const ctx = this.ctx;
-    const sink = this.sfxGain;
-    if (!ctx || !sink) return;
+    if (!ctx) return;
+    const dur = o.dur ?? 0.3;
+    const gainVal = o.gain ?? 0.14;
+    const attack = o.attack ?? 0.014;
+    const release = o.release ?? dur;
     const osc = ctx.createOscillator();
+    osc.type = o.type ?? 'sine';
+    osc.frequency.setValueAtTime(o.freq, t);
+    if (o.to !== undefined) osc.frequency.exponentialRampToValueAtTime(Math.max(1, o.to), t + dur);
+    if (o.detune) osc.detune.value = o.detune;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = o.cutoff ?? 2600;
+    lp.Q.value = 0.4;
     const gain = ctx.createGain();
-    osc.type = v.type;
-    const t0 = now + v.start;
-    const t1 = t0 + v.dur;
-    osc.frequency.setValueAtTime(v.freq, t0);
-    if (v.glideTo !== undefined) osc.frequency.exponentialRampToValueAtTime(Math.max(1, v.glideTo), t1);
-    // A fast ADSR: a few-ms attack, then an exponential fall to silence. exponentialRamp cannot
-    // reach 0, so it falls to a floor and a final setValueAtTime snaps it to 0.
-    const attack = Math.min(0.008, v.dur * 0.3);
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.linearRampToValueAtTime(v.gain, t0 + attack);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t1);
-    gain.gain.setValueAtTime(0, t1);
-    osc.connect(gain).connect(sink);
-    osc.start(t0);
-    osc.stop(t1 + 0.02);
+    const end = this.envelope(gain, t, gainVal, attack, release);
+    osc.connect(lp).connect(gain);
+    this.sfxSend(gain);
+    osc.start(t);
+    osc.stop(end + 0.02);
   }
 
-  private playNoise(n: NoiseSpec, now: number): void {
+  private noise(t: number, o: NoiseOpts): void {
     const ctx = this.ctx;
-    const sink = this.sfxGain;
-    if (!ctx || !sink) return;
+    if (!ctx) return;
+    const dur = o.dur ?? 0.09;
+    const gainVal = o.gain ?? 0.12;
+    const attack = o.attack ?? 0.006;
+    const release = o.release ?? dur;
     const src = ctx.createBufferSource();
     src.buffer = this.getNoiseBuffer(ctx);
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = n.cutoff;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(o.cutoff ?? 1200, t);
+    lp.Q.value = o.q ?? 0.7;
+    if (o.sweepTo !== undefined) lp.frequency.exponentialRampToValueAtTime(Math.max(1, o.sweepTo), t + dur);
     const gain = ctx.createGain();
-    const t0 = now + n.start;
-    const t1 = t0 + n.dur;
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.linearRampToValueAtTime(n.gain, t0 + Math.min(0.004, n.dur * 0.3));
-    gain.gain.exponentialRampToValueAtTime(0.0001, t1);
-    gain.gain.setValueAtTime(0, t1);
-    src.connect(filter).connect(gain).connect(sink);
-    src.start(t0);
-    src.stop(t1 + 0.02);
+    const end = this.envelope(gain, t, gainVal, attack, release);
+    src.connect(lp).connect(gain);
+    this.sfxSend(gain);
+    src.start(t);
+    src.stop(end + 0.05);
+  }
+
+  /**
+   * A soft attack then an exponential fall to silence. exponentialRamp cannot reach 0, so it falls
+   * to a floor and a final setValueAtTime snaps it, which never clicks because the floor is tiny.
+   * Returns the time the voice is done.
+   */
+  private envelope(gain: GainNode, t: number, peak: number, attack: number, release: number): number {
+    const end = t + attack + release;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(peak, t + attack);
+    gain.gain.setValueAtTime(peak, t + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, end);
+    gain.gain.setValueAtTime(0, end);
+    return end;
   }
 
   /** One second of white noise, cached and reused across every noisy effect. */
@@ -245,8 +301,25 @@ class AudioEngine {
     if (this.noiseBuffer) return this.noiseBuffer;
     const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.7;
     this.noiseBuffer = buf;
+    return buf;
+  }
+
+  /** A soft, exponentially decaying, darkened noise impulse for the small reverb. */
+  private impulse(ctx: AudioContext, seconds: number, decay: number): AudioBuffer {
+    const rate = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(rate * seconds));
+    const buf = ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const white = Math.random() * 2 - 1;
+        last = (last + 0.02 * white) / 1.02; // cheap lowpass -> a darker tail
+        d[i] = last * Math.pow(1 - i / len, decay);
+      }
+    }
     return buf;
   }
 
@@ -302,7 +375,7 @@ class AudioEngine {
     const now = ctx.currentTime;
     this.musicGain.gain.cancelScheduledValues(now);
     this.musicGain.gain.setValueAtTime(Math.max(0.0001, this.musicGain.gain.value), now);
-    this.musicGain.gain.linearRampToValueAtTime(0.6, now + MUSIC_FADE);
+    this.musicGain.gain.linearRampToValueAtTime(MUSIC_LEVEL, now + MUSIC_FADE);
     src.start();
     this.musicSource = src;
   }

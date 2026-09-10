@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 82, pr: 80, sha: 'pending', date: '2026-09-10', title: 'Sound effects', notes: 'The game has sound now: crisp little effects for selecting tiles, landing a word, taking a hit and winning a run, with a Sound on/off toggle and a volume slider on the How to play screen. Background music arrives once its track is added.' },
+  { build: 83, pr: 81, sha: 'pending', date: '2026-09-10', title: 'Music and softer sound', notes: "Background music arrives, playing low under a much softer set of sound effects: warm and calm instead of sharp beeps, with a touch of room to them. Tuned by ear before it landed." },
+  { build: 82, pr: 80, sha: 'd6e9f63', date: '2026-09-10', title: 'Sound effects', notes: 'The game has sound now: crisp little effects for selecting tiles, landing a word, taking a hit and winning a run, with a Sound on/off toggle and a volume slider on the How to play screen. Background music arrives once its track is added.' },
   { build: 81, pr: 79, sha: '8d94289', date: '2026-09-10', title: 'Distinct organelles', notes: "The organelle icons are far more varied now: the many that used to share a single glyph each get their own, still drawn in the same little pixel style. No two organelle icons look the same anymore." },
   { build: 80, pr: 78, sha: '8f2aeff', date: '2026-09-10', title: 'Daily challenge', notes: "The title now offers a daily challenge: one seed a day, the same run for everyone, played once and then locked until tomorrow. Your history marks which runs were the daily." },
   { build: 79, pr: 77, sha: '47d55d1', date: '2026-09-10', title: 'Share your run', notes: "The end-of-run summary is now a card you can screenshot, tinted by the act you reached and showing your cell, best word and organelles. Copy the seed or hit Share, and start a run from a pasted seed so two people can play the exact same run." },
