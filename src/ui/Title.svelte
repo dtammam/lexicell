@@ -103,7 +103,7 @@
         </div>
       {/if}
       <button class="btn" class:life={!hasSave} onclick={() => { request('new'); }}>New run</button>
-      <button class="btn" onclick={onItems}>Organelles</button>
+      <button class="btn" onclick={onItems}>Mutations</button>
       <button class="btn" onclick={onHistory}>History</button>
       <button class="btn" onclick={onHelp}>How to play</button>
       <button class="btn" onclick={onNotes}>Release notes</button>

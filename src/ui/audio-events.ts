@@ -38,7 +38,7 @@ export function sfxForTransition(prev: RunState | null, next: RunState): SfxName
     else if (next.outcome === 'lost') out.push('lose');
   }
 
-  // An organelle was picked up (the item list grew).
+  // A mutation was picked up (the item list grew).
   const grewItems = next.player.items.length > prev.player.items.length;
   if (grewItems) {
     // A cursed pick: the offer's curses cleared as the item was taken. A darker note replaces the pluck.

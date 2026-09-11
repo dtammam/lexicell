@@ -152,11 +152,11 @@ describe('App', () => {
     expect(getButton('Clear').disabled).toBe(true);
   }, 20000);
 
-  it('Organelles on the title lists every item with its icon, grouped by rarity, and Back returns', async () => {
+  it('Mutations on the title lists every item with its icon, grouped by rarity, and Back returns', async () => {
     render(App);
     await findByText('New run', 15000);
-    await click(getButton('Organelles'));
-    expect(await findByText('Organelles')).toBeTruthy();
+    await click(getButton('Mutations'));
+    expect(await findByText('Mutations')).toBeTruthy();
     const entries = document.querySelectorAll('.compendium .entry');
     expect(entries).toHaveLength(ctx.content.items.length);
     for (const item of ctx.content.items) expect(getByText(item.name)).toBeTruthy();
@@ -655,12 +655,12 @@ describe('App', () => {
     expect(runs.runs[0]).toMatchObject({ outcome: 'abandoned', seed: daySeed, daily: true });
   }, 30000);
 
-  it('clarity: the enemy shows its next move, names appear once, the backdrop has a veil, and organelles light up for a word they fire on', async () => {
+  it('clarity: the enemy shows its next move, names appear once, the backdrop has a veil, and mutations light up for a word they fire on', async () => {
     await startRun();
     cleanup();
     const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
     const enc = blob.encounter as NonNullable<RunState['encounter']>;
-    // An every-turn attacker with an unconditional +damage organelle carried.
+    // An every-turn attacker with an unconditional +damage mutation carried.
     const seeded: RunState = { ...blob, player: { ...blob.player, items: ['sharp-pen'] }, encounter: { ...enc, turn: 1, enemy: { ...enc.enemy, id: 'amoeba', damage: 7 } } };
     localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
     render(App);
@@ -703,7 +703,7 @@ describe('App', () => {
     expect(Array.from(document.querySelectorAll('.row.stats .worst')).map((e) => e.textContent).join(' ')).toBe('WORST -');
   }, 30000);
 
-  it('encounter types: a rest offers a heal beside three organelles, an event shows its trade, an elite is labelled (step 2)', async () => {
+  it('encounter types: a rest offers a heal beside three mutations, an event shows its trade, an elite is labelled (step 2)', async () => {
     await startRun();
     cleanup();
     const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
@@ -897,7 +897,7 @@ describe('App', () => {
     expect(document.querySelector('.arena')?.classList.contains('act-1')).toBe(true);
   });
 
-  it('every carried organelle is grafted onto your body in the arena', async () => {
+  it('every carried mutation is grafted onto your body in the arena', async () => {
     await startRun();
     const items = (JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { player: { items: string[] } }).player.items;
     const grafts = document.querySelectorAll('.fighter.you .graft img.icon');

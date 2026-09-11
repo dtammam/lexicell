@@ -81,13 +81,13 @@
     {#if run.stats.bestWord}
       <Definition word={run.stats.bestWord} />
     {/if}
-    <div class="glyphs" aria-label="Organelles carried">
+    <div class="glyphs" aria-label="Mutations carried">
       {#if run.player.items.length > 0}
         {#each run.player.items as id, i (`${id}-${i}`)}
           <ItemIcon {id} size={26} />
         {/each}
       {:else}
-        <span class="none">no organelles</span>
+        <span class="none">no mutations</span>
       {/if}
     </div>
     <div class="seed">

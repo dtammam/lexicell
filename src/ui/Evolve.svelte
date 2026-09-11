@@ -12,7 +12,7 @@
 <!-- Evolution (variety wave step 3): three traits after a boss, one kept for the run. -->
 <section class="evolve">
   <h2>Evolve</h2>
-  <p class="hint">The boss is down and your body wants to change. Pick one trait. It is yours for the whole run, and an organelle pick follows.</p>
+  <p class="hint">The boss is down and your body wants to change. Pick one trait. It is yours for the whole run, and a mutation pick follows.</p>
   {#each offer as id, i (id)}
     {@const t = traitDef(id)}
     <button class="offer" onclick={() => { dispatch({ type: 'pickTrait', index: i }); }}>

@@ -65,7 +65,7 @@
 
   <h2>You are a cell.</h2>
   <ol>
-    <li>Pick <strong>one</strong> organelle to start with. It changes how you fight.</li>
+    <li>Pick <strong>one</strong> mutation to start with. It changes how you fight.</li>
     <li>Tap tiles to spell a word, then <strong>Attack</strong>.</li>
     <li>The <strong>longest word you can find</strong> is how you deal damage, and how you evolve. Survive nine encounters; lose your HP and you are soup.</li>
   </ol>

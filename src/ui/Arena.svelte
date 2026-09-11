@@ -9,7 +9,7 @@
   // You versus the thing: two sprites over a background band per act, HP bars, hit
   // flash and floating damage numbers keyed on the turn counter so they replay each turn.
   // `word` is the current selection and `ctx` the engine context, so the grafts can show
-  // which organelles would fire for it (tester, 2026-09-08).
+  // which mutations would fire for it (tester, 2026-09-08).
   let { run, ctx = null, word = '' }: { run: RunState; ctx?: EngineContext | null; word?: string } = $props();
 
   // Vite's base ("/" in production, "/absproxy/5173/" on the LAN dev route) prefixes every asset URL.
@@ -70,7 +70,7 @@
     return words.join(' ');
   });
 
-  /** Organelles whose onWordScored effects would fire for the selected word light up on the body. */
+  /** Mutations whose onWordScored effects would fire for the selected word light up on the body. */
   const live = $derived.by((): readonly number[] => {
     if (!ctx || word.length < 3) return [];
     const cctx = conditionCtx(run, ctx, word);
@@ -120,7 +120,7 @@
     <div class="stage">
       {#key run.stats.turns}
         <figure class="fighter you" class:shake={taken > 0}>
-          <!-- You evolve per act: one cell, then more body, then limbs; and every organelle you pick is
+          <!-- You evolve per act: one cell, then more body, then limbs; and every mutation you pick is
                grafted onto the body (Dean, 2026-09-08), so the build is visible on the creature. -->
           <div class="body">
             <img src="{base}sprites/cell-{run.cell}-{actLook}.png" alt="You" onerror={fallback} />
