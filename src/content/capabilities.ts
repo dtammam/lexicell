@@ -11,7 +11,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
   {
     id: 'wildcard',
     name: 'Wildcard',
-    description: 'One tile is always a wildcard: it counts as any letter, filling in the best word for you.',
+    description: 'Each fight starts with a wildcard tile: it counts as any letter, filling in the best word, until you play it.',
     flavor: 'A limb that becomes whatever the moment needs.',
   },
   {
