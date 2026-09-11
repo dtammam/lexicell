@@ -42,14 +42,14 @@ export const CELLS: readonly CellDef[] = [
   {
     id: 'gambler',
     name: 'Spore',
-    description: '90 HP. Words of 7+ letters deal +30%; words of 3 letters deal half.',
+    description: '90 HP. Words of 7+ letters deal +15%; words of 3 letters deal half.',
     flavor: 'Long words or nothing.',
     maxHp: 90,
     startingItems: [],
     extraPicks: 0,
     traits: {
       onWordScored: [
-        { type: 'condition', when: { kind: 'minLength', value: 7 }, then: [{ type: 'addMult', value: 0.3 }] },
+        { type: 'condition', when: { kind: 'minLength', value: 7 }, then: [{ type: 'addMult', value: 0.15 }] },
         { type: 'condition', when: { kind: 'maxLength', value: 3 }, then: [{ type: 'addMult', value: -0.5 }] },
       ],
     },

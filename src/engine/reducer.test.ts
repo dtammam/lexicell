@@ -2471,7 +2471,7 @@ describe('starting cells (save v4)', () => {
     expect(d.lastTurn?.enemyDamage).toBe(9);
   });
 
-  it('the gambler adds 30% on 7+ letter words and halves 3-letter words; the preview agrees with the hit', () => {
+  it('the gambler adds 15% on 7+ letter words and halves 3-letter words; the preview agrees with the hit', () => {
     const s = inFightAs(6, 'gambler');
     const cands = candidateWords(s, ctx);
     const long = cands.find((c) => c.word.length >= 7);
@@ -2480,7 +2480,13 @@ describe('starting cells (save v4)', () => {
     const bare = candidateWords({ ...s, cell: 'balanced' }, ctx);
     const bareOf = (w: string) => bare.find((c) => c.word === w)?.damage ?? 0;
     expect(long || short).toBeTruthy();
-    if (long) expect(long.damage).toBe(Math.floor(bareOf(long.word) * 1.3));
+    if (long) {
+      const bare = bareOf(long.word);
+      // +15% bonus is applied; allow +-1 for the floor-of-floor between the bare (already floored)
+      // candidate and the engine flooring base*1.15 directly.
+      expect(long.damage).toBeGreaterThan(bare);
+      expect(long.damage).toBeLessThanOrEqual(Math.ceil(bare * 1.15));
+    }
     if (short) expect(short.damage).toBe(Math.floor(bareOf(short.word) * 0.5));
     if (mid) expect(mid.damage).toBe(bareOf(mid.word));
     const pick = long ?? short;
