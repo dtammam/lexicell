@@ -62,6 +62,13 @@ function greedyRun(seed: number, c: EngineContext = ctx, pickIndex = 0): { final
       step({ type: 'pickTrait', index: 0 });
       continue;
     }
+    // Evolution track (v11): the greedy helper DECLINES every capability, so these base-game runs
+    // stay equivalent to main (byte-identical replay, HP curves, item counts unchanged). The
+    // capabilities themselves are exercised in evolution.test.ts.
+    if (s.phase === 'capability') {
+      step({ type: 'skipCapability' });
+      continue;
+    }
     const best = candidateWords(s, c).sort((a, b) => b.damage - a.damage)[0];
     if (!best) throw new Error(`seed ${seed}: no candidate word: dead grid reached the bot`);
     for (const i of candidateIndices(s, best.word) ?? []) step({ type: 'toggleTile', index: i });
@@ -96,7 +103,7 @@ function assertInvariants(s: RunState, c: EngineContext) {
   } else {
     expect(s.encounter).toBeNull();
   }
-  if (s.phase === 'pick' || s.phase === 'evolve') expect(s.offer?.length).toBeGreaterThan(0);
+  if (s.phase === 'pick' || s.phase === 'evolve' || s.phase === 'capability') expect(s.offer?.length).toBeGreaterThan(0);
   if (s.phase === 'event') expect(s.event).not.toBeNull();
   if (s.phase !== 'event') expect(s.event).toBeNull();
   if (s.phase === 'summary') expect(s.outcome).not.toBeNull();
@@ -1176,7 +1183,7 @@ describe('effects wave: nine verbs, the offer rule, free shuffles, onPick (save 
       const b = greedyRun(seed, c, 0);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(10);
+      expect(a.final.v).toBe(11);
     }
   });
 });
@@ -1476,6 +1483,7 @@ describe('variety wave step 5: Normal and Endless (save v9)', () => {
       else if (s.phase === 'rest') s = reduce(s, { type: 'restHeal' }, c);
       else if (s.phase === 'event') s = reduce(s, { type: 'eventChoice', index: 1 }, c);
       else if (s.phase === 'evolve') s = reduce(s, { type: 'pickTrait', index: 0 }, c);
+      else if (s.phase === 'capability') s = reduce(s, { type: 'skipCapability' }, c);
       else {
         const topped: RunState = { ...s, player: { ...s.player, hp: s.player.maxHp } };
         const best = candidateWords(topped, c).sort((a, b) => b.damage - a.damage)[0];
@@ -1552,7 +1560,7 @@ describe('variety wave step 5: Normal and Endless (save v9)', () => {
     const again = dive(3, 16);
     expect(JSON.stringify(again.final)).toBe(JSON.stringify(final));
     expect(JSON.parse(JSON.stringify(final))).toEqual(final);
-    expect(final.v).toBe(10);
+    expect(final.v).toBe(11);
   });
 
   it('a normal run never extends its kinds or passes the ninth slot', () => {
@@ -1780,7 +1788,7 @@ describe('variety wave step 4: gold and cracked tiles (save v8)', () => {
       const b = greedyRun(seed, c);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(10);
+      expect(a.final.v).toBe(11);
     }
   });
 });
@@ -1822,9 +1830,13 @@ describe('variety wave step 3: evolution (save v7)', () => {
       // A bad index first, so the good pick has a stale rejection to clear (gate S2).
       const refused = reduce(won, { type: 'pickTrait', index: 9 }, flat);
       expect(refused.rejected).toBe('bad trait index');
-      const picked = reduce(refused, { type: 'pickTrait', index: 1 }, flat);
-      expect(picked.player.traits).toEqual([won.offer?.[1]]);
-      expect(picked.rejected).toBeNull();
+      const afterTrait = reduce(refused, { type: 'pickTrait', index: 1 }, flat);
+      expect(afterTrait.player.traits).toEqual([won.offer?.[1]]);
+      expect(afterTrait.rejected).toBeNull();
+      // v11: the capability offer sits between the trait pick and the item offer; decline it here.
+      expect(afterTrait.phase).toBe('capability');
+      expect(afterTrait.offer?.length).toBeGreaterThan(0);
+      const picked = reduce(afterTrait, { type: 'skipCapability' }, flat);
       expect(picked.phase).toBe('pick');
       expect(picked.offer).toHaveLength(3);
       expect(picked.encounterIndex).toBe(2);
@@ -1854,10 +1866,16 @@ describe('variety wave step 3: evolution (save v7)', () => {
     const wonTwo = play(atBoss5, candidateWords(atBoss5, few)[0]?.word ?? '', few);
     expect(wonTwo.phase).toBe('evolve');
     expect(wonTwo.offer).toHaveLength(2);
-    const none = nodeContext({ ...flat.content, traits: [] });
+    // With neither traits nor capabilities in content, the item pick follows the boss straight away.
+    const none = nodeContext({ ...flat.content, traits: [], capabilities: [] });
     const bareBoss: RunState = { ...atBoss5, player: { ...atBoss5.player, traits: [] } };
     const wonNone = play(bareBoss, candidateWords(bareBoss, none)[0]?.word ?? '', none);
     expect(wonNone.phase).toBe('pick');
+    // With no traits left but capabilities still in content, the capability offer stands in for the trait.
+    const capsOnly = nodeContext({ ...flat.content, traits: [] });
+    const wonCaps = play(bareBoss, candidateWords(bareBoss, capsOnly)[0]?.word ?? '', capsOnly);
+    expect(wonCaps.phase).toBe('capability');
+    expect(reduce(wonCaps, { type: 'skipCapability' }, capsOnly).phase).toBe('pick');
     // The final boss: a win, not an evolve.
     const atBoss8: RunState = { ...atBoss5, encounterIndex: 8, encounter: { ...enc, enemy: { ...enc.enemy, id: 'abyssal-mat', hp: 1 } } };
     const finished = kill(atBoss8);
@@ -1910,7 +1928,7 @@ describe('variety wave step 3: evolution (save v7)', () => {
       const b = greedyRun(seed, flat);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(JSON.parse(JSON.stringify(a.final))).toEqual(a.final);
-      expect(a.final.v).toBe(10);
+      expect(a.final.v).toBe(11);
       const evolves = a.states.filter((st) => st.phase === 'evolve').length;
       if (a.final.outcome === 'won') {
         expect(evolves).toBe(2);
@@ -1945,7 +1963,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       // The same kinds land in the run, and the run's RNG has spent the three draws before the kit.
       const run = newRun(seed, flat);
       expect(run.kinds).toEqual(kinds);
-      expect(run.v).toBe(10);
+      expect(run.v).toBe(11);
       expect(run.event).toBeNull();
     }
     for (const kind of ['elite', 'rest', 'event']) expect([...(seen[kind] ?? [])].sort(), kind).toEqual(NON_BOSS_AFTER_FIRST);
@@ -2138,13 +2156,17 @@ describe('variety wave step 2: encounter types (save v6)', () => {
   it('a migrated v5 save (empty kinds) plays the rest of its run as fights', () => {
     let s: RunState = { ...newRun(3, flat), kinds: [] };
     for (let guard = 0; guard < 2000 && s.phase !== 'summary'; guard++) {
-      expect(['fight', 'pick', 'evolve']).toContain(s.phase);
+      expect(['fight', 'pick', 'evolve', 'capability']).toContain(s.phase);
       if (s.phase === 'pick') {
         s = reduce(s, { type: 'pickItem', index: 0 }, flat);
         continue;
       }
       if (s.phase === 'evolve') {
         s = reduce(s, { type: 'pickTrait', index: 0 }, flat);
+        continue;
+      }
+      if (s.phase === 'capability') {
+        s = reduce(s, { type: 'skipCapability' }, flat);
         continue;
       }
       const best = candidateWords(s, flat).sort((a, b) => b.damage - a.damage)[0];
@@ -2161,7 +2183,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
       expect(a.log).toEqual(b.log);
       const kinds = a.states.map((st) => st.phase).filter((p) => p === 'rest' || p === 'event');
-      expect(a.final.v).toBe(10);
+      expect(a.final.v).toBe(11);
       // Over the four seeds at least one run passes through a rest or an event before the summary.
       if (kinds.length > 0) return;
     }
@@ -2491,6 +2513,10 @@ describe('starting cells (save v4)', () => {
             s = reduce(s, { type: 'pickTrait', index: 0 }, cc);
             continue;
           }
+          if (s.phase === 'capability') {
+            s = reduce(s, { type: 'skipCapability' }, cc);
+            continue;
+          }
           const best = candidateWords(s, cc).sort((a, b) => b.damage - a.damage)[0];
           if (!best) throw new Error('dead grid');
           for (const i of candidateIndices(s, best.word) ?? []) s = reduce(s, { type: 'toggleTile', index: i }, cc);
@@ -2653,7 +2679,7 @@ describe('variety wave step 6: curses (save v10)', () => {
       const a = greedyRun(seed, flat);
       const b = greedyRun(seed, flat);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
-      expect(a.final.v).toBe(10);
+      expect(a.final.v).toBe(11);
       const sawCursed = a.states.some((st) => st.phase === 'pick' && st.curses !== null);
       if (sawCursed) return;
     }

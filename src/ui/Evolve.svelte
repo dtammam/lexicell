@@ -1,30 +1,53 @@
 <script lang="ts">
   import type { Action } from '../engine/reducer';
   import type { RunState } from '../engine/types';
-  import { traitDef } from './lookup';
+  import { capabilityDef, traitDef } from './lookup';
 
   let { run, dispatch }: { run: RunState; dispatch: (action: Action) => void } = $props();
 
+  // The screen serves two post-boss picks (v11): the trait (phase 'evolve') and then the capability
+  // (phase 'capability'). Both draw from run.offer; the phase decides which vocabulary it holds.
+  const capability = $derived(run.phase === 'capability');
   const offer = $derived(run.offer ?? []);
   const held = $derived(run.player.traits.map((id) => traitDef(id).name));
+  const heldCaps = $derived(run.evolution.caps.map((id) => capabilityDef(id).name));
 </script>
 
-<!-- Evolution (variety wave step 3): three traits after a boss, one kept for the run. -->
+<!-- Evolution (variety wave step 3): a trait after a boss; then (v11) a capability, a new verb of play. -->
 <section class="evolve">
-  <h2>Evolve</h2>
-  <p class="hint">The boss is down and your body wants to change. Pick one trait. It is yours for the whole run, and a mutation pick follows.</p>
-  {#each offer as id, i (id)}
-    {@const t = traitDef(id)}
-    <button class="offer" onclick={() => { dispatch({ type: 'pickTrait', index: i }); }}>
-      <span class="text">
-        <span class="name">{t.name}</span>
-        <span class="desc">{t.description}</span>
-        <span class="flavor">{t.flavor}</span>
-      </span>
-    </button>
-  {/each}
-  {#if held.length > 0}
-    <p class="held">You already are: {held.join(', ')}</p>
+  {#if capability}
+    <h2>Evolve</h2>
+    <p class="hint">Your body reaches for a new ability. Pick one capability, yours for the whole run, or skip it.</p>
+    {#each offer as id, i (id)}
+      {@const c = capabilityDef(id)}
+      <button class="offer" onclick={() => { dispatch({ type: 'pickCapability', index: i }); }}>
+        <span class="text">
+          <span class="name">{c.name}</span>
+          <span class="desc">{c.description}</span>
+          <span class="flavor">{c.flavor}</span>
+        </span>
+      </button>
+    {/each}
+    <button class="skip" onclick={() => { dispatch({ type: 'skipCapability' }); }}>Skip</button>
+    {#if heldCaps.length > 0}
+      <p class="held">You can already: {heldCaps.join(', ')}</p>
+    {/if}
+  {:else}
+    <h2>Evolve</h2>
+    <p class="hint">The boss is down and your body wants to change. Pick one trait. It is yours for the whole run, and a capability pick follows.</p>
+    {#each offer as id, i (id)}
+      {@const t = traitDef(id)}
+      <button class="offer" onclick={() => { dispatch({ type: 'pickTrait', index: i }); }}>
+        <span class="text">
+          <span class="name">{t.name}</span>
+          <span class="desc">{t.description}</span>
+          <span class="flavor">{t.flavor}</span>
+        </span>
+      </button>
+    {/each}
+    {#if held.length > 0}
+      <p class="held">You already are: {held.join(', ')}</p>
+    {/if}
   {/if}
 </section>
 
@@ -86,5 +109,23 @@
   .flavor {
     color: var(--muted);
     font-size: var(--text);
+  }
+  /* Skip the capability offer (v11): a quiet secondary action under the options. */
+  .skip {
+    align-self: flex-start;
+    font-family: var(--font-hud);
+    font-size: var(--hud-s);
+    letter-spacing: 0.1em;
+    background: var(--panel);
+    border: 2px solid var(--shade);
+    box-shadow: 2px 2px 0 var(--shade);
+    color: var(--muted);
+    border-radius: var(--radius);
+    padding: var(--s2) var(--s3);
+    touch-action: manipulation;
+  }
+  .skip:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
   }
 </style>

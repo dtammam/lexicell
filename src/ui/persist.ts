@@ -27,6 +27,7 @@ export const RUN_STATE_KEYS: readonly string[] = [
   'encounterIndex',
   'event',
   'player',
+  'evolution',
   'encounter',
   'offer',
   'curses',
@@ -45,7 +46,7 @@ export interface Persist {
   clear(): void;
 }
 
-const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'rest', 'event', 'evolve', 'summary']);
+const PHASES: ReadonlySet<unknown> = new Set(['fight', 'pick', 'rest', 'event', 'evolve', 'capability', 'summary']);
 const KINDS: ReadonlySet<unknown> = new Set(['fight', 'elite', 'rest', 'event']);
 const MODES: ReadonlySet<unknown> = new Set(['normal', 'endless']);
 
@@ -76,7 +77,10 @@ function looksLikeRunState(value: unknown): value is RunState {
       isNum(v.encounter.enemy.stunned) &&
       Array.isArray(v.encounter.grid) &&
       v.encounter.grid.length === 16 &&
-      v.encounter.grid.every((t) => isRecord(t) && [t.gold, t.cracked, t.lockedTurns, t.venom].every((m) => Number.isInteger(m) && (m as number) >= 0)) &&
+      // A wild tile (v11) carries an optional `wild === true`; every other tile field is a non-negative integer.
+      v.encounter.grid.every(
+        (t) => isRecord(t) && [t.gold, t.cracked, t.lockedTurns, t.venom].every((m) => Number.isInteger(m) && (m as number) >= 0) && (t.wild === undefined || t.wild === true),
+      ) &&
       Array.isArray(v.encounter.selection));
   return (
     isNum(v.v) &&
@@ -99,11 +103,17 @@ function looksLikeRunState(value: unknown): value is RunState {
     v.player.traits.every((t) => typeof t === 'string') &&
     isNum(v.player.shield) &&
     isNum(v.player.freeShuffles) &&
+    // Evolution track (v11): capability ids, a per-fight boolean, and the one banked letter or null.
+    isRecord(v.evolution) &&
+    Array.isArray(v.evolution.caps) &&
+    v.evolution.caps.every((c) => typeof c === 'string') &&
+    typeof v.evolution.transmuteUsed === 'boolean' &&
+    (v.evolution.bankedLetter === null || typeof v.evolution.bankedLetter === 'string') &&
     encounterOk &&
     (v.phase !== 'fight' || v.encounter !== null) &&
     (v.offer === null || Array.isArray(v.offer)) &&
-    // A pick or an evolve screen needs something to pick (gate S4, PR #64): the reducer never writes an empty one.
-    ((v.phase !== 'pick' && v.phase !== 'evolve') || (Array.isArray(v.offer) && v.offer.length > 0)) &&
+    // A pick, evolve or capability screen needs something to pick (gate S4, PR #64): the reducer never writes an empty one.
+    ((v.phase !== 'pick' && v.phase !== 'evolve' && v.phase !== 'capability') || (Array.isArray(v.offer) && v.offer.length > 0)) &&
     // Curses (variety wave step 6, v10): null or a string list, and on a cursed pick aligned 1:1 with the offer.
     (v.curses === null || (Array.isArray(v.curses) && v.curses.every((c) => typeof c === 'string'))) &&
     (v.phase === 'pick' && v.curses !== null ? Array.isArray(v.offer) && v.curses.length === v.offer.length : true) &&
@@ -125,6 +135,11 @@ const KNOWN_ITEMS: ReadonlySet<string> = new Set(CONTENT.items.map((i) => i.id))
 const KNOWN_BOONS: ReadonlySet<string> = new Set(CONTENT.items.filter((i) => !i.curse).map((i) => i.id));
 const KNOWN_CURSES: ReadonlySet<string> = new Set(CONTENT.items.filter((i) => i.curse).map((i) => i.id));
 const KNOWN_TRAITS: ReadonlySet<string> = new Set(CONTENT.traits.map((t) => t.id));
+const KNOWN_CAPABILITIES: ReadonlySet<string> = new Set(CONTENT.capabilities.map((c) => c.id));
+/** A single lowercase a-z letter: what a banked letter (v11) may be, so scoring never meets a non-letter. */
+function isLetter(v: unknown): v is string {
+  return typeof v === 'string' && v.length === 1 && v >= 'a' && v <= 'z';
+}
 
 /**
  * An id the content no longer has is dropped from a save at load (gate, PR #64): the engine's
@@ -138,6 +153,16 @@ export function dropUnknownIds(value: unknown): unknown {
   const player = value.player;
   const items = Array.isArray(player.items) ? player.items.filter((id) => KNOWN_ITEMS.has(id as string)) : player.items;
   const traits = Array.isArray(player.traits) ? player.traits.filter((id) => KNOWN_TRAITS.has(id as string)) : player.traits;
+  // Evolution (v11): a capability the content no longer has is dropped (the engine keys behaviour off
+  // the id), and a banked letter that is not a single a-z letter is nulled so scoring never meets one.
+  const evo = isRecord(value.evolution) ? value.evolution : undefined;
+  const evolution = evo
+    ? {
+        ...evo,
+        caps: Array.isArray(evo.caps) ? evo.caps.filter((id) => KNOWN_CAPABILITIES.has(id as string)) : evo.caps,
+        bankedLetter: isLetter(evo.bankedLetter) ? evo.bankedLetter : null,
+      }
+    : value.evolution;
   let offer = value.offer;
   let curses = value.curses;
   if (value.phase === 'pick' && Array.isArray(offer) && Array.isArray(curses)) {
@@ -158,18 +183,22 @@ export function dropUnknownIds(value: unknown): unknown {
     curses = keptCurses;
   } else if (value.phase === 'evolve' && Array.isArray(offer)) {
     offer = offer.filter((id) => KNOWN_TRAITS.has(id as string));
+  } else if (value.phase === 'capability' && Array.isArray(offer)) {
+    // A capability the content dropped is filtered out; if the offer empties, the shape check's
+    // non-empty-offer rule drops the save (a mid-capability save across a content change).
+    offer = offer.filter((id) => KNOWN_CAPABILITIES.has(id as string));
   } else if ((value.phase === 'pick' || value.phase === 'rest') && Array.isArray(offer)) {
     offer = offer.filter((id) => KNOWN_BOONS.has(id as string));
   }
   // A rest with nothing left to offer is what startRest writes as null (heal alone), not an empty list.
   if (value.phase === 'rest' && Array.isArray(offer) && offer.length === 0) offer = null;
-  return { ...value, player: { ...player, items, traits }, offer, curses };
+  return { ...value, player: { ...player, items, traits }, evolution, offer, curses };
 }
 
 /**
  * Migrations on record, applied in order: v3 gains `cell: 'balanced'` (starting cells), v4 gains
  * the empty worst-word stats (stats HUD), v5 gains empty kinds and no event (encounter types), v6
- * gains no traits (evolution), v7 gains plain gold and cracked marks on every tile (grid rules), v8 gains mode 'normal' (modes), v9 gains curses null (curses, step 6). Anything else passes through and meets the shape check.
+ * gains no traits (evolution), v7 gains plain gold and cracked marks on every tile (grid rules), v8 gains mode 'normal' (modes), v9 gains curses null (curses, step 6), v10 gains the empty evolution track (v11: no capabilities, no banked letter; old grids need no tile touch since an absent `wild` is not wild). Anything else passes through and meets the shape check.
  */
 export function migrate(value: unknown): unknown {
   let v: unknown = value;
@@ -191,6 +220,8 @@ export function migrate(value: unknown): unknown {
   if (isRecord(v) && v.v === 8 && !('mode' in v)) v = { ...v, v: 9, mode: 'normal' };
   // v9 -> v10 (curses, step 6): no offer was cursed before the feature existed.
   if (isRecord(v) && v.v === 9 && !('curses' in v)) v = { ...v, v: 10, curses: null };
+  // v10 -> v11 (evolution track): an empty track, no capabilities gained and nothing banked.
+  if (isRecord(v) && v.v === 10 && !('evolution' in v)) v = { ...v, v: 11, evolution: { caps: [], transmuteUsed: false, bankedLetter: null } };
   return v;
 }
 

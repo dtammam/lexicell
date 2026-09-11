@@ -16,6 +16,14 @@ export interface Tile {
   readonly gold: number;
   /** Cracked (variety wave step 4): turns left before the tile crumbles and is refilled. 0 = sound. Still playable while it lasts; a shuffle or scramble replaces it. */
   readonly cracked: number;
+  /**
+   * Wild (evolution track, v11): a wildcard tile. Present ONLY when the player holds the 'wildcard'
+   * capability, where the reducer keeps exactly one playable wild tile on the grid at all times (see
+   * withWild). A wild counts as ANY letter when forming a word, auto-resolved to the letter that makes
+   * a valid, best-scoring word (solver.solveWithWild, submitWord). Optional and only ever true, so a
+   * grid without the capability carries no `wild` key and is byte-identical to a pre-v11 grid.
+   */
+  readonly wild?: true;
 }
 
 export const GRID_SIZE = 16;
@@ -153,6 +161,36 @@ export interface EventDef {
   readonly choices: readonly EventChoice[];
 }
 
+/**
+ * The evolution track (v11, marquee wave): capabilities the cell gains as it descends, each a new
+ * verb of play (not a stat), offered after each boss alongside the trait. Their behaviour is
+ * first-class engine logic keyed by these ids (like DEFAULT_CELL_ID); the display text is content.
+ *   wildcard    the grid always carries one wild tile, playable as any letter (Tile.wild, solver)
+ *   transmute   once per fight, turn a tile into the best rare letter (transmuteTile action)
+ *   letter-bank a one-slot letter bank: store a tile's letter, spend it into a later word (bankLetter)
+ */
+export type Capability = 'wildcard' | 'transmute' | 'letter-bank';
+export const CAPABILITIES: readonly Capability[] = ['wildcard', 'transmute', 'letter-bank'];
+
+export interface CapabilityDef {
+  readonly id: Capability;
+  readonly name: string;
+  readonly description: string;
+  readonly flavor: string;
+}
+
+/**
+ * Per-run evolution state (v11). JSON-plain: string ids, a boolean, a nullable letter; no class,
+ * Map, function or Date. `caps` are the capabilities gained in pick order. `transmuteUsed` is the
+ * only per-FIGHT field, reset to false at encounter start. `bankedLetter` is the one stored letter,
+ * per RUN: it persists across turns and across fights until spent, null when the slot is empty.
+ */
+export interface Evolution {
+  readonly caps: readonly Capability[];
+  readonly transmuteUsed: boolean;
+  readonly bankedLetter: string | null;
+}
+
 /** Formula numbers the sim tunes. Structure of the formula lives in scoring.ts; these are its knobs. */
 export interface Tuning {
   /** Multiplier by word length; index = length. Lengths beyond the table use the last entry. */
@@ -200,6 +238,8 @@ export interface Content {
   readonly events: readonly EventDef[];
   /** Evolution traits offered after a boss (variety wave step 3). */
   readonly traits: readonly TraitDef[];
+  /** Evolution capabilities offered after a boss alongside the trait (v11, marquee wave). */
+  readonly capabilities: readonly CapabilityDef[];
   readonly playerMaxHp: number;
   readonly tuning: Tuning;
 }
@@ -239,9 +279,10 @@ export interface Encounter {
 
 /**
  * rest and event (variety wave step 2): screens between fights; the reducer's restHeal, pickItem and
- * eventChoice leave them. evolve (step 3): the trait pick after a boss, left by pickTrait.
+ * eventChoice leave them. evolve (step 3): the trait pick after a boss, left by pickTrait. capability
+ * (v11): the capability pick that follows the trait, left by pickCapability or skipCapability.
  */
-export type Phase = 'fight' | 'pick' | 'rest' | 'event' | 'evolve' | 'summary';
+export type Phase = 'fight' | 'pick' | 'rest' | 'event' | 'evolve' | 'capability' | 'summary';
 export type Outcome = 'won' | 'lost';
 
 export interface TurnReport {
@@ -285,7 +326,7 @@ export interface RunStats {
 }
 
 export interface RunState {
-  readonly v: 10;
+  readonly v: 11;
   readonly rng: Rng;
   /** The starting cell's id (content.cells). v4; v3 saves load as 'balanced'. */
   readonly cell: string;
@@ -305,6 +346,8 @@ export interface RunState {
   /** The event on screen while phase is 'event' (content.events id); null otherwise. */
   readonly event: string | null;
   readonly player: PlayerState;
+  /** The evolution track (v11): capabilities gained and the per-fight / per-run usage flags. JSON-plain. */
+  readonly evolution: Evolution;
   readonly encounter: Encounter | null;
   readonly offer: readonly string[] | null;
   /**

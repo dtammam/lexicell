@@ -321,7 +321,7 @@
       <Pick {run} {dispatch} />
     {:else if run.phase === 'event'}
       <Event {run} {dispatch} />
-    {:else if run.phase === 'evolve'}
+    {:else if run.phase === 'evolve' || run.phase === 'capability'}
       <Evolve {run} {dispatch} />
     {:else}
       <Summary {run} onNewRun={newRun} onHistory={toHistory} onReplay={replayRun} />

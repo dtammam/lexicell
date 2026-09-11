@@ -39,7 +39,7 @@ function encounter(selection: readonly number[]): Encounter {
 
 function state(over: Partial<RunState> = {}): RunState {
   return {
-    v: 10,
+    v: 11,
     rng: { seed: 1, counter: 0 },
     cell: 'balanced',
     mode: 'normal',
@@ -48,6 +48,7 @@ function state(over: Partial<RunState> = {}): RunState {
     encounterIndex: 0,
     event: null,
     player: { hp: 20, maxHp: 20, items: [], traits: [], shield: 0, freeShuffles: 0 },
+    evolution: { caps: [], transmuteUsed: false, bankedLetter: null },
     encounter: encounter([]),
     offer: null,
     curses: null,

@@ -780,6 +780,10 @@ describe('App', () => {
     expect(getByText('Predatory')).toBeTruthy();
     expect(getByText('+15% damage on every word.')).toBeTruthy();
     await click(document.querySelectorAll('.evolve button.offer')[1] ?? null);
+    // v11: the capability offer follows the trait pick. Skip it here (the item pick then follows).
+    expect(await findByText('Skip')).toBeTruthy();
+    expect(document.querySelectorAll('.evolve button.offer').length).toBe(3);
+    await click(getButton('Skip'));
     // The item pick the boss win owes, then the next fight with the trait on the strip.
     expect(await findByText('Choose an item')).toBeTruthy();
     await click(document.querySelector('button.offer'));

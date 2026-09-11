@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { WORDS_PATH } from '../../scripts/lib/load-dictionary';
 import type { Effect } from '../engine/effects';
+import { CAPABILITIES } from '../engine/types';
 import { CONTENT } from './index';
 
 describe('content bundle', () => {
@@ -94,6 +95,19 @@ describe('content bundle', () => {
       expect(t.flavor.length, t.id).toBeGreaterThan(0);
       expect(t.flavor, t.id).not.toMatch(/\d/);
       expect(Object.values(t.hooks).some((e) => (e?.length ?? 0) > 0), t.id).toBe(true);
+    }
+  });
+
+  it('capabilities (evolution track, v11): the three engine capabilities, unique known ids, description and flavor with no digits in flavor', () => {
+    const ids = CONTENT.capabilities.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    // Every offered capability is one the engine implements (CAPABILITIES union), and vice versa.
+    expect(ids.slice().sort()).toEqual([...CAPABILITIES].sort());
+    for (const c of CONTENT.capabilities) {
+      expect(c.name.length, c.id).toBeGreaterThan(0);
+      expect(c.description.length, c.id).toBeGreaterThan(0);
+      expect(c.flavor.length, c.id).toBeGreaterThan(0);
+      expect(c.flavor, c.id).not.toMatch(/\d/);
     }
   });
 

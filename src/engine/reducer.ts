@@ -60,7 +60,7 @@ import { cellDef, collectEffects, itemDef, traitDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { GRID_SIZE, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EnemyTraits, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
+import { CAPABILITIES, GRID_SIZE, type Capability, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EnemyTraits, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -81,15 +81,19 @@ export type Action =
   | { readonly type: 'restHeal' }
   | { readonly type: 'eventChoice'; readonly index: number }
   /* Variety wave step 3: the trait pick after a boss. */
-  | { readonly type: 'pickTrait'; readonly index: number };
+  | { readonly type: 'pickTrait'; readonly index: number }
+  /* Evolution track (v11): the capability pick that follows the trait, and declining it. */
+  | { readonly type: 'pickCapability'; readonly index: number }
+  | { readonly type: 'skipCapability' };
 
 /**
- * 10 since curses (RunState.curses; variety wave step 6); a v9 save is MIGRATED by persist.ts with
- * curses null. 9 was modes (mode), 8 grid rules (Tile.gold, Tile.cracked), 7 evolution
- * (player.traits), 6 encounter types (kinds, event), 5 the stats HUD (worstWord), 4 starting cells,
- * 3 the effects wave (v2 dropped), 2 the tuning wave (v1 dropped); v3 to v9 all migrate forward.
+ * 11 since the evolution track (RunState.evolution; marquee wave): a v10 save is MIGRATED by
+ * persist.ts with an empty evolution. 10 was curses (curses), 9 modes (mode), 8 grid rules
+ * (Tile.gold, Tile.cracked), 7 evolution traits (player.traits), 6 encounter types (kinds, event),
+ * 5 the stats HUD (worstWord), 4 starting cells, 3 the effects wave (v2 dropped), 2 the tuning wave
+ * (v1 dropped); v3 to v10 all migrate forward.
  */
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 /** The mode a run gets when none is named. */
 export const DEFAULT_MODE: RunMode = 'normal';
 /** The cell a run gets when none is named: the game as it was before cells. */
@@ -124,7 +128,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
   const maxHp = cell.maxHp;
   const [kinds, rng] = placeKinds(createRng(seed), ctx.content);
   const state: RunState = {
-    v: 10,
+    v: 11,
     cell: cell.id,
     mode,
     kinds,
@@ -133,6 +137,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
     encounterIndex: 0,
     event: null,
     player: { hp: maxHp, maxHp, items: [...cell.startingItems], traits: [], shield: 0, freeShuffles: 0 },
+    evolution: { caps: [], transmuteUsed: false, bankedLetter: null },
     encounter: null,
     offer: null,
     curses: null,
@@ -174,6 +179,10 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return eventChoice(state, action.index, ctx);
     case 'pickTrait':
       return pickTrait(state, action.index, ctx);
+    case 'pickCapability':
+      return pickCapability(state, action.index, ctx);
+    case 'skipCapability':
+      return skipCapability(state, ctx);
   }
 }
 
@@ -704,21 +713,59 @@ function makeEvolve(state: RunState, ctx: EngineContext): RunState {
     pool = pool.filter((t) => t.id !== chosen.id);
   }
   const s = withRng(state, rng);
-  // The post-boss offer is cursable (variety wave step 6), whether it comes from this no-traits
-  // fallback or from pickTrait after a trait is chosen.
-  if (offer.length === 0) return makeOffer({ ...s, encounter: null }, ctx, undefined, true);
+  // The capability offer (v11) follows the trait, or stands in for it when no fresh trait is left;
+  // the cursable post-boss item offer follows that. Both branches route through makeCapabilityOffer.
+  if (offer.length === 0) return makeCapabilityOffer({ ...s, encounter: null }, ctx);
   return { ...s, phase: 'evolve', offer, curses: null, encounter: null };
 }
 
-/** The trait joins player.traits (pick order), then the item offer the boss win owes. */
+/** The trait joins player.traits (pick order), then the capability offer, then the item offer the boss win owes. */
 function pickTrait(state: RunState, index: number, ctx: EngineContext): RunState {
   if (state.phase !== 'evolve' || !state.offer) return reject(state, 'not evolving');
   const id = state.offer[index];
   if (id === undefined) return reject(state, 'bad trait index');
   traitDef(ctx.content, id); // throws on an unknown id
   const s: RunState = { ...state, rejected: null, player: { ...state.player, traits: [...state.player.traits, id] }, offer: null };
-  // The post-boss offer is cursable (variety wave step 6).
+  // The capability pick (v11) comes between the trait and the item offer.
+  return makeCapabilityOffer(s, ctx);
+}
+
+/**
+ * Evolution capability offer (v11): after the trait pick (or makeEvolve's no-trait fallback), offer
+ * every capability the player does NOT yet hold, in fixed content order. No RNG is drawn (there are
+ * only three, so the offer is deterministic) and nothing gameplay-affecting is touched, so a run
+ * that declines every capability keeps the exact RNG stream and states of a pre-v11 run: that is
+ * what makes the byte-identical-to-main determinism guarantee hold. With all held (Endless, bosses
+ * recur) the offer is empty and the flow falls straight through to the cursable post-boss item
+ * offer, exactly as before the track existed. An empty content.capabilities does the same.
+ */
+function makeCapabilityOffer(state: RunState, ctx: EngineContext): RunState {
+  const held = new Set(state.evolution.caps);
+  const offer = ctx.content.capabilities.filter((c) => !held.has(c.id)).map((c) => c.id);
+  if (offer.length === 0) return makeOffer({ ...state, encounter: null }, ctx, undefined, true);
+  return { ...state, phase: 'capability', offer, curses: null, encounter: null };
+}
+
+/** The chosen capability joins evolution.caps (pick order), then the cursable post-boss item offer. */
+function pickCapability(state: RunState, index: number, ctx: EngineContext): RunState {
+  if (state.phase !== 'capability' || !state.offer) return reject(state, 'not choosing a capability');
+  const id = state.offer[index];
+  if (id === undefined) return reject(state, 'bad capability index');
+  if (!CAPABILITIES.includes(id as Capability)) return reject(state, 'unknown capability');
+  const cap = id as Capability;
+  const caps = state.evolution.caps.includes(cap) ? state.evolution.caps : [...state.evolution.caps, cap];
+  const s: RunState = { ...state, rejected: null, evolution: { ...state.evolution, caps }, offer: null };
   return makeOffer(s, ctx, undefined, true);
+}
+
+/**
+ * Decline the capability offer (v11): valid only on the capability phase. Forgoes the pick and goes
+ * to the cursable post-boss item offer. RNG- and state-neutral, so declining every offer leaves a
+ * run byte-identical to main (the item offer that follows draws exactly as it would have).
+ */
+function skipCapability(state: RunState, ctx: EngineContext): RunState {
+  if (state.phase !== 'capability') return reject(state, 'not choosing a capability');
+  return makeOffer({ ...state, rejected: null, offer: null }, ctx, undefined, true);
 }
 
 /** An offer holds at most this many commons (Dean, 2026-09-08, question 2): a pick always has something in it. */
