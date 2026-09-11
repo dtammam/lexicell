@@ -499,17 +499,20 @@ function scramble(state: RunState, ctx: EngineContext): RunState {
 }
 
 /**
- * Wildcard capability (v11): keep exactly one playable wild tile on the grid. A NO-OP unless the
- * player holds 'wildcard' (so a run without it never enters here and replays byte-identical to main)
- * or when a playable wild is already present (so it draws no RNG turn to turn, only when the wild was
- * just played and needs replacing). Otherwise one is placed on a seeded-random playable, non-wild
- * tile, threaded through state.rng. Purely additive: a wild only makes more words possible, so it
- * never turns a live grid dead. Called wherever the grid is handed back to the player (end of
- * turnStart, which every fight path funnels through, and the free-shuffle path that skips it).
+ * Wildcard capability (v11, ONE PER FIGHT, Dean 2026-09-11): place exactly one wild tile at the
+ * START of each fight (turn 1) and never again. Once it is played, the refill is a normal tile, so
+ * at most one wild exists per fight and it is gone after a single use. A NO-OP unless the player
+ * holds 'wildcard' (so a run without it never enters here and replays byte-identical to main), past
+ * turn 1, or when a playable wild is already present. When it does place, one wild lands on a
+ * seeded-random playable, non-wild tile, threaded through state.rng. Purely additive: a wild only
+ * makes more words possible, so it never turns a live grid dead. Called at the end of turnStart
+ * (turn 1 of every fight funnels through it) and the free-shuffle path (a turn-1 free shuffle only).
  */
 function withWild(state: RunState): RunState {
   const enc = state.encounter;
   if (!enc || !state.evolution.caps.includes('wildcard')) return state;
+  // Only at the fight's first turn: after that a consumed wild does not come back (one per fight).
+  if (enc.turn !== 1) return state;
   if (enc.grid.some((t) => t.lockedTurns === 0 && t.wild)) return state;
   const candidates = enc.grid.map((t, i) => (t.lockedTurns === 0 && !t.wild ? i : -1)).filter((i) => i >= 0);
   if (candidates.length === 0) return state; // no playable tile to mark (never on a live grid)

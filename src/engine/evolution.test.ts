@@ -199,32 +199,45 @@ function fightStates(seed: number): RunState[] {
 }
 
 describe('evolution track: the wildcard verb', () => {
-  it('holds exactly one playable wild tile every turn once wildcard is taken, and never a dead grid', () => {
-    let sawWild = false;
-    let sawConsumeReplace = false;
+  it('places one wild at each fight start; once played it does not return until the next fight (one per fight)', () => {
+    let sawWildAtStart = false;
+    let sawGoneAfterUse = false;
     for (const seed of [1, 2, 3]) {
-      let hadWildLastTurn = false;
+      // Group each fight's turn states by encounter.
+      const byEnc = new Map<number, RunState[]>();
       for (const s of fightStates(seed)) {
-        const grid = (s.encounter as NonNullable<RunState['encounter']>).grid;
-        const wildCount = grid.filter((t) => t.wild).length;
-        if (s.evolution.caps.includes('wildcard')) {
-          // Exactly one wild tile, and it is playable (never locked): the invariant withWild keeps.
-          expect(wildCount, `seed ${seed} enc ${s.encounterIndex}`).toBe(1);
-          expect(playableWildCount(grid)).toBe(1);
-          sawWild = true;
-          if (hadWildLastTurn) sawConsumeReplace = true;
-          hadWildLastTurn = true;
-        } else {
-          // Before wildcard is held there is never a wild tile (byte-identical to main until then).
-          expect(wildCount).toBe(0);
+        const list = byEnc.get(s.encounterIndex);
+        if (list) list.push(s);
+        else byEnc.set(s.encounterIndex, [s]);
+      }
+      for (const [, states] of byEnc) {
+        const held = states[0]?.evolution.caps.includes('wildcard') ?? false;
+        const wilds = states.map((s) => (s.encounter as NonNullable<RunState['encounter']>).grid.filter((t) => t.wild).length);
+        if (!held) {
+          // Before wildcard is held, no fight state carries a wild (byte-identical to main until then).
+          for (const w of wilds) expect(w).toBe(0);
+          continue;
         }
-        // The grid handed to the player is never dead, wild or not (the no-dead-grid guarantee).
-        const dead = grid.filter((t) => t.lockedTurns === 0);
-        expect(dead.length).toBeGreaterThan(0);
+        // At most one wild ever, and every present wild is playable (never locked).
+        for (const s of states) {
+          const grid = (s.encounter as NonNullable<RunState['encounter']>).grid;
+          expect(grid.filter((t) => t.wild).length).toBeLessThanOrEqual(1);
+          expect(playableWildCount(grid)).toBe(grid.filter((t) => t.wild).length);
+          expect(grid.filter((t) => t.lockedTurns === 0).length).toBeGreaterThan(0); // never a dead grid
+        }
+        // The fight opens (turn 1) with exactly one wild.
+        const first = states[0] as RunState;
+        if ((first.encounter as NonNullable<RunState['encounter']>).turn === 1) {
+          expect(wilds[0]).toBe(1);
+          sawWildAtStart = true;
+        }
+        // The wild count is non-increasing across the fight: once played (1 -> 0) it never returns to 1.
+        for (let i = 1; i < wilds.length; i++) expect(wilds[i]).toBeLessThanOrEqual(wilds[i - 1] as number);
+        if (wilds.some((w) => w === 0)) sawGoneAfterUse = true;
       }
     }
-    expect(sawWild).toBe(true);
-    expect(sawConsumeReplace).toBe(true);
+    expect(sawWildAtStart).toBe(true);
+    expect(sawGoneAfterUse).toBe(true);
   });
 
   it('a full wildcard run stays JSON-plain and replays byte-identical to itself (seeded, no Math.random)', () => {
