@@ -72,7 +72,8 @@ export type Action =
   | { readonly type: 'newRun'; readonly seed: number; readonly cell?: string; readonly mode?: RunMode }
   | { readonly type: 'toggleTile'; readonly index: number }
   | { readonly type: 'clearSelection' }
-  | { readonly type: 'submitWord' }
+  /* spendBank (v11, letter-bank): append the one banked letter to the scored word, then empty the slot. */
+  | { readonly type: 'submitWord'; readonly spendBank?: boolean }
   | { readonly type: 'pickItem'; readonly index: number }
   /* Variety wave step 6: leave a cursed offer entirely (valid only on a cursed pick). */
   | { readonly type: 'skipOffer' }
@@ -85,8 +86,10 @@ export type Action =
   /* Evolution track (v11): the capability pick that follows the trait, and declining it. */
   | { readonly type: 'pickCapability'; readonly index: number }
   | { readonly type: 'skipCapability' }
-  /* Evolution capability in a fight (v11): transmute a tile to a rare letter, once per fight. */
-  | { readonly type: 'transmuteTile'; readonly index: number };
+  /* Evolution capabilities in a fight (v11): transmute a tile to a rare letter (once per fight),
+     and the letter bank: store a tapped tile's letter (spending it rides on submitWord). */
+  | { readonly type: 'transmuteTile'; readonly index: number }
+  | { readonly type: 'bankLetter'; readonly index: number };
 
 /**
  * 11 since the evolution track (RunState.evolution; marquee wave): a v10 save is MIGRATED by
@@ -168,7 +171,7 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
     case 'clearSelection':
       return state.encounter ? { ...state, rejected: null, encounter: { ...state.encounter, selection: [] } } : reject(state, 'no encounter');
     case 'submitWord':
-      return submitWord(state, ctx);
+      return submitWord(state, ctx, action.spendBank ?? false);
     case 'pickItem':
       return pickItem(state, action.index, ctx);
     case 'skipOffer':
@@ -187,6 +190,8 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return skipCapability(state, ctx);
     case 'transmuteTile':
       return transmuteTile(state, action.index, ctx);
+    case 'bankLetter':
+      return bankLetter(state, action.index);
   }
 }
 
@@ -847,6 +852,24 @@ function transmuteTile(state: RunState, index: number, ctx: EngineContext): RunS
   return { ...state, rejected: null, evolution: { ...state.evolution, transmuteUsed: true }, encounter: { ...enc, grid } };
 }
 
+/**
+ * Letter bank (v11): store the letter of the tapped tile in the one-slot bank (per run: it persists
+ * across turns and fights until spent on submitWord with spendBank). Copies the letter, so the tile
+ * stays on the grid. No RNG and no turn cost. Refused without the capability, with the slot already
+ * full, or on the wild tile (its letter is a wildcard), a locked tile or an out-of-range index.
+ */
+function bankLetter(state: RunState, index: number): RunState {
+  const enc = state.encounter;
+  if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
+  if (!state.evolution.caps.includes('letter-bank')) return reject(state, 'no letter bank');
+  if (state.evolution.bankedLetter !== null) return reject(state, 'bank is full');
+  if (!Number.isInteger(index) || index < 0 || index >= GRID_SIZE) return reject(state, 'bad tile index');
+  const tile = enc.grid[index] as Tile;
+  if (tile.lockedTurns > 0) return reject(state, 'tile is locked');
+  if (tile.wild) return reject(state, 'cannot bank the wild tile');
+  return { ...state, rejected: null, evolution: { ...state.evolution, bankedLetter: tile.letter } };
+}
+
 /** An offer holds at most this many commons (Dean, 2026-09-08, question 2): a pick always has something in it. */
 export const MAX_COMMONS_PER_OFFER = 2;
 
@@ -963,7 +986,7 @@ export function selectedWord(state: RunState): string {
   return enc.selection.map((i) => (enc.grid[i] as Tile).letter).join('');
 }
 
-function submitWord(state: RunState, ctx: EngineContext): RunState {
+function submitWord(state: RunState, ctx: EngineContext, spendBank = false): RunState {
   const enc = state.encounter;
   if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
   if (new Set(enc.selection).size !== enc.selection.length) return reject(state, 'duplicate tile');
@@ -971,33 +994,41 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   // Resolve the word: literal letters, or (v11) the wild tile auto-filled to the best-scoring letter.
   const word = resolveSelectedWord(state, ctx);
   if (word === null) return reject(state, enc.selection.length < 3 ? 'too short' : 'not a word');
+  // Letter bank (v11): when spending, the played word must still be a real word (validated above),
+  // and the banked letter is appended for SCORING only, then the slot empties. The word on the tiles
+  // is `word`; `scored` is what the formula, conditions, armour and resist all see. Without the
+  // capability or an empty slot, banked is null and scored === word (byte-identical to before).
+  const banked = spendBank && state.evolution.caps.includes('letter-bank') ? state.evolution.bankedLetter : null;
+  const scored = banked !== null ? word + banked : word;
 
   // Player attack: the word's score, plus the gold on the tiles played (step 4), then armour, then resist.
-  const cctx = conditionCtx(state, ctx, word);
+  const cctx = conditionCtx(state, ctx, scored);
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits);
-  const score = scoreWord(word, effects, ctx.content.tuning);
+  const score = scoreWord(scored, effects, ctx.content.tuning);
   const gold = selectionGold(enc);
   // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. Resist (challenge
   // wave): a word that fails the enemy's demand deals only `factor` of that, floored, applied after armour.
   // The preview (scoreSelection) applies the same two rules in the same order, so the number it shows is
   // the number that lands; the best/worst word stats record the word's own score, as they did with overkill.
   const traits = enemyDefOf(ctx, enc.enemy.id).traits;
-  const landed = resistHit(armourHit(word, score.damage + gold, traits?.armour ?? 0), traits?.resist, cctx);
+  const landed = resistHit(armourHit(scored, score.damage + gold, traits?.armour ?? 0), traits?.resist, cctx);
   const enemyHp = Math.max(0, enc.enemy.hp - landed);
   let s: RunState = {
     ...state,
     rejected: null,
+    // Spending the bank empties the one slot (v11); everything else in evolution is unchanged.
+    evolution: banked !== null ? { ...state.evolution, bankedLetter: null } : state.evolution,
     encounter: { ...enc, enemy: { ...enc.enemy, hp: enemyHp } },
     stats: {
       ...state.stats,
       turns: state.stats.turns + 1,
       damageDealt: state.stats.damageDealt + (enc.enemy.hp - enemyHp),
-      bestWord: score.damage > state.stats.bestWordDamage ? word : state.stats.bestWord,
+      bestWord: score.damage > state.stats.bestWordDamage ? scored : state.stats.bestWord,
       bestWordDamage: Math.max(score.damage, state.stats.bestWordDamage),
       // The worst word is the lowest-damage word played that did any damage; the first sets it, a
       // weaker one replaces it, a tie keeps the first. Zero-damage words (a multiplier stack at 0)
       // count for neither best nor worst, so the two stats agree on what a word is (stats HUD, 2026-09-09).
-      worstWord: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? word : state.stats.worstWord,
+      worstWord: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? scored : state.stats.worstWord,
       worstWordDamage: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? score.damage : state.stats.worstWordDamage,
     },
   };
@@ -1005,7 +1036,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   s = extras.state;
   const report: TurnReport = {
     ...EMPTY_REPORT,
-    word,
+    word: scored,
     gold,
     base: score.base,
     mult: score.mult,
@@ -1081,9 +1112,13 @@ export function selectionGold(enc: Encounter): number {
  * (the number shown is the number that lands). With a wild tile in the selection (v11) it resolves
  * the wild exactly as submitWord does, so the preview and the hit never disagree.
  */
-export function scoreSelection(state: RunState, ctx: EngineContext): number | null {
+export function scoreSelection(state: RunState, ctx: EngineContext, spendBank = false): number | null {
   const word = resolveSelectedWord(state, ctx);
-  return word === null ? null : landedDamage(state, ctx, word);
+  if (word === null) return null;
+  // Letter bank (v11): when spending, the preview scores the word plus the banked letter, exactly as
+  // submitWord lands it. Default (no spend) is unchanged, so the preview is byte-identical otherwise.
+  const banked = spendBank && state.evolution.caps.includes('letter-bank') ? state.evolution.bankedLetter : null;
+  return landedDamage(state, ctx, banked !== null ? word + banked : word);
 }
 
 /** The exact damage `word` lands from the current selection: its score plus the selected tiles' gold, then armour, then resist. */

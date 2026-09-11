@@ -365,3 +365,84 @@ describe('evolution track: the transmute verb', () => {
     }
   });
 });
+
+describe('evolution track: the letter-bank verb', () => {
+  const firstPlayable = (s: RunState): number => (s.encounter as NonNullable<RunState['encounter']>).grid.findIndex((t) => t.lockedTurns === 0 && !t.wild);
+  const plain = (letter: string): Tile => ({ letter, lockedTurns: 0, venom: 0, gold: 0, cracked: 0 });
+
+  it('stores a tapped tile letter, one slot; a second bank is refused; the letter persists across a turn', () => {
+    const base = driveTo(3, 'fight');
+    // Invincible, harmless enemy so a played word does not end the fight, and a live grid to bank from.
+    const enc = base.encounter as NonNullable<RunState['encounter']>;
+    const s: RunState = { ...base, evolution: { caps: ['letter-bank'], transmuteUsed: false, bankedLetter: null }, encounter: { ...enc, enemy: { ...enc.enemy, hp: 1_000_000, maxHp: 1_000_000, damage: 0 } } };
+    const idx = firstPlayable(s);
+    const stored = (s.encounter as NonNullable<RunState['encounter']>).grid[idx]?.letter ?? '';
+    const banked = reduce(s, { type: 'bankLetter', index: idx }, ctx);
+    expect(banked.rejected).toBeNull();
+    expect(banked.evolution.bankedLetter).toBe(stored);
+    // The tile is NOT consumed (banking copies the letter).
+    expect((banked.encounter as NonNullable<RunState['encounter']>).grid[idx]?.letter).toBe(stored);
+    // A second bank while the slot is full is refused.
+    const other = (banked.encounter as NonNullable<RunState['encounter']>).grid.findIndex((t, i) => i !== idx && t.lockedTurns === 0 && !t.wild);
+    expect(reduce(banked, { type: 'bankLetter', index: other }, ctx).rejected).toBe('bank is full');
+    // Play a normal word WITHOUT spending: the banked letter persists across the turn.
+    const wordChoice = candidateWords(banked, ctx)[0];
+    if (wordChoice) {
+      const idxs = candidateIndices(banked, wordChoice.word) as number[];
+      let sel = banked;
+      for (const i of idxs) sel = reduce(sel, { type: 'toggleTile', index: i }, ctx);
+      const played = reduce(sel, { type: 'submitWord' }, ctx);
+      expect(played.evolution.bankedLetter).toBe(stored);
+    }
+  });
+
+  it('spends the banked letter into a word for scoring, then empties the slot; the preview equals the hit', () => {
+    const base = driveTo(1, 'fight');
+    const enc = base.encounter as NonNullable<RunState['encounter']>;
+    // A controlled grid spelling 'cat', with a fat banked letter, items and traits stripped for isolation.
+    const grid: Tile[] = Array.from({ length: 16 }, (_, i) => (i === 0 ? plain('c') : i === 1 ? plain('a') : i === 2 ? plain('t') : plain('e')));
+    const s: RunState = { ...base, player: { ...base.player, items: [], traits: [] }, evolution: { caps: ['letter-bank'], transmuteUsed: false, bankedLetter: 'z' }, encounter: { ...enc, grid, enemy: { ...enc.enemy, hp: 1_000_000, maxHp: 1_000_000, damage: 0 }, selection: [] } };
+    let sel = s;
+    for (const i of [0, 1, 2]) sel = reduce(sel, { type: 'toggleTile', index: i }, ctx);
+    const plainPreview = scoreSelection(sel, ctx, false) as number;
+    const spendPreview = scoreSelection(sel, ctx, true) as number;
+    // Appending 'z' adds its letter value (and a length step), so the spent preview is strictly higher.
+    expect(spendPreview).toBeGreaterThan(plainPreview);
+    const before = (sel.encounter as NonNullable<RunState['encounter']>).enemy.hp;
+    const played = reduce(sel, { type: 'submitWord', spendBank: true }, ctx);
+    expect(played.rejected).toBeNull();
+    // The preview is the number that lands.
+    expect(before - (played.encounter as NonNullable<RunState['encounter']>).enemy.hp).toBe(spendPreview);
+    // The slot is now empty, and the scored word carried the banked letter.
+    expect(played.evolution.bankedLetter).toBeNull();
+    expect(played.lastTurn?.word).toBe('catz');
+    // Spending with an empty slot is a no-op augmentation: the same as a plain submit.
+    const empty: RunState = { ...s, evolution: { ...s.evolution, bankedLetter: null } };
+    let sel2 = empty;
+    for (const i of [0, 1, 2]) sel2 = reduce(sel2, { type: 'toggleTile', index: i }, ctx);
+    expect(scoreSelection(sel2, ctx, true)).toBe(scoreSelection(sel2, ctx, false));
+  });
+
+  it('guards: needs the capability and refuses the wild tile', () => {
+    const base = driveTo(4, 'fight');
+    expect(reduce(base, { type: 'bankLetter', index: 0 }, ctx).rejected).toBe('no letter bank');
+    const withCap: RunState = { ...base, evolution: { caps: ['letter-bank'], transmuteUsed: false, bankedLetter: null } };
+    expect(reduce(withCap, { type: 'bankLetter', index: 99 }, ctx).rejected).toBe('bad tile index');
+    const enc = withCap.encounter as NonNullable<RunState['encounter']>;
+    const grid = enc.grid.map((t, i) => (i === 0 ? { ...t, wild: true as const } : t));
+    expect(reduce({ ...withCap, encounter: { ...enc, grid } }, { type: 'bankLetter', index: 0 }, ctx).rejected).toBe('cannot bank the wild tile');
+  });
+
+  it('a run holding letter-bank (unused) replays byte-identical to a skip run (no RNG in the bank)', () => {
+    for (const seed of [1, 2]) {
+      const withBank = driveWithCapabilityPicks(seed, 'letter-bank');
+      const skipped = driveToEnd(seed, 'skip');
+      const strip = (s: RunState) => {
+        const r: Record<string, unknown> = { ...s };
+        delete r.evolution;
+        return JSON.stringify(r);
+      };
+      expect(strip(withBank)).toBe(strip(skipped));
+    }
+  });
+});
