@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
-import { candidateWords } from '../engine/candidates';
+import { candidateIndices, candidateWords } from '../engine/candidates';
 import { CONTENT } from '../content/index';
 import { RELEASE_NOTES } from './release-notes';
 import type { RunState } from '../engine/types';
@@ -72,6 +72,21 @@ async function attackOnce(prefer: 'long' | 'short' = 'long'): Promise<string> {
   expect(getByText(word.toUpperCase())).toBeTruthy();
   await click(attackButton());
   return word;
+}
+
+/**
+ * Play one fight turn through the engine's own candidates, read from the saved state. Unlike
+ * attackOnce (which solves the visible DOM letters) this is wild-aware (v11): a run that took the
+ * wildcard carries a '?' tile the DOM solver cannot read, and candidateIndices maps a wild word.
+ */
+async function playTurnViaEngine(): Promise<void> {
+  const state = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+  const best = candidateWords(state, ctx).sort((a, b) => b.damage - a.damage)[0];
+  if (!best) throw new Error('no candidate word for the fight');
+  const idx = candidateIndices(state, best.word);
+  if (!idx) throw new Error(`cannot map ${best.word}`);
+  for (const i of idx) await click(tiles()[i] ?? null);
+  await click(attackButton());
 }
 
 /** From a fresh render: title screen, New run, the intro, starting pick, then the first fight. */
@@ -780,11 +795,51 @@ describe('App', () => {
     expect(getByText('Predatory')).toBeTruthy();
     expect(getByText('+15% damage on every word.')).toBeTruthy();
     await click(document.querySelectorAll('.evolve button.offer')[1] ?? null);
+    // v11: the capability offer follows the trait pick and is mandatory. Take one (a non-wildcard,
+    // index 1, so no wild tile appears on the next grid); the item pick then follows.
+    expect(document.querySelectorAll('.evolve button.offer').length).toBe(3);
+    await click(document.querySelectorAll('.evolve button.offer')[1] ?? null);
     // The item pick the boss win owes, then the next fight with the trait on the strip.
     expect(await findByText('Choose an item')).toBeTruthy();
     await click(document.querySelector('button.offer'));
     expect(await findByText('Enc 4/9')).toBeTruthy();
     expect(getByText(/Traits: Predatory\./)).toBeTruthy();
+  }, 30000);
+
+  it('evolution capabilities (v11): the fight shows a wild ? tile and the transmute, bank and spend actions', async () => {
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = blob.encounter as NonNullable<RunState['encounter']>;
+    const plain = (letter: string) => ({ letter, lockedTurns: 0, venom: 0, gold: 0, cracked: 0 });
+    // A controlled grid: a wild at 0, then c a t e r, then e fillers; enemy tough and harmless.
+    const lead = ['z', 'c', 'a', 't', 'e', 'r'];
+    const grid = Array.from({ length: 16 }, (_, i) => (i === 0 ? { ...plain('z'), wild: true as const } : plain(lead[i] ?? 'e')));
+    const seeded: RunState = {
+      ...blob,
+      evolution: { caps: ['wildcard', 'transmute', 'letter-bank'], transmuteUsed: false, bankedLetter: null },
+      player: { ...blob.player, items: [] },
+      encounter: { ...enc, grid, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0 }, selection: [] },
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await findByText('Enc 1/9');
+    // The wild tile reads as a '?' and is marked.
+    expect(tiles()[0]?.classList.contains('wild')).toBe(true);
+    expect(tiles()[0]?.querySelector('.letter')?.textContent).toBe('?');
+    // Bank the letter of tile 1 (c): arm Bank, tap the tile; a Spend control then appears.
+    expect(getButton('Bank')).toBeTruthy();
+    await click(getButton('Bank'));
+    await click(tiles()[1] ?? null);
+    expect((JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState).evolution.bankedLetter).toBe('c');
+    expect(await findByText(/^Spend /)).toBeTruthy();
+    // Transmute tile 2 (a): arm Transmute, tap the tile; it becomes a rare letter and the charge is spent.
+    await click(getButton('Transmute'));
+    await click(tiles()[2] ?? null);
+    const after = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    expect(after.evolution.transmuteUsed).toBe(true);
+    expect('kjxqz'.includes((after.encounter as NonNullable<RunState['encounter']>).grid[2]?.letter ?? '')).toBe(true);
   }, 30000);
 
   it('grid rules: a gold tile and a cracked tile carry their badges, the legend lists them, and the preview counts the gold (step 4)', async () => {
@@ -858,10 +913,16 @@ describe('App', () => {
 
   it('a finished run does not offer Continue on the title', async () => {
     await startRun();
+    // This run takes capabilities (the loop clicks the first .offer on the capability screen too),
+    // so from act 2 the grid carries a wild '?' tile. Drive fights through the engine's own
+    // wild-aware candidates read from the saved state, rather than the DOM letter solver.
     for (let guard = 0; guard < 400 && !queryButton('New run'); guard++) {
       const offer = document.querySelector('button.offer, button.choice');
-      if (offer) await click(offer);
-      else await attackOnce();
+      if (offer) {
+        await click(offer);
+        continue;
+      }
+      await playTurnViaEngine();
     }
     expect(getByText(/^You (won|died)$/)).toBeTruthy();
     cleanup();
@@ -1021,7 +1082,7 @@ describe('App', () => {
         await click(offer);
         continue;
       }
-      await attackOnce();
+      await playTurnViaEngine();
     }
     expect(getByText(/^You (won|died)$/)).toBeTruthy();
     // The share card (step 7): the encounter reached and the seed, with Share / Replay / Copy controls.

@@ -17,6 +17,15 @@ const A = 'a'.charCodeAt(0);
 export interface Solver {
   /** Every valid word formable from `letters`, in dictionary (sorted) order. */
   solve(letters: readonly string[]): string[];
+  /**
+   * Every valid word formable from `letters` PLUS `wilds` wildcard tiles, each of which counts as any
+   * one letter (evolution track, v11). A word is included when the number of letter-occurrences it
+   * needs beyond what `letters` supplies is at most `wilds`. `letters` must EXCLUDE the wild tiles'
+   * own drawn letters (the caller passes the non-wild playable letters and the wild count separately).
+   * With `wilds` 0 this is exactly `solve`. The result is always a SUPERSET of `solve(letters)`: a
+   * wild only ever adds words, never removes one, which is what keeps the no-dead-grid guarantee.
+   */
+  solveWithWild(letters: readonly string[], wilds: number): string[];
   /** Could this exact word be formed from `letters`? */
   canForm(word: string, letters: readonly string[]): boolean;
 }
@@ -65,6 +74,22 @@ export function createSolver(dictionary: Dictionary): Solver {
       const out: string[] = [];
       for (let i = 0; i < n; i++) {
         if (fits(i, gridMask, gridCounts)) out.push(words[i] as string);
+      }
+      return out;
+    },
+    solveWithWild(letters, wilds) {
+      if (wilds <= 0) return this.solve(letters);
+      const [, gridCounts] = tally(letters);
+      const out: string[] = [];
+      for (let i = 0; i < n; i++) {
+        const base = i * 26;
+        // The letter-occurrences the word needs beyond the non-wild grid; the wilds cover up to `wilds` of them.
+        let deficit = 0;
+        for (let c = 0; c < 26 && deficit <= wilds; c++) {
+          const need = (counts[base + c] as number) - (gridCounts[c] as number);
+          if (need > 0) deficit += need;
+        }
+        if (deficit <= wilds) out.push(words[i] as string);
       }
       return out;
     },

@@ -55,12 +55,12 @@
  */
 import type { Dictionary } from './dictionary';
 import { evaluateCondition, resolveEffects, type ConditionContext, type Effect } from './effects';
-import { freshGrid, isDead, playableIndices, refill, settle, type LetterBias } from './grid';
+import { freshGrid, isDead, plainTile, playableIndices, refill, settle, type LetterBias } from './grid';
 import { cellDef, collectEffects, itemDef, traitDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { GRID_SIZE, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EnemyTraits, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
+import { CAPABILITIES, GRID_SIZE, type Capability, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EnemyTraits, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -72,7 +72,8 @@ export type Action =
   | { readonly type: 'newRun'; readonly seed: number; readonly cell?: string; readonly mode?: RunMode }
   | { readonly type: 'toggleTile'; readonly index: number }
   | { readonly type: 'clearSelection' }
-  | { readonly type: 'submitWord' }
+  /* spendBank (v11, letter-bank): append the one banked letter to the scored word, then empty the slot. */
+  | { readonly type: 'submitWord'; readonly spendBank?: boolean }
   | { readonly type: 'pickItem'; readonly index: number }
   /* Variety wave step 6: leave a cursed offer entirely (valid only on a cursed pick). */
   | { readonly type: 'skipOffer' }
@@ -81,15 +82,22 @@ export type Action =
   | { readonly type: 'restHeal' }
   | { readonly type: 'eventChoice'; readonly index: number }
   /* Variety wave step 3: the trait pick after a boss. */
-  | { readonly type: 'pickTrait'; readonly index: number };
+  | { readonly type: 'pickTrait'; readonly index: number }
+  /* Evolution track (v11): the capability pick that follows the trait. Mandatory (Dean 2026-09-11): you must take one of the offered capabilities. */
+  | { readonly type: 'pickCapability'; readonly index: number }
+  /* Evolution capabilities in a fight (v11): transmute a tile to a rare letter (once per fight),
+     and the letter bank: store a tapped tile's letter (spending it rides on submitWord). */
+  | { readonly type: 'transmuteTile'; readonly index: number }
+  | { readonly type: 'bankLetter'; readonly index: number };
 
 /**
- * 10 since curses (RunState.curses; variety wave step 6); a v9 save is MIGRATED by persist.ts with
- * curses null. 9 was modes (mode), 8 grid rules (Tile.gold, Tile.cracked), 7 evolution
- * (player.traits), 6 encounter types (kinds, event), 5 the stats HUD (worstWord), 4 starting cells,
- * 3 the effects wave (v2 dropped), 2 the tuning wave (v1 dropped); v3 to v9 all migrate forward.
+ * 11 since the evolution track (RunState.evolution; marquee wave): a v10 save is MIGRATED by
+ * persist.ts with an empty evolution. 10 was curses (curses), 9 modes (mode), 8 grid rules
+ * (Tile.gold, Tile.cracked), 7 evolution traits (player.traits), 6 encounter types (kinds, event),
+ * 5 the stats HUD (worstWord), 4 starting cells, 3 the effects wave (v2 dropped), 2 the tuning wave
+ * (v1 dropped); v3 to v10 all migrate forward.
  */
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 /** The mode a run gets when none is named. */
 export const DEFAULT_MODE: RunMode = 'normal';
 /** The cell a run gets when none is named: the game as it was before cells. */
@@ -124,7 +132,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
   const maxHp = cell.maxHp;
   const [kinds, rng] = placeKinds(createRng(seed), ctx.content);
   const state: RunState = {
-    v: 10,
+    v: 11,
     cell: cell.id,
     mode,
     kinds,
@@ -133,6 +141,7 @@ export function newRun(seed: number, ctx: EngineContext, cellId: string = DEFAUL
     encounterIndex: 0,
     event: null,
     player: { hp: maxHp, maxHp, items: [...cell.startingItems], traits: [], shield: 0, freeShuffles: 0 },
+    evolution: { caps: [], transmuteUsed: false, bankedLetter: null },
     encounter: null,
     offer: null,
     curses: null,
@@ -161,7 +170,7 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
     case 'clearSelection':
       return state.encounter ? { ...state, rejected: null, encounter: { ...state.encounter, selection: [] } } : reject(state, 'no encounter');
     case 'submitWord':
-      return submitWord(state, ctx);
+      return submitWord(state, ctx, action.spendBank ?? false);
     case 'pickItem':
       return pickItem(state, action.index, ctx);
     case 'skipOffer':
@@ -174,6 +183,12 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return eventChoice(state, action.index, ctx);
     case 'pickTrait':
       return pickTrait(state, action.index, ctx);
+    case 'pickCapability':
+      return pickCapability(state, action.index, ctx);
+    case 'transmuteTile':
+      return transmuteTile(state, action.index, ctx);
+    case 'bankLetter':
+      return bankLetter(state, action.index);
   }
 }
 
@@ -394,7 +409,9 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         // The special fires before the refill, so the tiles of the word just played are still
         // on the grid; a lock on one of them would be overwritten by the refill (tracker #5).
         const played = new Set(s.encounter.selection);
-        let candidates = playableIndices(grid).filter((i) => !played.has(i));
+        // Never lock the wild tile (v11): a locked wild would stop being playable and withWild would
+        // add a second. The !wild guard is always true on a grid with no wild, so replays are unchanged.
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && !(grid[i] as Tile).wild);
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
@@ -410,7 +427,7 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         const grid = s.encounter.grid.slice();
         let rng = s.rng;
         const played = new Set(s.encounter.selection);
-        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).venom === 0);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).venom === 0 && !(grid[i] as Tile).wild);
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
@@ -426,7 +443,7 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         const grid = s.encounter.grid.slice();
         let rng = s.rng;
         const played = new Set(s.encounter.selection);
-        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).gold === 0);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).gold === 0 && !(grid[i] as Tile).wild);
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
@@ -442,7 +459,7 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         const grid = s.encounter.grid.slice();
         let rng = s.rng;
         const played = new Set(s.encounter.selection);
-        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).cracked === 0);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).cracked === 0 && !(grid[i] as Tile).wild);
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
@@ -476,6 +493,31 @@ function scramble(state: RunState, ctx: EngineContext): RunState {
   if (!state.encounter) return state;
   const [grid, rng] = freshGrid(state.rng, ctx.solver, letterBias(state, ctx));
   return { ...state, rng, encounter: { ...state.encounter, grid, selection: [] } };
+}
+
+/**
+ * Wildcard capability (v11, ONE PER FIGHT, Dean 2026-09-11): place exactly one wild tile at the
+ * START of each fight (turn 1) and never again. Once it is played, the refill is a normal tile, so
+ * at most one wild exists per fight and it is gone after a single use. A NO-OP unless the player
+ * holds 'wildcard' (so a run without it never enters here and replays byte-identical to main), past
+ * turn 1, or when a playable wild is already present. When it does place, one wild lands on a
+ * seeded-random playable, non-wild tile, threaded through state.rng. Purely additive: a wild only
+ * makes more words possible, so it never turns a live grid dead. Called at the end of turnStart
+ * (turn 1 of every fight funnels through it) and the free-shuffle path (a turn-1 free shuffle only).
+ */
+function withWild(state: RunState): RunState {
+  const enc = state.encounter;
+  if (!enc || !state.evolution.caps.includes('wildcard')) return state;
+  // Only at the fight's first turn: after that a consumed wild does not come back (one per fight).
+  if (enc.turn !== 1) return state;
+  if (enc.grid.some((t) => t.lockedTurns === 0 && t.wild)) return state;
+  const candidates = enc.grid.map((t, i) => (t.lockedTurns === 0 && !t.wild ? i : -1)).filter((i) => i >= 0);
+  if (candidates.length === 0) return state; // no playable tile to mark (never on a live grid)
+  const [k, rng] = nextInt(state.rng, candidates.length);
+  const idx = candidates[k] as number;
+  const grid = enc.grid.slice();
+  grid[idx] = { ...(grid[idx] as Tile), wild: true };
+  return { ...state, rng, encounter: { ...enc, grid } };
 }
 
 // ---------- encounter lifecycle ----------
@@ -519,6 +561,9 @@ function startEncounter(state0: RunState, ctx: EngineContext): RunState {
     offer: null,
     curses: null,
     rejected: null,
+    // Transmute (v11) is once per FIGHT: the charge refreshes at each encounter start. caps and the
+    // banked letter persist for the run. Neutral before transmute exists (transmuteUsed is always false).
+    evolution: { ...s1.evolution, transmuteUsed: false },
   };
   return turnStart(s2, ctx, EMPTY_REPORT);
 }
@@ -618,7 +663,9 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
   s = venomBite(s, ctx.content.tuning.venomMax);
   if (s.player.hp <= 0) return { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null };
-  return s;
+  // Wildcard (v11): the player is about to act, so ensure the one wild tile is present. A no-op
+  // without the capability, so every replay without it is unchanged.
+  return withWild(s);
 }
 
 /**
@@ -704,21 +751,113 @@ function makeEvolve(state: RunState, ctx: EngineContext): RunState {
     pool = pool.filter((t) => t.id !== chosen.id);
   }
   const s = withRng(state, rng);
-  // The post-boss offer is cursable (variety wave step 6), whether it comes from this no-traits
-  // fallback or from pickTrait after a trait is chosen.
-  if (offer.length === 0) return makeOffer({ ...s, encounter: null }, ctx, undefined, true);
+  // The capability offer (v11) follows the trait, or stands in for it when no fresh trait is left;
+  // the cursable post-boss item offer follows that. Both branches route through makeCapabilityOffer.
+  if (offer.length === 0) return makeCapabilityOffer({ ...s, encounter: null }, ctx);
   return { ...s, phase: 'evolve', offer, curses: null, encounter: null };
 }
 
-/** The trait joins player.traits (pick order), then the item offer the boss win owes. */
+/** The trait joins player.traits (pick order), then the capability offer, then the item offer the boss win owes. */
 function pickTrait(state: RunState, index: number, ctx: EngineContext): RunState {
   if (state.phase !== 'evolve' || !state.offer) return reject(state, 'not evolving');
   const id = state.offer[index];
   if (id === undefined) return reject(state, 'bad trait index');
   traitDef(ctx.content, id); // throws on an unknown id
   const s: RunState = { ...state, rejected: null, player: { ...state.player, traits: [...state.player.traits, id] }, offer: null };
-  // The post-boss offer is cursable (variety wave step 6).
+  // The capability pick (v11) comes between the trait and the item offer.
+  return makeCapabilityOffer(s, ctx);
+}
+
+/**
+ * Evolution capability offer (v11): after the trait pick (or makeEvolve's no-trait fallback), offer
+ * every capability the player does NOT yet hold, in fixed content order. No RNG is drawn (there are
+ * only three, so the offer is deterministic). The pick is MANDATORY (Dean 2026-09-11): pickCapability
+ * takes one, there is no skip. With all held (Endless, bosses recur) the offer is empty and the flow
+ * falls straight through to the cursable post-boss item offer, exactly as before the track existed;
+ * an empty content.capabilities does the same. The byte-identical-to-main guarantee rests on a run
+ * that NEVER reaches a boss (never evolves, caps stays empty), not on declining the offer.
+ */
+function makeCapabilityOffer(state: RunState, ctx: EngineContext): RunState {
+  const held = new Set(state.evolution.caps);
+  const offer = ctx.content.capabilities.filter((c) => !held.has(c.id)).map((c) => c.id);
+  if (offer.length === 0) return makeOffer({ ...state, encounter: null }, ctx, undefined, true);
+  return { ...state, phase: 'capability', offer, curses: null, encounter: null };
+}
+
+/** The chosen capability joins evolution.caps (pick order), then the cursable post-boss item offer. */
+function pickCapability(state: RunState, index: number, ctx: EngineContext): RunState {
+  if (state.phase !== 'capability' || !state.offer) return reject(state, 'not choosing a capability');
+  const id = state.offer[index];
+  if (id === undefined) return reject(state, 'bad capability index');
+  if (!CAPABILITIES.includes(id as Capability)) return reject(state, 'unknown capability');
+  const cap = id as Capability;
+  const caps = state.evolution.caps.includes(cap) ? state.evolution.caps : [...state.evolution.caps, cap];
+  const s: RunState = { ...state, rejected: null, evolution: { ...state.evolution, caps }, offer: null };
   return makeOffer(s, ctx, undefined, true);
+}
+
+/** The rare letters richest first (z, q = 8; j, x = 6; k = 5): transmute turns a tile into one of these. */
+const RARE_TRANSMUTE: readonly string[] = ['z', 'q', 'j', 'x', 'k'];
+
+/**
+ * The rare letter that gives the best-scoring formable word if the tile at `index` becomes it
+ * (deterministic, no RNG; ties keep the richest letter, z first). A heuristic that makes transmute
+ * genuinely useful rather than always the same letter. Uses the base word score (letters x length).
+ */
+function bestRareLetter(grid: readonly Tile[], index: number, ctx: EngineContext): string {
+  let best = RARE_TRANSMUTE[0] as string;
+  let bestScore = -1;
+  for (const r of RARE_TRANSMUTE) {
+    const letters = grid.map((t, i) => (i === index ? r : t.letter)).filter((_, i) => (grid[i] as Tile).lockedTurns === 0);
+    let top = 0;
+    for (const w of ctx.solver.solve(letters)) {
+      const b = scoreWord(w, [], ctx.content.tuning).base;
+      if (b > top) top = b;
+    }
+    if (top > bestScore) {
+      bestScore = top;
+      best = r;
+    }
+  }
+  return best;
+}
+
+/**
+ * Transmute (v11): once per fight, turn the chosen playable tile into the rare letter that best
+ * serves the grid (bestRareLetter). Guarded by evolution.transmuteUsed, which resets at encounter
+ * start. No RNG and no turn cost (a mid-turn grid edit). The wild tile is not a valid target (its
+ * letter is a wildcard); a locked or out-of-range tile is refused, as is a run without the capability.
+ */
+function transmuteTile(state: RunState, index: number, ctx: EngineContext): RunState {
+  const enc = state.encounter;
+  if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
+  if (!state.evolution.caps.includes('transmute')) return reject(state, 'no transmute');
+  if (state.evolution.transmuteUsed) return reject(state, 'transmute already used this fight');
+  if (!Number.isInteger(index) || index < 0 || index >= GRID_SIZE) return reject(state, 'bad tile index');
+  const tile = enc.grid[index] as Tile;
+  if (tile.lockedTurns > 0) return reject(state, 'tile is locked');
+  if (tile.wild) return reject(state, 'cannot transmute the wild tile');
+  const grid = enc.grid.slice();
+  grid[index] = plainTile(bestRareLetter(enc.grid, index, ctx));
+  return { ...state, rejected: null, evolution: { ...state.evolution, transmuteUsed: true }, encounter: { ...enc, grid } };
+}
+
+/**
+ * Letter bank (v11): store the letter of the tapped tile in the one-slot bank (per run: it persists
+ * across turns and fights until spent on submitWord with spendBank). Copies the letter, so the tile
+ * stays on the grid. No RNG and no turn cost. Refused without the capability, with the slot already
+ * full, or on the wild tile (its letter is a wildcard), a locked tile or an out-of-range index.
+ */
+function bankLetter(state: RunState, index: number): RunState {
+  const enc = state.encounter;
+  if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
+  if (!state.evolution.caps.includes('letter-bank')) return reject(state, 'no letter bank');
+  if (state.evolution.bankedLetter !== null) return reject(state, 'bank is full');
+  if (!Number.isInteger(index) || index < 0 || index >= GRID_SIZE) return reject(state, 'bad tile index');
+  const tile = enc.grid[index] as Tile;
+  if (tile.lockedTurns > 0) return reject(state, 'tile is locked');
+  if (tile.wild) return reject(state, 'cannot bank the wild tile');
+  return { ...state, rejected: null, evolution: { ...state.evolution, bankedLetter: tile.letter } };
 }
 
 /** An offer holds at most this many commons (Dean, 2026-09-08, question 2): a pick always has something in it. */
@@ -837,40 +976,49 @@ export function selectedWord(state: RunState): string {
   return enc.selection.map((i) => (enc.grid[i] as Tile).letter).join('');
 }
 
-function submitWord(state: RunState, ctx: EngineContext): RunState {
+function submitWord(state: RunState, ctx: EngineContext, spendBank = false): RunState {
   const enc = state.encounter;
   if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
   if (new Set(enc.selection).size !== enc.selection.length) return reject(state, 'duplicate tile');
   if (enc.selection.some((i) => (enc.grid[i] as Tile).lockedTurns > 0)) return reject(state, 'tile is locked');
-  const word = selectedWord(state);
-  if (!ctx.dictionary.has(word)) return reject(state, word.length < 3 ? 'too short' : 'not a word');
+  // Resolve the word: literal letters, or (v11) the wild tile auto-filled to the best-scoring letter.
+  const word = resolveSelectedWord(state, ctx);
+  if (word === null) return reject(state, enc.selection.length < 3 ? 'too short' : 'not a word');
+  // Letter bank (v11): when spending, the played word must still be a real word (validated above),
+  // and the banked letter is appended for SCORING only, then the slot empties. The word on the tiles
+  // is `word`; `scored` is what the formula, conditions, armour and resist all see. Without the
+  // capability or an empty slot, banked is null and scored === word (byte-identical to before).
+  const banked = spendBank && state.evolution.caps.includes('letter-bank') ? state.evolution.bankedLetter : null;
+  const scored = banked !== null ? word + banked : word;
 
   // Player attack: the word's score, plus the gold on the tiles played (step 4), then armour, then resist.
-  const cctx = conditionCtx(state, ctx, word);
+  const cctx = conditionCtx(state, ctx, scored);
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits);
-  const score = scoreWord(word, effects, ctx.content.tuning);
+  const score = scoreWord(scored, effects, ctx.content.tuning);
   const gold = selectionGold(enc);
   // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. Resist (challenge
   // wave): a word that fails the enemy's demand deals only `factor` of that, floored, applied after armour.
   // The preview (scoreSelection) applies the same two rules in the same order, so the number it shows is
   // the number that lands; the best/worst word stats record the word's own score, as they did with overkill.
   const traits = enemyDefOf(ctx, enc.enemy.id).traits;
-  const landed = resistHit(armourHit(word, score.damage + gold, traits?.armour ?? 0), traits?.resist, cctx);
+  const landed = resistHit(armourHit(scored, score.damage + gold, traits?.armour ?? 0), traits?.resist, cctx);
   const enemyHp = Math.max(0, enc.enemy.hp - landed);
   let s: RunState = {
     ...state,
     rejected: null,
+    // Spending the bank empties the one slot (v11); everything else in evolution is unchanged.
+    evolution: banked !== null ? { ...state.evolution, bankedLetter: null } : state.evolution,
     encounter: { ...enc, enemy: { ...enc.enemy, hp: enemyHp } },
     stats: {
       ...state.stats,
       turns: state.stats.turns + 1,
       damageDealt: state.stats.damageDealt + (enc.enemy.hp - enemyHp),
-      bestWord: score.damage > state.stats.bestWordDamage ? word : state.stats.bestWord,
+      bestWord: score.damage > state.stats.bestWordDamage ? scored : state.stats.bestWord,
       bestWordDamage: Math.max(score.damage, state.stats.bestWordDamage),
       // The worst word is the lowest-damage word played that did any damage; the first sets it, a
       // weaker one replaces it, a tie keeps the first. Zero-damage words (a multiplier stack at 0)
       // count for neither best nor worst, so the two stats agree on what a word is (stats HUD, 2026-09-09).
-      worstWord: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? word : state.stats.worstWord,
+      worstWord: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? scored : state.stats.worstWord,
       worstWordDamage: score.damage > 0 && (state.stats.worstWord === '' || score.damage < state.stats.worstWordDamage) ? score.damage : state.stats.worstWordDamage,
     },
   };
@@ -878,7 +1026,7 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   s = extras.state;
   const report: TurnReport = {
     ...EMPTY_REPORT,
-    word,
+    word: scored,
     gold,
     base: score.base,
     mult: score.mult,
@@ -951,18 +1099,66 @@ export function selectionGold(enc: Encounter): number {
 /**
  * The exact hit the current selection would land, or null when it is not a word: the same
  * scoring, gold and armour path submitWord takes, for the word line and the Attack button
- * (the number shown is the number that lands).
+ * (the number shown is the number that lands). With a wild tile in the selection (v11) it resolves
+ * the wild exactly as submitWord does, so the preview and the hit never disagree.
  */
-export function scoreSelection(state: RunState, ctx: EngineContext): number | null {
+export function scoreSelection(state: RunState, ctx: EngineContext, spendBank = false): number | null {
+  const word = resolveSelectedWord(state, ctx);
+  if (word === null) return null;
+  // Letter bank (v11): when spending, the preview scores the word plus the banked letter, exactly as
+  // submitWord lands it. Default (no spend) is unchanged, so the preview is byte-identical otherwise.
+  const banked = spendBank && state.evolution.caps.includes('letter-bank') ? state.evolution.bankedLetter : null;
+  return landedDamage(state, ctx, banked !== null ? word + banked : word);
+}
+
+/** The exact damage `word` lands from the current selection: its score plus the selected tiles' gold, then armour, then resist. */
+export function landedDamage(state: RunState, ctx: EngineContext, word: string): number {
   const enc = state.encounter;
-  if (!enc) return null;
-  const word = selectedWord(state);
-  if (!ctx.dictionary.has(word)) return null;
+  if (!enc) return 0;
   const cctx = conditionCtx(state, ctx, word);
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits);
   const score = scoreWord(word, effects, ctx.content.tuning);
   const traits = enemyDefOf(ctx, enc.enemy.id).traits;
   return resistHit(armourHit(word, score.damage + selectionGold(enc), traits?.armour ?? 0), traits?.resist, cctx);
+}
+
+/**
+ * The word the current selection plays, or null when it is not a valid dictionary word. Without a
+ * wild tile in the selection this is exactly selectedWord validated against the dictionary
+ * (byte-identical for every run without the wildcard capability). With the one wild tile in the
+ * selection (v11), the wild is auto-resolved to the letter that lands the most damage; ties keep the
+ * earliest letter a..z, so it is deterministic. submitWord and scoreSelection both call this.
+ */
+export function resolveSelectedWord(state: RunState, ctx: EngineContext): string | null {
+  const enc = state.encounter;
+  if (!enc) return null;
+  const sel = enc.selection;
+  const letters = sel.map((i) => (enc.grid[i] as Tile).letter);
+  let wildPos = -1;
+  for (let p = 0; p < sel.length; p++) {
+    if ((enc.grid[sel[p] as number] as Tile).wild) {
+      wildPos = p;
+      break;
+    }
+  }
+  if (wildPos < 0) {
+    const word = letters.join('');
+    return ctx.dictionary.has(word) ? word : null;
+  }
+  let best: string | null = null;
+  let bestDamage = -1;
+  for (let c = 0; c < 26; c++) {
+    const chars = letters.slice();
+    chars[wildPos] = String.fromCharCode(97 + c);
+    const cand = chars.join('');
+    if (!ctx.dictionary.has(cand)) continue;
+    const dmg = landedDamage(state, ctx, cand);
+    if (dmg > bestDamage) {
+      bestDamage = dmg;
+      best = cand;
+    }
+  }
+  return best;
 }
 
 /** Enraged from the turn after tuning.enrageAfter: damage grows each turn and a stun no longer stops the attack. */
@@ -1093,6 +1289,8 @@ function shuffle(state: RunState, ctx: EngineContext): RunState {
       free = scramble(free, ctx);
       report = { ...report, used: Array.from({ length: GRID_SIZE }, (_, i) => i) };
     }
+    // A free shuffle redraws every unlocked tile, so the wild (v11) was replaced; put one back.
+    free = withWild(free);
     return { ...free, lastTurn: report };
   }
   const s: RunState = {

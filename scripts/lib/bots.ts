@@ -318,6 +318,10 @@ export function nextAction(bot: Bot, state: RunState, ctx: EngineContext): Actio
     return [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];
   }
   if (state.phase === 'evolve') return [{ type: 'pickTrait', index: chooseTrait(state, ctx) }];
+  // Evolution capability (v11): every bot takes the first offered capability. Offered in fixed
+  // content order (wildcard, transmute, letter-bank), so a bot stacks wildcard first, then the
+  // rest at later bosses; this is what the balance sims measure the greedy ceiling against.
+  if (state.phase === 'capability') return [{ type: 'pickCapability', index: 0 }];
   if (state.phase === 'rest') {
     const low = state.player.hp < state.player.maxHp * REST_HEAL_BELOW;
     return low || !state.offer ? [{ type: 'restHeal' }] : [{ type: 'pickItem', index: bot.choosePick(state, ctx) }];

@@ -24,6 +24,22 @@ describe('solver on a hand-built dictionary', () => {
     expect(s.solve([])).toEqual([]);
   });
 
+  it('solveWithWild treats the wilds as any letter and is a superset of solve (v11)', () => {
+    // wilds 0 is exactly solve.
+    expect(s.solveWithWild(['c', 'a', 't', 'o'], 0)).toEqual(s.solve(['c', 'a', 't', 'o']));
+    // 'ca' + one wild forms 'act'/'cat' (wild = t) and 'ace' (wild = e); a bare 'ca' forms nothing.
+    expect(s.solve(['c', 'a'])).toEqual([]);
+    expect(s.solveWithWild(['c', 'a'], 1)).toEqual(['ace', 'act', 'cat']);
+    // The wild covers a doubled letter: 'god' + wild = 'good'/'goo' (the missing second o), plus 'dog'.
+    expect(s.solve(['g', 'o', 'd'])).toEqual(['dog']);
+    expect(s.solveWithWild(['g', 'o', 'd'], 1)).toEqual(['dog', 'goo', 'good']);
+    // Superset property on a random-ish letter set: every plain word is still present with a wild.
+    const letters = ['c', 'a', 't'];
+    const plain = new Set(s.solve(letters));
+    const wild = new Set(s.solveWithWild(letters, 1));
+    for (const w of plain) expect(wild.has(w)).toBe(true);
+  });
+
   it('canForm agrees with solve and rejects non-dictionary words', () => {
     expect(s.canForm('taco', ['c', 'a', 't', 'o'])).toBe(true);
     expect(s.canForm('tact', ['c', 'a', 't', 'o'])).toBe(false);

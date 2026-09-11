@@ -1,6 +1,6 @@
 <script lang="ts">
   import { candidateWords, type Candidate } from '../engine/candidates';
-  import { scoreSelection, selectedWord, type Action, type EngineContext } from '../engine/reducer';
+  import { resolveSelectedWord, scoreSelection, type Action, type EngineContext } from '../engine/reducer';
   import { LETTER_VALUE } from '../engine/scoring';
   import type { RunState } from '../engine/types';
   import Arena from './Arena.svelte';
@@ -11,9 +11,8 @@
     run,
     prev = null,
     dispatch,
-    isWord,
     ctx,
-  }: { run: RunState; prev?: RunState | null; dispatch: (action: Action) => void; isWord: (word: string) => boolean; ctx: EngineContext } = $props();
+  }: { run: RunState; prev?: RunState | null; dispatch: (action: Action) => void; ctx: EngineContext } = $props();
 
   const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
   /**
@@ -28,10 +27,33 @@
   }
 
   const enc = $derived(run.encounter);
-  const word = $derived(selectedWord(run));
-  // The same dictionary the reducer validates against, so green always means Attack will land.
-  const valid = $derived(word.length >= 3 && isWord(word));
-  const canAttack = $derived(word.length >= 3);
+  // Evolution capabilities (v11): the mutation actions available this fight.
+  const caps = $derived(run.evolution.caps);
+  const banked = $derived(run.evolution.bankedLetter);
+  const canTransmute = $derived(caps.includes('transmute') && !run.evolution.transmuteUsed);
+  const canBank = $derived(caps.includes('letter-bank') && banked === null);
+  const canSpend = $derived(caps.includes('letter-bank') && banked !== null);
+  // A tap mode (transmute or bank) armed by its button: the next tile tap performs it. `spendArmed`
+  // arms the banked letter into the next attack. All reset when the turn changes.
+  let mode = $state.raw<'none' | 'transmute' | 'bank'>('none');
+  let spendArmed = $state.raw(false);
+  let modeTurn = -1;
+  $effect(() => {
+    if (run.stats.turns !== modeTurn) {
+      modeTurn = run.stats.turns;
+      mode = 'none';
+      spendArmed = false;
+    }
+  });
+  const spending = $derived(spendArmed && canSpend);
+  // The resolved word (v11): the wild tile auto-fills to the best letter; null when the selection is
+  // not a valid word. What is shown appends the banked letter while spending, so the word line reads
+  // what the preview scores. '?' stands in for the wild in an unfinished selection.
+  const resolved = $derived(enc ? resolveSelectedWord(run, ctx) : null);
+  const displaySel = $derived(enc ? enc.selection.map((i) => ((enc.grid[i]?.wild ?? false) ? '?' : (enc.grid[i]?.letter ?? ''))).join('') : '');
+  const valid = $derived(resolved !== null);
+  const word = $derived((resolved ?? displaySel) + (spending && resolved !== null ? (banked ?? '') : ''));
+  const canAttack = $derived((enc?.selection.length ?? 0) >= 3);
 
   /**
    * The word you missed (Dean, 2026-09-08): after a word is played, the best word that was on
@@ -63,7 +85,8 @@
 
   /** Damage the selected word would deal, shown before Attack (Dean, 2026-09-08: make me want to hunt). */
   // The exact hit for this selection (step 4: gold rides on the tiles chosen, not on the word), from the engine's own path.
-  const preview = $derived(valid ? scoreSelection(run, ctx) : null);
+  // Spending the banked letter (v11) is folded in, so the number shown is the number that will land.
+  const preview = $derived(valid ? scoreSelection(run, ctx, spending) : null);
 
   // Shuffle costs the turn (Dean, 2026-09-08). The first tap arms it, the second fires;
   // the arm drops on any other action so a stray tap never spends a turn.
@@ -89,6 +112,33 @@
     }
     armedAt = null;
     dispatch({ type: 'shuffle' });
+  }
+
+  // A tile tap performs the armed mutation (v11) if one is armed, else it selects the tile.
+  function onTile(index: number) {
+    if (mode === 'transmute') {
+      dispatch({ type: 'transmuteTile', index });
+      mode = 'none';
+      return;
+    }
+    if (mode === 'bank') {
+      dispatch({ type: 'bankLetter', index });
+      mode = 'none';
+      return;
+    }
+    dispatch({ type: 'toggleTile', index });
+  }
+  function armTransmute() {
+    mode = mode === 'transmute' ? 'none' : 'transmute';
+  }
+  function armBank() {
+    mode = mode === 'bank' ? 'none' : 'bank';
+  }
+  function toggleSpend() {
+    spendArmed = !spendArmed;
+  }
+  function attack() {
+    dispatch({ type: 'submitWord', spendBank: spending });
   }
 
   // Gravity animation. lastTurn.used names the tiles consumed before the column settled; from
@@ -142,7 +192,7 @@
       return;
     }
     if (key === 'Enter') {
-      if (canAttack) dispatch({ type: 'submitWord' });
+      if (canAttack) attack();
       e.preventDefault();
       return;
     }
@@ -236,11 +286,12 @@
           class:venomous={tile.venom > 0}
           class:gold={tile.gold > 0}
           class:cracked={tile.cracked > 0}
+          class:wild={tile.wild}
           class:shiver={shivers(i)}
           disabled={tile.lockedTurns > 0}
-          onclick={() => { dispatch({ type: 'toggleTile', index: i }); }}
+          onclick={() => { onTile(i); }}
         >
-          <span class="letter">{tile.letter.toUpperCase()}</span>
+          <span class="letter">{tile.wild ? '?' : tile.letter.toUpperCase()}</span>
           {#if tile.lockedTurns > 0}<span class="value">{`\u{1F512}${tile.lockedTurns}`}</span>{:else if tile.venom > 0}<span class="value venom">{`\u2623${tile.venom}`}</span>{:else if tile.gold > 0}<span class="value gold">{`+${tile.gold}`}</span>{:else if tile.cracked > 0}<span class="value crack">{`\u23F3${tile.cracked}`}</span>{/if}
           {#if order > 0}<span class="order">{order}</span>{/if}
         </button>
@@ -249,10 +300,18 @@
     </div>
     </div>
 
+    {#if canTransmute || canBank || canSpend}
+      <!-- Evolution mutations (v11): tap-to-arm transmute or bank, and spend the banked letter into the next attack. -->
+      <div class="mutations">
+        {#if canTransmute}<button class="btn mut" class:armed={mode === 'transmute'} onclick={armTransmute}>{mode === 'transmute' ? 'Tap a tile' : 'Transmute'}</button>{/if}
+        {#if canBank}<button class="btn mut" class:armed={mode === 'bank'} onclick={armBank}>{mode === 'bank' ? 'Tap a tile' : 'Bank'}</button>{/if}
+        {#if canSpend}<button class="btn mut" class:armed={spendArmed} onclick={toggleSpend}>{spendArmed ? `Spending ${(banked ?? '').toUpperCase()}` : `Spend ${(banked ?? '').toUpperCase()}`}</button>{/if}
+      </div>
+    {/if}
     <div class="actions">
       <button class="btn" disabled={enc.selection.length === 0} onclick={() => { dispatch({ type: 'clearSelection' }); }}>Clear</button>
       <button class="btn shuffle" class:armed={shuffleArmed} class:life={freeShuffles > 0} onclick={onShuffle}>{freeShuffles > 0 ? `Free x${freeShuffles}` : shuffleArmed ? 'Costs a turn' : 'Shuffle'}</button>
-      <button class="btn primary harm" class:ready={valid} class:life={valid} disabled={!canAttack} onclick={() => { dispatch({ type: 'submitWord' }); }}>
+      <button class="btn primary harm" class:ready={valid} class:life={valid} disabled={!canAttack} onclick={attack}>
         {preview !== null ? `Attack for ${preview}` : 'Attack'}
       </button>
     </div>
@@ -613,6 +672,17 @@
   .tile.cracked {
     border-style: dashed;
   }
+  /* The wild tile (v11): a bright ring so it reads as a joker at a glance; its face is a '?'. */
+  .tile.wild {
+    border-color: var(--select);
+    box-shadow: 0 0 8px var(--select), var(--shadow-tile);
+  }
+  .tile.wild .letter {
+    color: var(--select);
+  }
+  .tile.wild.selected .letter {
+    color: var(--tile-select-ink);
+  }
   .tile.cracked .value.crack {
     color: var(--muted);
   }
@@ -623,6 +693,20 @@
     flex: none;
     display: flex;
     gap: var(--s2);
+  }
+  /* The mutation row (v11) sits just above the main actions; armed buttons glow like the tiles. */
+  .mutations {
+    flex: none;
+    display: flex;
+    gap: var(--s2);
+  }
+  .mutations .mut {
+    flex: 1;
+  }
+  .btn.mut.armed {
+    background: var(--select);
+    color: var(--ground);
+    border-color: var(--select);
   }
   /* The keyboard hint exists only where a keyboard is likely: a fine pointer that can hover. */
   .kbd {

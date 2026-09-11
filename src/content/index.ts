@@ -1,6 +1,7 @@
 import type { Content } from '../engine/types';
 import { ENCOUNTERS, PLAYER_MAX_HP, TUNING } from './acts';
 import { BOSSES } from './bosses';
+import { CAPABILITIES } from './capabilities';
 import { CELLS } from './cells';
 import { ENEMIES } from './enemies';
 import { EVENTS } from './events';
@@ -15,6 +16,7 @@ export const CONTENT: Content = {
   encounters: ENCOUNTERS,
   events: EVENTS,
   traits: TRAITS,
+  capabilities: CAPABILITIES,
   playerMaxHp: PLAYER_MAX_HP,
   tuning: TUNING,
 };
