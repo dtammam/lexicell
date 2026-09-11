@@ -9,8 +9,9 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { candidateIndices, candidateWords } from './candidates';
-import { newRun, reduce, type EngineContext } from './reducer';
-import { CAPABILITIES, type RunState } from './types';
+import { playableLetters, playableWildCount } from './grid';
+import { newRun, reduce, scoreSelection, type EngineContext } from './reducer';
+import { CAPABILITIES, type RunState, type Tile } from './types';
 
 const ctx: EngineContext = nodeContext();
 
@@ -163,5 +164,121 @@ describe('evolution track: determinism (no-capability run == main)', () => {
       const b = driveToEnd(seed, 'skip');
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     }
+  });
+});
+
+/** Every fight state a 'pick0' run passes through (it takes wildcard at the first boss). */
+function fightStates(seed: number): RunState[] {
+  const out: RunState[] = [];
+  let s = newRun(seed, ctx);
+  for (let guard = 0; guard < 50000 && s.phase !== 'summary'; guard++) {
+    if (s.phase === 'fight') out.push(s);
+    s = step(s, 'pick0');
+    if (s.rejected) throw new Error(`seed ${seed}: rejected ${s.rejected}`);
+  }
+  return out;
+}
+
+describe('evolution track: the wildcard verb', () => {
+  it('holds exactly one playable wild tile every turn once wildcard is taken, and never a dead grid', () => {
+    let sawWild = false;
+    let sawConsumeReplace = false;
+    for (const seed of [1, 2, 3]) {
+      let hadWildLastTurn = false;
+      for (const s of fightStates(seed)) {
+        const grid = (s.encounter as NonNullable<RunState['encounter']>).grid;
+        const wildCount = grid.filter((t) => t.wild).length;
+        if (s.evolution.caps.includes('wildcard')) {
+          // Exactly one wild tile, and it is playable (never locked): the invariant withWild keeps.
+          expect(wildCount, `seed ${seed} enc ${s.encounterIndex}`).toBe(1);
+          expect(playableWildCount(grid)).toBe(1);
+          sawWild = true;
+          if (hadWildLastTurn) sawConsumeReplace = true;
+          hadWildLastTurn = true;
+        } else {
+          // Before wildcard is held there is never a wild tile (byte-identical to main until then).
+          expect(wildCount).toBe(0);
+        }
+        // The grid handed to the player is never dead, wild or not (the no-dead-grid guarantee).
+        const dead = grid.filter((t) => t.lockedTurns === 0);
+        expect(dead.length).toBeGreaterThan(0);
+      }
+    }
+    expect(sawWild).toBe(true);
+    expect(sawConsumeReplace).toBe(true);
+  });
+
+  it('a full wildcard run stays JSON-plain and replays byte-identical to itself (seeded, no Math.random)', () => {
+    for (const seed of [1, 3, 7]) {
+      const a = driveToEnd(seed, 'pick0');
+      const b = driveToEnd(seed, 'pick0');
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+      expect(JSON.parse(JSON.stringify(a))).toEqual(a);
+      // The wildcard was actually taken on this run (the first capability offered).
+      expect(a.evolution.caps).toContain('wildcard');
+    }
+  });
+
+  it('the wild forms words a plain grid could not, and the Attack preview equals the landed hit', () => {
+    let proved = false;
+    for (const seed of [1, 2, 3, 4, 5] as const) {
+      for (const s of fightStates(seed)) {
+        if (!s.evolution.caps.includes('wildcard')) continue;
+        const enc = s.encounter as NonNullable<RunState['encounter']>;
+        const plain = new Set(ctx.solver.solve(playableLetters(enc.grid)));
+        // A candidate that uses the wild: not spellable from the literal playable letters, and its
+        // tile mapping includes the single wild tile.
+        const wildIdx = enc.grid.findIndex((t) => t.wild);
+        const wildOnly = candidateWords(s, ctx).find((c) => {
+          if (plain.has(c.word)) return false;
+          const idx = candidateIndices(s, c.word);
+          return idx !== null && idx.includes(wildIdx);
+        });
+        if (!wildOnly) continue;
+        // Play it against an invincible, harmless enemy, with items and traits stripped so the hp
+        // delta is exactly the word's landed damage (no onWordScored extras such as damageEnemy).
+        const safe: RunState = { ...s, player: { ...s.player, items: [], traits: [] }, encounter: { ...enc, enemy: { ...enc.enemy, hp: 1_000_000, maxHp: 1_000_000, damage: 0 }, selection: [] } };
+        const idx = candidateIndices(safe, wildOnly.word) as number[];
+        let sel = safe;
+        for (const i of idx) sel = reduce(sel, { type: 'toggleTile', index: i }, ctx);
+        const preview = scoreSelection(sel, ctx);
+        expect(preview).not.toBeNull();
+        const before = (sel.encounter as NonNullable<RunState['encounter']>).enemy.hp;
+        const after = reduce(sel, { type: 'submitWord' }, ctx);
+        expect(after.rejected).toBeNull();
+        const dealt = before - (after.encounter as NonNullable<RunState['encounter']>).enemy.hp;
+        // The preview is the number that lands.
+        expect(dealt).toBe(preview);
+        // The word played is a real dictionary word and used the wild tile's slot.
+        expect(ctx.dictionary.has(after.lastTurn?.word ?? '')).toBe(true);
+        expect((after.lastTurn?.used ?? []).includes(wildIdx)).toBe(true);
+        proved = true;
+        break;
+      }
+      if (proved) break;
+    }
+    expect(proved).toBe(true);
+  });
+
+  it('selecting the wild alone resolves to the best one-letter word; a selection with no valid resolution is rejected', () => {
+    // Craft a controlled grid: a single wild plus letters that only spell a word WITH the wild.
+    const base = fightStates(1).find((s) => s.evolution.caps.includes('wildcard'));
+    if (!base) throw new Error('no wildcard fight state');
+    const enc = base.encounter as NonNullable<RunState['encounter']>;
+    // A clean 16-tile grid with EXACTLY one wild: c, a, wild, then plain 'b' fillers.
+    const plain = (letter: string): Tile => ({ letter, lockedTurns: 0, venom: 0, gold: 0, cracked: 0 });
+    const grid: Tile[] = Array.from({ length: 16 }, (_, i) => (i === 0 ? plain('c') : i === 1 ? plain('a') : i === 2 ? { ...plain('z'), wild: true as const } : plain('b')));
+    const s: RunState = { ...base, player: { ...base.player, items: [], traits: [] }, encounter: { ...enc, grid, enemy: { ...enc.enemy, hp: 1_000_000, maxHp: 1_000_000, damage: 0 }, selection: [] } };
+    // Select c, a, wild: the wild resolves to 't' (cat) or 'b' (cab) etc., the best valid word; it lands.
+    let sel = s;
+    for (const i of [0, 1, 2]) sel = reduce(sel, { type: 'toggleTile', index: i }, ctx);
+    const preview = scoreSelection(sel, ctx);
+    expect(preview).not.toBeNull();
+    const played = reduce(sel, { type: 'submitWord' }, ctx);
+    expect(played.rejected).toBeNull();
+    expect(ctx.dictionary.has(played.lastTurn?.word ?? '')).toBe(true);
+    // The played word is c + a + (a real letter for the wild), three letters long.
+    expect(played.lastTurn?.word.length).toBe(3);
+    expect(played.lastTurn?.word.startsWith('ca')).toBe(true);
   });
 });

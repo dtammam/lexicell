@@ -66,6 +66,19 @@ export function playableIndices(grid: readonly Tile[]): number[] {
 }
 
 /**
+ * Wildcard capability (v11): the letters of the playable NON-wild tiles (a wild is a wildcard, not
+ * its drawn letter, for the solver), and the count of playable wild tiles. On a grid with no wild
+ * tile (any run without the capability) playableWildCount is 0 and playableNonWildLetters equals
+ * playableLetters, so nothing downstream changes.
+ */
+export function playableNonWildLetters(grid: readonly Tile[]): string[] {
+  return grid.filter((t) => t.lockedTurns === 0 && !t.wild).map((t) => t.letter);
+}
+export function playableWildCount(grid: readonly Tile[]): number {
+  return grid.reduce((n, t) => n + (t.lockedTurns === 0 && t.wild ? 1 : 0), 0);
+}
+
+/**
  * If the grid has fewer than VOWEL_FLOOR vowels, replace random playable
  * consonants with random vowels until it does. Locked tiles are left alone.
  */
@@ -151,7 +164,14 @@ export function settle(grid: readonly Tile[], fresh: readonly number[]): Tile[] 
   return out;
 }
 
-/** True when no word can be made from the playable tiles. */
+/**
+ * True when no word can be made from the playable tiles. A playable wild tile (v11) is treated as a
+ * wildcard, so a grid is dead only if not even the wild can complete a word; since solveWithWild is a
+ * superset of solve, this never leaves a truly dead grid, and a grid with no wild takes the exact
+ * pre-v11 path (byte-identical for every run without the wildcard capability).
+ */
 export function isDead(grid: readonly Tile[], solver: Solver): boolean {
+  const wilds = playableWildCount(grid);
+  if (wilds > 0) return solver.solveWithWild(playableNonWildLetters(grid), wilds).length === 0;
   return solver.solve(playableLetters(grid)).length === 0;
 }

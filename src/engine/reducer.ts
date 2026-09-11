@@ -403,7 +403,9 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         // The special fires before the refill, so the tiles of the word just played are still
         // on the grid; a lock on one of them would be overwritten by the refill (tracker #5).
         const played = new Set(s.encounter.selection);
-        let candidates = playableIndices(grid).filter((i) => !played.has(i));
+        // Never lock the wild tile (v11): a locked wild would stop being playable and withWild would
+        // add a second. The !wild guard is always true on a grid with no wild, so replays are unchanged.
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && !(grid[i] as Tile).wild);
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
@@ -419,7 +421,7 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         const grid = s.encounter.grid.slice();
         let rng = s.rng;
         const played = new Set(s.encounter.selection);
-        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).venom === 0);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).venom === 0 && !(grid[i] as Tile).wild);
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
@@ -435,7 +437,7 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         const grid = s.encounter.grid.slice();
         let rng = s.rng;
         const played = new Set(s.encounter.selection);
-        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).gold === 0);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).gold === 0 && !(grid[i] as Tile).wild);
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
@@ -451,7 +453,7 @@ function applyEffects(state: RunState, effects: readonly Effect[], ctx: EngineCo
         const grid = s.encounter.grid.slice();
         let rng = s.rng;
         const played = new Set(s.encounter.selection);
-        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).cracked === 0);
+        let candidates = playableIndices(grid).filter((i) => !played.has(i) && (grid[i] as Tile).cracked === 0 && !(grid[i] as Tile).wild);
         for (let n = 0; n < e.count && candidates.length > 0; n++) {
           let k: number;
           [k, rng] = nextInt(rng, candidates.length);
@@ -485,6 +487,28 @@ function scramble(state: RunState, ctx: EngineContext): RunState {
   if (!state.encounter) return state;
   const [grid, rng] = freshGrid(state.rng, ctx.solver, letterBias(state, ctx));
   return { ...state, rng, encounter: { ...state.encounter, grid, selection: [] } };
+}
+
+/**
+ * Wildcard capability (v11): keep exactly one playable wild tile on the grid. A NO-OP unless the
+ * player holds 'wildcard' (so a run without it never enters here and replays byte-identical to main)
+ * or when a playable wild is already present (so it draws no RNG turn to turn, only when the wild was
+ * just played and needs replacing). Otherwise one is placed on a seeded-random playable, non-wild
+ * tile, threaded through state.rng. Purely additive: a wild only makes more words possible, so it
+ * never turns a live grid dead. Called wherever the grid is handed back to the player (end of
+ * turnStart, which every fight path funnels through, and the free-shuffle path that skips it).
+ */
+function withWild(state: RunState): RunState {
+  const enc = state.encounter;
+  if (!enc || !state.evolution.caps.includes('wildcard')) return state;
+  if (enc.grid.some((t) => t.lockedTurns === 0 && t.wild)) return state;
+  const candidates = enc.grid.map((t, i) => (t.lockedTurns === 0 && !t.wild ? i : -1)).filter((i) => i >= 0);
+  if (candidates.length === 0) return state; // no playable tile to mark (never on a live grid)
+  const [k, rng] = nextInt(state.rng, candidates.length);
+  const idx = candidates[k] as number;
+  const grid = enc.grid.slice();
+  grid[idx] = { ...(grid[idx] as Tile), wild: true };
+  return { ...state, rng, encounter: { ...enc, grid } };
 }
 
 // ---------- encounter lifecycle ----------
@@ -627,7 +651,9 @@ function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): Run
   if (s.encounter && s.encounter.enemy.hp <= 0) return endEncounter(s, ctx);
   s = venomBite(s, ctx.content.tuning.venomMax);
   if (s.player.hp <= 0) return { ...s, phase: 'summary', outcome: 'lost', encounter: null, offer: null };
-  return s;
+  // Wildcard (v11): the player is about to act, so ensure the one wild tile is present. A no-op
+  // without the capability, so every replay without it is unchanged.
+  return withWild(s);
 }
 
 /**
@@ -889,8 +915,9 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
   if (new Set(enc.selection).size !== enc.selection.length) return reject(state, 'duplicate tile');
   if (enc.selection.some((i) => (enc.grid[i] as Tile).lockedTurns > 0)) return reject(state, 'tile is locked');
-  const word = selectedWord(state);
-  if (!ctx.dictionary.has(word)) return reject(state, word.length < 3 ? 'too short' : 'not a word');
+  // Resolve the word: literal letters, or (v11) the wild tile auto-filled to the best-scoring letter.
+  const word = resolveSelectedWord(state, ctx);
+  if (word === null) return reject(state, enc.selection.length < 3 ? 'too short' : 'not a word');
 
   // Player attack: the word's score, plus the gold on the tiles played (step 4), then armour, then resist.
   const cctx = conditionCtx(state, ctx, word);
@@ -998,18 +1025,62 @@ export function selectionGold(enc: Encounter): number {
 /**
  * The exact hit the current selection would land, or null when it is not a word: the same
  * scoring, gold and armour path submitWord takes, for the word line and the Attack button
- * (the number shown is the number that lands).
+ * (the number shown is the number that lands). With a wild tile in the selection (v11) it resolves
+ * the wild exactly as submitWord does, so the preview and the hit never disagree.
  */
 export function scoreSelection(state: RunState, ctx: EngineContext): number | null {
+  const word = resolveSelectedWord(state, ctx);
+  return word === null ? null : landedDamage(state, ctx, word);
+}
+
+/** The exact damage `word` lands from the current selection: its score plus the selected tiles' gold, then armour, then resist. */
+export function landedDamage(state: RunState, ctx: EngineContext, word: string): number {
   const enc = state.encounter;
-  if (!enc) return null;
-  const word = selectedWord(state);
-  if (!ctx.dictionary.has(word)) return null;
+  if (!enc) return 0;
   const cctx = conditionCtx(state, ctx, word);
   const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits);
   const score = scoreWord(word, effects, ctx.content.tuning);
   const traits = enemyDefOf(ctx, enc.enemy.id).traits;
   return resistHit(armourHit(word, score.damage + selectionGold(enc), traits?.armour ?? 0), traits?.resist, cctx);
+}
+
+/**
+ * The word the current selection plays, or null when it is not a valid dictionary word. Without a
+ * wild tile in the selection this is exactly selectedWord validated against the dictionary
+ * (byte-identical for every run without the wildcard capability). With the one wild tile in the
+ * selection (v11), the wild is auto-resolved to the letter that lands the most damage; ties keep the
+ * earliest letter a..z, so it is deterministic. submitWord and scoreSelection both call this.
+ */
+export function resolveSelectedWord(state: RunState, ctx: EngineContext): string | null {
+  const enc = state.encounter;
+  if (!enc) return null;
+  const sel = enc.selection;
+  const letters = sel.map((i) => (enc.grid[i] as Tile).letter);
+  let wildPos = -1;
+  for (let p = 0; p < sel.length; p++) {
+    if ((enc.grid[sel[p] as number] as Tile).wild) {
+      wildPos = p;
+      break;
+    }
+  }
+  if (wildPos < 0) {
+    const word = letters.join('');
+    return ctx.dictionary.has(word) ? word : null;
+  }
+  let best: string | null = null;
+  let bestDamage = -1;
+  for (let c = 0; c < 26; c++) {
+    const chars = letters.slice();
+    chars[wildPos] = String.fromCharCode(97 + c);
+    const cand = chars.join('');
+    if (!ctx.dictionary.has(cand)) continue;
+    const dmg = landedDamage(state, ctx, cand);
+    if (dmg > bestDamage) {
+      bestDamage = dmg;
+      best = cand;
+    }
+  }
+  return best;
 }
 
 /** Enraged from the turn after tuning.enrageAfter: damage grows each turn and a stun no longer stops the attack. */
@@ -1140,6 +1211,8 @@ function shuffle(state: RunState, ctx: EngineContext): RunState {
       free = scramble(free, ctx);
       report = { ...report, used: Array.from({ length: GRID_SIZE }, (_, i) => i) };
     }
+    // A free shuffle redraws every unlocked tile, so the wild (v11) was replaced; put one back.
+    free = withWild(free);
     return { ...free, lastTurn: report };
   }
   const s: RunState = {

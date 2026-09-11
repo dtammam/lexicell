@@ -9,7 +9,7 @@
  * chosen word needs them; mapping all ~400 candidates per turn was the sim's
  * hot spot.
  */
-import { playableIndices, playableLetters } from './grid';
+import { playableIndices, playableLetters, playableNonWildLetters, playableWildCount } from './grid';
 import { gatherEffects } from './hooks';
 import { resolveEffects } from './effects';
 import { armourHit, conditionCtx, enemyDefOf, resistHit, type EngineContext } from './reducer';
@@ -36,7 +36,13 @@ export function candidateWords(state: RunState, ctx: EngineContext): Candidate[]
   const resist = traits?.resist;
   const gilded = goldTiles(enc.grid);
   const out: Candidate[] = [];
-  for (const word of ctx.solver.solve(playableLetters(enc.grid))) {
+  // Wildcard (v11): with a playable wild tile the solver treats it as any letter, so the candidate
+  // list gains the words the wild enables. No wild tile (any run without the capability) takes the
+  // exact pre-v11 path. Each enumerated word already contains the resolved letter, so scoring is
+  // unchanged; only the enumeration widened.
+  const wilds = playableWildCount(enc.grid);
+  const words = wilds > 0 ? ctx.solver.solveWithWild(playableNonWildLetters(enc.grid), wilds) : ctx.solver.solve(playableLetters(enc.grid));
+  for (const word of words) {
     const wctx = { ...base, word };
     const effects = fixed ?? resolveEffects(raw, wctx);
     // Armour then resist, the same order and the same helpers the landed hit takes (reducer.submitWord),
@@ -74,16 +80,48 @@ export function bestGold(word: string, gilded: readonly { letter: string; gold: 
 /**
  * Tile indices that spell `word` from the playable tiles, or null. Gold tiles are listed last so
  * tilesForWord (which pops from the end) spends them first, richest first: the mapped hit equals
- * the candidate's damage.
+ * the candidate's damage. When the real tiles cannot spell the word but a playable wild tile (v11)
+ * can supply the one missing letter, the wild fills it (a word the solver enabled via the wildcard);
+ * submitWord then auto-resolves that wild to the same-or-better letter, so the selection always lands.
  */
 export function candidateIndices(state: RunState, word: string): number[] | null {
   const enc = state.encounter;
   if (!enc) return null;
-  const playable = playableIndices(enc.grid);
-  const ordered = [...playable].sort((a, b) => (enc.grid[a] as Tile).gold - (enc.grid[b] as Tile).gold);
-  return tilesForWord(
-    word,
-    enc.grid.map((t) => t.letter),
-    ordered,
-  );
+  const letters = enc.grid.map((t) => t.letter);
+  // Real (non-wild) tiles only, gold-sorted; the wild is spent last, for the letter the reals lack.
+  const ordered = playableIndices(enc.grid)
+    .filter((i) => !(enc.grid[i] as Tile).wild)
+    .sort((a, b) => (enc.grid[a] as Tile).gold - (enc.grid[b] as Tile).gold);
+  const real = tilesForWord(word, letters, ordered);
+  if (real) return real;
+  const wildIdx = playableIndices(enc.grid).find((i) => (enc.grid[i] as Tile).wild);
+  if (wildIdx === undefined) return null;
+  return tilesForWordWithWild(word, letters, ordered, wildIdx);
+}
+
+/**
+ * Map `word` onto real tiles, using the single `wildIdx` tile for the one letter the reals cannot
+ * supply (evolution track, v11). Returns null if MORE than one letter is missing (one wild covers
+ * only one), which the wild solver never enumerates. The wild sits at the deficit letter's position.
+ */
+function tilesForWordWithWild(word: string, letters: readonly string[], available: readonly number[], wildIdx: number): number[] | null {
+  const pool = new Map<string, number[]>();
+  for (const i of available) {
+    const l = letters[i];
+    if (l === undefined) continue;
+    const list = pool.get(l);
+    if (list) list.push(i);
+    else pool.set(l, [i]);
+  }
+  const out: number[] = [];
+  let usedWild = false;
+  for (const ch of word) {
+    const idx = pool.get(ch)?.pop();
+    if (idx !== undefined) out.push(idx);
+    else if (!usedWild) {
+      usedWild = true;
+      out.push(wildIdx);
+    } else return null;
+  }
+  return out;
 }

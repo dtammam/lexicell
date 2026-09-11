@@ -4,6 +4,7 @@ import { loadDictionary } from '../../scripts/lib/load-dictionary';
 import { VOWEL_FLOOR, drawLetter, enforceVowelFloor, freshGrid, isDead, isVowel, plainTile, playableIndices, playableLetters, refill } from './grid';
 import { createRng } from './rng';
 import { createSolver } from './solver';
+import { createDictionary } from './dictionary';
 
 const solver = createSolver(loadDictionary());
 
@@ -77,6 +78,22 @@ describe('playable + isDead', () => {
     const locked = grid.map((t, i) => (i < 3 ? { ...t, lockedTurns: 1 } : t));
     expect(playableIndices(locked)).toHaveLength(13);
     expect(isDead(locked, solver)).toBe(true);
+  });
+
+  it('a wild tile (v11) revives a grid the plain solver calls dead, and never makes a live grid dead', () => {
+    // A controlled two-word dictionary, so the result never depends on the real word list's vowelless quirks.
+    const tiny = createSolver(createDictionary(['cat', 'cot'].join('\n')));
+    // 'ct' plus vowelless filler spells nothing (both words need a vowel that is not there).
+    const dead = 'ctzzzzzzzzzzzzzz'.split('').map(plainTile);
+    expect(isDead(dead, tiny)).toBe(true);
+    // Make one filler a wild: it can be the missing vowel, so 'cat'/'cot' are reachable and it is not dead.
+    const withWild = dead.map((t, i) => (i === 2 ? { ...t, wild: true as const } : t));
+    expect(isDead(withWild, tiny)).toBe(false);
+    // A wild never turns a live grid dead (purely additive): a live grid stays live with a wild on it.
+    const live = 'catzzzzzzzzzzzzz'.split('').map(plainTile);
+    expect(isDead(live, tiny)).toBe(false);
+    const liveWild = live.map((t, i) => (i === 15 ? { ...t, wild: true as const } : t));
+    expect(isDead(liveWild, tiny)).toBe(false);
   });
 });
 
