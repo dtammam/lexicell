@@ -142,8 +142,6 @@
       error = e instanceof Error ? e.message : String(e);
     });
 
-  const isWord = $derived((word: string) => ctx?.dictionary.has(word) ?? false);
-
   function openStore(c: EngineContext) {
     const s = createStore(c, persist, seed);
     s.subscribe((state) => {
@@ -316,7 +314,7 @@
     {:else if screen === 'intro'}
       <Intro {onBegin} cell={run?.cell ?? 'balanced'} />
     {:else if run.phase === 'fight'}
-      <Fight {run} {prev} {dispatch} {isWord} {ctx} />
+      <Fight {run} {prev} {dispatch} {ctx} />
     {:else if run.phase === 'pick' || run.phase === 'rest'}
       <Pick {run} {dispatch} />
     {:else if run.phase === 'event'}
