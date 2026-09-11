@@ -55,7 +55,7 @@
  */
 import type { Dictionary } from './dictionary';
 import { evaluateCondition, resolveEffects, type ConditionContext, type Effect } from './effects';
-import { freshGrid, isDead, playableIndices, refill, settle, type LetterBias } from './grid';
+import { freshGrid, isDead, plainTile, playableIndices, refill, settle, type LetterBias } from './grid';
 import { cellDef, collectEffects, itemDef, traitDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
@@ -84,7 +84,9 @@ export type Action =
   | { readonly type: 'pickTrait'; readonly index: number }
   /* Evolution track (v11): the capability pick that follows the trait, and declining it. */
   | { readonly type: 'pickCapability'; readonly index: number }
-  | { readonly type: 'skipCapability' };
+  | { readonly type: 'skipCapability' }
+  /* Evolution capability in a fight (v11): transmute a tile to a rare letter, once per fight. */
+  | { readonly type: 'transmuteTile'; readonly index: number };
 
 /**
  * 11 since the evolution track (RunState.evolution; marquee wave): a v10 save is MIGRATED by
@@ -183,6 +185,8 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return pickCapability(state, action.index, ctx);
     case 'skipCapability':
       return skipCapability(state, ctx);
+    case 'transmuteTile':
+      return transmuteTile(state, action.index, ctx);
   }
 }
 
@@ -552,6 +556,9 @@ function startEncounter(state0: RunState, ctx: EngineContext): RunState {
     offer: null,
     curses: null,
     rejected: null,
+    // Transmute (v11) is once per FIGHT: the charge refreshes at each encounter start. caps and the
+    // banked letter persist for the run. Neutral before transmute exists (transmuteUsed is always false).
+    evolution: { ...s1.evolution, transmuteUsed: false },
   };
   return turnStart(s2, ctx, EMPTY_REPORT);
 }
@@ -792,6 +799,52 @@ function pickCapability(state: RunState, index: number, ctx: EngineContext): Run
 function skipCapability(state: RunState, ctx: EngineContext): RunState {
   if (state.phase !== 'capability') return reject(state, 'not choosing a capability');
   return makeOffer({ ...state, rejected: null, offer: null }, ctx, undefined, true);
+}
+
+/** The rare letters richest first (z, q = 8; j, x = 6; k = 5): transmute turns a tile into one of these. */
+const RARE_TRANSMUTE: readonly string[] = ['z', 'q', 'j', 'x', 'k'];
+
+/**
+ * The rare letter that gives the best-scoring formable word if the tile at `index` becomes it
+ * (deterministic, no RNG; ties keep the richest letter, z first). A heuristic that makes transmute
+ * genuinely useful rather than always the same letter. Uses the base word score (letters x length).
+ */
+function bestRareLetter(grid: readonly Tile[], index: number, ctx: EngineContext): string {
+  let best = RARE_TRANSMUTE[0] as string;
+  let bestScore = -1;
+  for (const r of RARE_TRANSMUTE) {
+    const letters = grid.map((t, i) => (i === index ? r : t.letter)).filter((_, i) => (grid[i] as Tile).lockedTurns === 0);
+    let top = 0;
+    for (const w of ctx.solver.solve(letters)) {
+      const b = scoreWord(w, [], ctx.content.tuning).base;
+      if (b > top) top = b;
+    }
+    if (top > bestScore) {
+      bestScore = top;
+      best = r;
+    }
+  }
+  return best;
+}
+
+/**
+ * Transmute (v11): once per fight, turn the chosen playable tile into the rare letter that best
+ * serves the grid (bestRareLetter). Guarded by evolution.transmuteUsed, which resets at encounter
+ * start. No RNG and no turn cost (a mid-turn grid edit). The wild tile is not a valid target (its
+ * letter is a wildcard); a locked or out-of-range tile is refused, as is a run without the capability.
+ */
+function transmuteTile(state: RunState, index: number, ctx: EngineContext): RunState {
+  const enc = state.encounter;
+  if (state.phase !== 'fight' || !enc) return reject(state, 'not in a fight');
+  if (!state.evolution.caps.includes('transmute')) return reject(state, 'no transmute');
+  if (state.evolution.transmuteUsed) return reject(state, 'transmute already used this fight');
+  if (!Number.isInteger(index) || index < 0 || index >= GRID_SIZE) return reject(state, 'bad tile index');
+  const tile = enc.grid[index] as Tile;
+  if (tile.lockedTurns > 0) return reject(state, 'tile is locked');
+  if (tile.wild) return reject(state, 'cannot transmute the wild tile');
+  const grid = enc.grid.slice();
+  grid[index] = plainTile(bestRareLetter(enc.grid, index, ctx));
+  return { ...state, rejected: null, evolution: { ...state.evolution, transmuteUsed: true }, encounter: { ...enc, grid } };
 }
 
 /** An offer holds at most this many commons (Dean, 2026-09-08, question 2): a pick always has something in it. */

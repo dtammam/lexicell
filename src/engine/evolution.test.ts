@@ -56,6 +56,25 @@ function driveToEnd(seed: number, onCapability: 'skip' | 'pick0'): RunState {
   return s;
 }
 
+/**
+ * Drive a full run that takes ONE named capability (the first time it is offered) and skips every
+ * other capability offer, never using the capability's in-fight action. Used to prove that merely
+ * HOLDING a capability does not perturb the run relative to a skip run.
+ */
+function driveWithCapabilityPicks(seed: number, cap: string): RunState {
+  let s = newRun(seed, ctx);
+  for (let guard = 0; guard < 50000 && s.phase !== 'summary'; guard++) {
+    if (s.phase === 'capability') {
+      const at = (s.offer ?? []).indexOf(cap);
+      s = reduce(s, at >= 0 ? { type: 'pickCapability', index: at } : { type: 'skipCapability' }, ctx);
+    } else {
+      s = step(s, 'skip');
+    }
+    if (s.rejected) throw new Error(`seed ${seed}: rejected ${s.rejected}`);
+  }
+  return s;
+}
+
 /** Drive until the given phase is reached (or the run ends), handling capability by skipping. */
 function driveTo(seed: number, phase: RunState['phase'], onCapability: 'skip' | 'pick0' = 'skip'): RunState {
   let s = newRun(seed, ctx);
@@ -280,5 +299,69 @@ describe('evolution track: the wildcard verb', () => {
     // The played word is c + a + (a real letter for the wild), three letters long.
     expect(played.lastTurn?.word.length).toBe(3);
     expect(played.lastTurn?.word.startsWith('ca')).toBe(true);
+  });
+});
+
+describe('evolution track: the transmute verb', () => {
+  const firstPlayable = (s: RunState): number => (s.encounter as NonNullable<RunState['encounter']>).grid.findIndex((t) => t.lockedTurns === 0 && !t.wild);
+
+  it('turns a tile into a rare letter, once per fight, and refreshes at the next encounter', () => {
+    const base = driveTo(1, 'fight');
+    const s: RunState = { ...base, evolution: { ...base.evolution, caps: ['transmute'], transmuteUsed: false } };
+    const idx = firstPlayable(s);
+    const t1 = reduce(s, { type: 'transmuteTile', index: idx }, ctx);
+    expect(t1.rejected).toBeNull();
+    // The tile is now one of the rare letters, and the charge is spent.
+    const letter = (t1.encounter as NonNullable<RunState['encounter']>).grid[idx]?.letter ?? '';
+    expect('kjxqz'.includes(letter)).toBe(true);
+    expect(t1.evolution.transmuteUsed).toBe(true);
+    // A second transmute this fight is refused and changes nothing.
+    const other = (t1.encounter as NonNullable<RunState['encounter']>).grid.findIndex((t, i) => i !== idx && t.lockedTurns === 0 && !t.wild);
+    const t2 = reduce(t1, { type: 'transmuteTile', index: other }, ctx);
+    expect(t2.rejected).toBe('transmute already used this fight');
+    expect((t2.encounter as NonNullable<RunState['encounter']>).grid[other]?.letter).toBe((t1.encounter as NonNullable<RunState['encounter']>).grid[other]?.letter);
+    // Drive on: the next encounter's fight refreshes the charge to false.
+    let cur = t1;
+    const startEnc = t1.encounterIndex;
+    let resetSeen = false;
+    for (let g = 0; g < 50000 && cur.phase !== 'summary'; g++) {
+      cur = step(cur, 'pick0');
+      if (cur.rejected) throw new Error(`rejected ${cur.rejected}`);
+      if (cur.phase === 'fight' && cur.encounterIndex > startEnc) {
+        expect(cur.evolution.transmuteUsed).toBe(false);
+        resetSeen = true;
+        break;
+      }
+    }
+    expect(resetSeen).toBe(true);
+  });
+
+  it('guards: needs the capability, refuses the wild tile and an out-of-range index', () => {
+    const base = driveTo(2, 'fight');
+    // No capability held (driveTo declines): refused.
+    expect(reduce(base, { type: 'transmuteTile', index: 0 }, ctx).rejected).toBe('no transmute');
+    const withCap: RunState = { ...base, evolution: { ...base.evolution, caps: ['transmute'], transmuteUsed: false } };
+    expect(reduce(withCap, { type: 'transmuteTile', index: 99 }, ctx).rejected).toBe('bad tile index');
+    // The wild tile is not a valid target.
+    const enc = withCap.encounter as NonNullable<RunState['encounter']>;
+    const grid = enc.grid.map((t, i) => (i === 0 ? { ...t, wild: true as const } : t));
+    const wildState: RunState = { ...withCap, encounter: { ...enc, grid } };
+    expect(reduce(wildState, { type: 'transmuteTile', index: 0 }, ctx).rejected).toBe('cannot transmute the wild tile');
+  });
+
+  it('a run holding transmute (unused) still replays byte-identical to a run without it (no RNG in transmute)', () => {
+    // The driver never transmutes, so merely HOLDING the capability must not perturb the RNG stream.
+    // Compare a 'skip' run (no caps) to a run that picks only transmute at each boss but never uses it.
+    for (const seed of [1, 2]) {
+      const withTransmute = driveWithCapabilityPicks(seed, 'transmute');
+      const skipped = driveToEnd(seed, 'skip');
+      // Stripping the (behaviourally inert) evolution field, the two runs are identical.
+      const strip = (s: RunState) => {
+        const r: Record<string, unknown> = { ...s };
+        delete r.evolution;
+        return JSON.stringify(r);
+      };
+      expect(strip(withTransmute)).toBe(strip(skipped));
+    }
   });
 });
