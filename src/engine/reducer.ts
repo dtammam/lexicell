@@ -54,13 +54,13 @@
  * Conditions on onDamageTaken see the player's HP *before* the hit.
  */
 import type { Dictionary } from './dictionary';
-import { resolveEffects, type ConditionContext, type Effect } from './effects';
+import { evaluateCondition, resolveEffects, type ConditionContext, type Effect } from './effects';
 import { freshGrid, isDead, playableIndices, refill, settle, type LetterBias } from './grid';
 import { cellDef, collectEffects, itemDef, traitDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { GRID_SIZE, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
+import { GRID_SIZE, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EnemyTraits, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -845,14 +845,17 @@ function submitWord(state: RunState, ctx: EngineContext): RunState {
   const word = selectedWord(state);
   if (!ctx.dictionary.has(word)) return reject(state, word.length < 3 ? 'too short' : 'not a word');
 
-  // Player attack: the word's score, plus the gold on the tiles played (step 4), then armour.
-  const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell, state.player.traits);
+  // Player attack: the word's score, plus the gold on the tiles played (step 4), then armour, then resist.
+  const cctx = conditionCtx(state, ctx, word);
+  const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits);
   const score = scoreWord(word, effects, ctx.content.tuning);
   const gold = selectionGold(enc);
-  // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. The preview
-  // (candidates.ts, scoreSelection) applies the same rules, so the number it shows is the number
-  // that lands; the best/worst word stats record the word's own score, as they did with overkill.
-  const landed = armourHit(word, score.damage + gold, enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0);
+  // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. Resist (challenge
+  // wave): a word that fails the enemy's demand deals only `factor` of that, floored, applied after armour.
+  // The preview (scoreSelection) applies the same two rules in the same order, so the number it shows is
+  // the number that lands; the best/worst word stats record the word's own score, as they did with overkill.
+  const traits = enemyDefOf(ctx, enc.enemy.id).traits;
+  const landed = resistHit(armourHit(word, score.damage + gold, traits?.armour ?? 0), traits?.resist, cctx);
   const enemyHp = Math.max(0, enc.enemy.hp - landed);
   let s: RunState = {
     ...state,
@@ -904,6 +907,42 @@ export function armourHit(word: string, damage: number, armour: number): number 
   return word.length < armour ? Math.floor(damage / 2) : damage;
 }
 
+/**
+ * What a word's score does to a resisting enemy (challenge wave): only `factor` of it, floored, when the
+ * word FAILS the enemy's demand; full when it passes. Reuses the Condition grammar (evaluateCondition) so
+ * no new verb is needed. Applied after armour, so both fold in when both are set. No resist => damage as-is.
+ */
+export function resistHit(damage: number, resist: EnemyTraits['resist'], ctx: ConditionContext): number {
+  if (!resist) return damage;
+  return evaluateCondition(resist.when, ctx) ? damage : Math.floor(damage * resist.factor);
+}
+
+/** A short label for a resist demand, for the enemy intent line (Arena.svelte). Kept compact for a 390px phone. */
+export function resistLabel(resist: NonNullable<EnemyTraits['resist']>): string {
+  const w = resist.when;
+  switch (w.kind) {
+    case 'minLength':
+      return `resist <${w.value}`;
+    case 'maxLength':
+      return `resist >${w.value}`;
+    case 'containsLetter':
+      return `resist no ${w.letters.toUpperCase()}`;
+    case 'startsWith':
+      return `resist ^${w.letters.toUpperCase()}`;
+    case 'endsWith':
+      return `resist ${w.letters.toUpperCase()}$`;
+    case 'uniqueLetters':
+      return 'resist repeats';
+    case 'repeatLetter':
+      return 'resist no pair';
+    case 'minVowels':
+      return `resist vowels<${w.value}`;
+    default:
+      // hpBelow, turnEvery, enemyHpBelow, firstTurn: not word demands, but keep the label honest if used.
+      return 'resist';
+  }
+}
+
 /** The gold on the selected tiles (step 4): added to the hit after the multiplier, before armour. */
 export function selectionGold(enc: Encounter): number {
   return enc.selection.reduce((sum, i) => sum + (enc.grid[i]?.gold ?? 0), 0);
@@ -919,9 +958,11 @@ export function scoreSelection(state: RunState, ctx: EngineContext): number | nu
   if (!enc) return null;
   const word = selectedWord(state);
   if (!ctx.dictionary.has(word)) return null;
-  const effects = collectEffects('onWordScored', state.player.items, ctx.content, conditionCtx(state, ctx, word), state.cell, state.player.traits);
+  const cctx = conditionCtx(state, ctx, word);
+  const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits);
   const score = scoreWord(word, effects, ctx.content.tuning);
-  return armourHit(word, score.damage + selectionGold(enc), enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0);
+  const traits = enemyDefOf(ctx, enc.enemy.id).traits;
+  return resistHit(armourHit(word, score.damage + selectionGold(enc), traits?.armour ?? 0), traits?.resist, cctx);
 }
 
 /** Enraged from the turn after tuning.enrageAfter: damage grows each turn and a stun no longer stops the attack. */

@@ -5,7 +5,8 @@ import { RARITY_WEIGHT as CONTENT_RARITY_WEIGHT } from '../content/items';
 import { bestGold, candidateIndices, candidateWords, type Candidate } from './candidates';
 import { gatherEffects } from './hooks';
 import { biasFor, isDead, plainTile, refill, settle } from './grid';
-import { encounterDefFor, hitRange, kindAt, letterBias, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, scoreSelection, selectedWord, type Action, type EngineContext } from './reducer';
+import { encounterDefFor, hitRange, kindAt, letterBias, MAX_COMMONS_PER_OFFER, newRun, placeKinds, RARITY_WEIGHT, reduce, resistHit, resistLabel, scoreSelection, selectedWord, type Action, type EngineContext } from './reducer';
+import type { Condition, ConditionContext } from './effects';
 import { scoreWord } from './scoring';
 import { createRng, pick } from './rng';
 import { tilesForWord } from './solver';
@@ -1309,6 +1310,141 @@ describe('variety wave step 1: act pools, damage ranges, armour, regen, hunger',
     const k = reduce(armed, { type: 'shuffle' }, flat);
     expect(k.phase).not.toBe('fight');
     expect(k.encounter).toBeNull();
+  });
+});
+
+describe('challenge wave: resist (a word failing the enemy demand deals only a fraction)', () => {
+  const flat = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0 } });
+  // A context in which the drawn act-1 enemy carries a resist demand (and optional extra armour), so
+  // whichever the seed rolls is under test. No shipped enemy sets resist; these are test fixtures only.
+  const resistCtx = (resist: { when: Condition; factor: number }, armour?: number) =>
+    nodeContext({
+      ...flat.content,
+      enemies: flat.content.enemies.map((e) => ({ ...e, traits: { ...e.traits, ...(armour !== undefined ? { armour } : {}), resist } })),
+    });
+  const wctx = (word: string, turn = 1): ConditionContext => ({ word, hp: 100, maxHp: 100, turn });
+
+  it('resistHit takes only `factor` of the damage (floored) when the word fails the demand, full when it passes, and is a no-op with no resist', () => {
+    // minLength 5: "cat" fails, "cakes" passes. factor 0.5, damage 7 -> floor(3.5) = 3.
+    const r = { when: { kind: 'minLength', value: 5 } as const, factor: 0.5 };
+    expect(resistHit(7, r, wctx('cat'))).toBe(3);
+    expect(resistHit(7, r, wctx('cakes'))).toBe(7);
+    expect(resistHit(7, undefined, wctx('cat'))).toBe(7); // no resist: unchanged (the shipped path)
+    // The floor bites: factor 0.5 on an odd number rounds down, never up.
+    expect(resistHit(9, r, wctx('cat'))).toBe(4);
+    // A harsher factor and a different pass/fail word.
+    const r2 = { when: { kind: 'minLength', value: 5 } as const, factor: 0.25 };
+    expect(resistHit(10, r2, wctx('cat'))).toBe(2); // floor(2.5)
+  });
+
+  it('every word-shaped Condition kind works as a resist demand (containsLetter, uniqueLetters, minVowels, repeatLetter)', () => {
+    const contains = { when: { kind: 'containsLetter', letters: 'z' } as const, factor: 0.5 };
+    expect(resistHit(8, contains, wctx('zebra'))).toBe(8); // has z: passes
+    expect(resistHit(8, contains, wctx('cat'))).toBe(4); // no z: resisted
+    const unique = { when: { kind: 'uniqueLetters' } as const, factor: 0.5 };
+    expect(resistHit(8, unique, wctx('cats'))).toBe(8); // all distinct: passes
+    expect(resistHit(8, unique, wctx('book'))).toBe(4); // repeats o: resisted
+    const vowels = { when: { kind: 'minVowels', value: 3 } as const, factor: 0.5 };
+    expect(resistHit(8, vowels, wctx('audio'))).toBe(8); // a,u,i,o: passes
+    expect(resistHit(8, vowels, wctx('cat'))).toBe(4); // one vowel: resisted
+    const repeat = { when: { kind: 'repeatLetter' } as const, factor: 0.5 };
+    expect(resistHit(8, repeat, wctx('book'))).toBe(8); // has a pair: passes
+    expect(resistHit(8, repeat, wctx('cats'))).toBe(4); // all distinct: resisted
+  });
+
+  it('the landed hit and both previews (scoreSelection, candidateWords) all apply the same resist: fail is floored, pass is full', () => {
+    const rc = resistCtx({ when: { kind: 'minLength', value: 5 }, factor: 0.5 });
+    // Find a seed whose first fight offers both a failing (len < 5) and a passing (len >= 5) word.
+    let picked: { s: RunState; fail: string; pass: string } | null = null;
+    for (let seed = 0; seed < 40 && !picked; seed++) {
+      const s = newRun(seed, rc);
+      if (s.phase !== 'fight') continue;
+      const enc = s.encounter as Encounter;
+      const armoured: RunState = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000 } } }; // amoeba: resist only, no native armour
+      const cands = candidateWords(armoured, rc);
+      const fail = cands.find((c) => c.word.length < 5);
+      const pass = cands.find((c) => c.word.length >= 5);
+      if (fail && pass) picked = { s: armoured, fail: fail.word, pass: pass.word };
+    }
+    if (!picked) throw new Error('no seed under 40 offered both a short and a long word');
+    const raw = (w: string) => scoreWord(w, [], rc.content.tuning).damage;
+    // Preview via candidateWords.
+    const cands = candidateWords(picked.s, rc);
+    expect(cands.find((c) => c.word === picked.fail)?.damage).toBe(Math.floor(raw(picked.fail) * 0.5));
+    expect(cands.find((c) => c.word === picked.pass)?.damage).toBe(raw(picked.pass));
+    // Preview via scoreSelection AND the landed hit, for both words.
+    for (const [word, expected] of [
+      [picked.fail, Math.floor(raw(picked.fail) * 0.5)],
+      [picked.pass, raw(picked.pass)],
+    ] as const) {
+      const idx = tilesForWord(word, picked.s.encounter!.grid.map((t) => t.letter), picked.s.encounter!.grid.map((_, i) => i));
+      if (!idx) throw new Error(`cannot spell ${word}`);
+      let sel = picked.s;
+      for (const i of idx) sel = reduce(sel, { type: 'toggleTile', index: i }, rc);
+      expect(scoreSelection(sel, rc), `preview ${word}`).toBe(expected);
+      const landed = reduce(sel, { type: 'submitWord' }, rc);
+      expect(landed.lastTurn?.damage, `landed ${word}`).toBe(expected);
+    }
+  });
+
+  it('resist and armour stack: armour halves first (floored), then resist takes its fraction (floored)', () => {
+    // A 3-letter word into armour 4 + resist minLength 5 factor 0.5. raw -> floor(raw/2) -> floor(that*0.5).
+    const rc = resistCtx({ when: { kind: 'minLength', value: 5 }, factor: 0.5 }, 4);
+    let picked: { s: RunState; word: string } | null = null;
+    for (let seed = 0; seed < 40 && !picked; seed++) {
+      const s = newRun(seed, rc);
+      if (s.phase !== 'fight') continue;
+      const enc = s.encounter as Encounter;
+      const armoured: RunState = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000 } } }; // amoeba + forced armour 4 via resistCtx
+      const short = candidateWords(armoured, rc).find((c) => c.word.length === 3);
+      if (short) picked = { s: armoured, word: short.word };
+    }
+    if (!picked) throw new Error('no seed under 40 offered a 3-letter word');
+    const raw = scoreWord(picked.word, [], rc.content.tuning).damage;
+    const expected = Math.floor(Math.floor(raw / 2) * 0.5); // armour then resist, both floored
+    expect(candidateWords(picked.s, rc).find((c) => c.word === picked.word)?.damage).toBe(expected);
+    const idx = tilesForWord(picked.word, picked.s.encounter!.grid.map((t) => t.letter), picked.s.encounter!.grid.map((_, i) => i));
+    if (!idx) throw new Error('spell');
+    let sel = picked.s;
+    for (const i of idx) sel = reduce(sel, { type: 'toggleTile', index: i }, rc);
+    expect(scoreSelection(sel, rc)).toBe(expected);
+    expect(reduce(sel, { type: 'submitWord' }, rc).lastTurn?.damage).toBe(expected);
+  });
+
+  it('a control enemy with no resist is unchanged: the preview and the hit are the raw score', () => {
+    const s = newRun(3, flat);
+    if (s.phase !== 'fight') throw new Error('fight');
+    const enc = s.encounter as Encounter;
+    const bare: RunState = { ...s, encounter: { ...enc, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000 } } };
+    const cand = candidateWords(bare, flat).find((c) => c.word.length >= 3);
+    if (!cand) throw new Error('no word');
+    expect(cand.damage).toBe(scoreWord(cand.word, [], flat.content.tuning).damage);
+    const idx = tilesForWord(cand.word, bare.encounter!.grid.map((t) => t.letter), bare.encounter!.grid.map((_, i) => i));
+    let sel = bare;
+    for (const i of idx as number[]) sel = reduce(sel, { type: 'toggleTile', index: i }, flat);
+    expect(scoreSelection(sel, flat)).toBe(cand.damage);
+    expect(reduce(sel, { type: 'submitWord' }, flat).lastTurn?.damage).toBe(cand.damage);
+  });
+
+  it('resistLabel is short and correct per demand kind (dormant intent line, Arena.svelte)', () => {
+    expect(resistLabel({ when: { kind: 'minLength', value: 6 }, factor: 0.5 })).toBe('resist <6');
+    expect(resistLabel({ when: { kind: 'containsLetter', letters: 'z' }, factor: 0.5 })).toBe('resist no Z');
+    expect(resistLabel({ when: { kind: 'uniqueLetters' }, factor: 0.5 })).toBe('resist repeats');
+    expect(resistLabel({ when: { kind: 'repeatLetter' }, factor: 0.5 })).toBe('resist no pair');
+    expect(resistLabel({ when: { kind: 'minVowels', value: 2 }, factor: 0.5 })).toBe('resist vowels<2');
+    // Every label fits the trait row on a 390px phone (HUD strings under ~20 chars, phone-render memo).
+    for (const w of [
+      { kind: 'minLength', value: 6 },
+      { kind: 'maxLength', value: 8 },
+      { kind: 'containsLetter', letters: 'z' },
+      { kind: 'startsWith', letters: 'q' },
+      { kind: 'endsWith', letters: 's' },
+      { kind: 'uniqueLetters' },
+      { kind: 'repeatLetter' },
+      { kind: 'minVowels', value: 3 },
+    ] as const) {
+      expect(resistLabel({ when: w, factor: 0.5 }).length, JSON.stringify(w)).toBeLessThanOrEqual(20);
+    }
   });
 });
 

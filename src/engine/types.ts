@@ -3,7 +3,7 @@
  * no classes, no Map/Set, no functions, no Date. Content definitions (items,
  * enemies) are referenced from state by id only.
  */
-import type { Effect } from './effects';
+import type { Condition, Effect } from './effects';
 import type { Rng } from './rng';
 
 export interface Tile {
@@ -59,6 +59,13 @@ export interface EnemyTraits {
   readonly regen?: number;
   /** Damage it gains at the start of each turn, without limit; kill it fast. */
   readonly hunger?: number;
+  /**
+   * Resist (challenge wave, 2026-09-11): a word that FAILS `when` deals only `factor` of its damage
+   * to this enemy (floored), so the enemy demands a word property (min length, a rare letter, a repeat...).
+   * A word that passes takes full damage. Reuses the Condition grammar (effects.ts, evaluateCondition);
+   * no new verb, no save change. Additive to armour: both apply if both are set. No shipped enemy uses it yet.
+   */
+  readonly resist?: { readonly when: Condition; readonly factor: number };
 }
 
 export interface EnemyDef {
