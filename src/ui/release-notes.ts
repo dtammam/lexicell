@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 89, pr: 87, sha: 'pending', date: '2026-09-11', title: 'A bigger bestiary', notes: "Twice as many creatures now lurk in each act, from armoured shells to hungry biters and grid-scramblers. A few of them shrug off words that come too easy, so a tougher fight rewards a tougher word." },
+  { build: 90, pr: 88, sha: 'pending', date: '2026-09-11', title: 'Evolution', notes: 'Your cell now evolves real abilities as you descend: a wildcard tile that plays as any letter, a once-a-fight transmutation into a rare letter, and a letter you can bank and spend later. Late-run words reach places a starting grid never could.' },
+  { build: 89, pr: 87, sha: '8d18bfc', date: '2026-09-11', title: 'A bigger bestiary', notes: "Twice as many creatures now lurk in each act, from armoured shells to hungry biters and grid-scramblers. A few of them shrug off words that come too easy, so a tougher fight rewards a tougher word." },
   { build: 88, pr: 86, sha: '51959b2', date: '2026-09-11', title: 'Resistant enemies (groundwork)', notes: "Some enemies will soon shrug off words that do not meet a demand, like a word that is too short or one missing a rare letter. This build lays the groundwork; nothing you can see changes yet." },
   { build: 87, pr: 85, sha: 'b8c304c', date: '2026-09-11', title: 'Cell rebalance', notes: "Two cells were out of line: Spore made long words too strong and Diatom made runs too easy. Both retuned so every starting cell sits in the intended band. Nothing else changed." },
   { build: 86, pr: 84, sha: '83f3228', date: '2026-09-10', title: 'Mutations and defects', notes: "The items you draft are called mutations now, and the curses that ride a mutation are called defects, to fit the cellular evolution theme. Nothing about how they work changed." },
