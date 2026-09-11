@@ -2285,7 +2285,7 @@ describe('starting cells (save v4)', () => {
     for (const id of g.offer ?? []) expect(['sharp-pen', 'lens']).not.toContain(id);
   });
 
-  it('traits apply as an item held before every other: Predator +25% and 1 more per hit, Diatom 2 less and -15%', () => {
+  it('traits apply as an item held before every other: Predator +25% and 1 more per hit, Diatom 1 less and -15%', () => {
     const base = inFightAs(5, 'balanced');
     const word = candidateWords(base, ctx).find((c) => c.word.length >= 4)?.word ?? '';
     const grid = (base.encounter as Encounter).grid;
@@ -2302,19 +2302,19 @@ describe('starting cells (save v4)', () => {
     expect(d.lastTurn?.mult).toBeCloseTo((b.lastTurn?.mult ?? 0) - 0.15, 5);
     expect(b.lastTurn?.enemyDamage).toBe(10);
     expect(p.lastTurn?.enemyDamage).toBe(11);
-    expect(d.lastTurn?.enemyDamage).toBe(8);
+    expect(d.lastTurn?.enemyDamage).toBe(9);
   });
 
-  it('the gambler adds 50% on 6+ letter words and halves 3-letter words; the preview agrees with the hit', () => {
+  it('the gambler adds 30% on 7+ letter words and halves 3-letter words; the preview agrees with the hit', () => {
     const s = inFightAs(6, 'gambler');
     const cands = candidateWords(s, ctx);
-    const long = cands.find((c) => c.word.length >= 6);
+    const long = cands.find((c) => c.word.length >= 7);
     const short = cands.find((c) => c.word.length <= 3);
     const mid = cands.find((c) => c.word.length === 5);
     const bare = candidateWords({ ...s, cell: 'balanced' }, ctx);
     const bareOf = (w: string) => bare.find((c) => c.word === w)?.damage ?? 0;
     expect(long || short).toBeTruthy();
-    if (long) expect(long.damage).toBe(Math.floor(bareOf(long.word) * 1.5));
+    if (long) expect(long.damage).toBe(Math.floor(bareOf(long.word) * 1.3));
     if (short) expect(short.damage).toBe(Math.floor(bareOf(short.word) * 0.5));
     if (mid) expect(mid.damage).toBe(bareOf(mid.word));
     const pick = long ?? short;

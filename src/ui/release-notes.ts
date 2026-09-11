@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 86, pr: 84, sha: 'pending', date: '2026-09-10', title: 'Mutations and defects', notes: "The items you draft are called mutations now, and the curses that ride a mutation are called defects, to fit the cellular evolution theme. Nothing about how they work changed." },
+  { build: 87, pr: 85, sha: 'pending', date: '2026-09-11', title: 'Cell rebalance', notes: "Two cells were out of line: Spore made long words too strong and Diatom made runs too easy. Both retuned so every starting cell sits in the intended band. Nothing else changed." },
+  { build: 86, pr: 84, sha: '83f3228', date: '2026-09-10', title: 'Mutations and defects', notes: "The items you draft are called mutations now, and the curses that ride a mutation are called defects, to fit the cellular evolution theme. Nothing about how they work changed." },
   { build: 85, pr: 83, sha: 'c55164c', date: '2026-09-10', title: 'Settings', notes: "A settings button is always within reach now, from the title, a fight, anywhere. Sound effects and music each get their own mute and volume, the legible-text switch moves here, and there is a quick way to report a bug." },
   { build: 84, pr: 82, sha: 'dd7053b', date: '2026-09-10', title: 'Seamless music loop', notes: "The background music now plays its quiet intro once and then loops its built-up body seamlessly, instead of restarting from the start each time. It also sits a touch louder." },
   { build: 83, pr: 81, sha: '8881fc0', date: '2026-09-10', title: 'Music and softer sound', notes: "Background music arrives, playing low under a much softer set of sound effects: warm and calm instead of sharp beeps, with a touch of room to them. Tuned by ear before it landed." },
