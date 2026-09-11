@@ -167,17 +167,32 @@ describe('App', () => {
     expect(getButton('Clear').disabled).toBe(true);
   }, 20000);
 
-  it('Mutations on the title lists every item with its icon, grouped by rarity, and Back returns', async () => {
+  it('Compendium on the title switches between its five sections and Back returns', async () => {
+    const draftable = ctx.content.items.filter((i) => !i.curse);
+    const curses = ctx.content.items.filter((i) => i.curse);
     render(App);
     await findByText('New run', 15000);
-    await click(getButton('Mutations'));
-    expect(await findByText('Mutations')).toBeTruthy();
-    const entries = document.querySelectorAll('.compendium .entry');
-    expect(entries).toHaveLength(ctx.content.items.length);
-    for (const item of ctx.content.items) expect(getByText(item.name)).toBeTruthy();
-    expect(document.querySelectorAll('.compendium img.icon')).toHaveLength(ctx.content.items.length);
-    // Four rarity groups plus the curses section (variety wave step 6).
-    expect(document.querySelectorAll('.compendium h3')).toHaveLength(5);
+    await click(getButton('Compendium'));
+    // Opens on Mutations: the draftable items by rarity (curses excluded), each with its icon.
+    expect(document.querySelectorAll('.compendium .entry')).toHaveLength(draftable.length);
+    expect(document.querySelectorAll('.compendium img.icon')).toHaveLength(draftable.length);
+    for (const item of draftable) expect(getByText(item.name)).toBeTruthy();
+    // Four rarity groups on the mutations section.
+    expect(document.querySelectorAll('.compendium h3')).toHaveLength(4);
+    // Defects: the curse-flagged items.
+    await click(getButton('Defects'));
+    expect(document.querySelectorAll('.compendium .entry')).toHaveLength(curses.length);
+    for (const item of curses) expect(getByText(item.name)).toBeTruthy();
+    // Bestiary: every enemy and boss, each with a sprite; bosses marked.
+    await click(getButton('Bestiary'));
+    expect(document.querySelectorAll('.compendium .entry.creature')).toHaveLength(ctx.content.enemies.length + ctx.content.bosses.length);
+    expect(document.querySelectorAll('.compendium .entry.creature.boss')).toHaveLength(ctx.content.bosses.length);
+    for (const boss of ctx.content.bosses) expect(getByText(boss.name)).toBeTruthy();
+    // Traits and Capabilities list their content.
+    await click(getButton('Traits'));
+    expect(document.querySelectorAll('.compendium .entry')).toHaveLength(ctx.content.traits.length);
+    await click(getButton('Capabilities'));
+    expect(document.querySelectorAll('.compendium .entry')).toHaveLength(ctx.content.capabilities.length);
     await click(getButton('Back'));
     expect(getButton('New run')).toBeTruthy();
   });
