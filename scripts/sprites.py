@@ -40,6 +40,19 @@ PALETTE = {
     "cuttle": ((200, 100, 220), (245, 200, 255), (80, 30, 100)),
     "leviathan-larva": ((90, 120, 200), (180, 200, 255), (30, 40, 100)),
     "abyssal-mat": ((70, 60, 110), (150, 140, 200), (25, 20, 50)),
+    # Challenge wave (2026-09-11): four more per act. Act 1 warm pond tones, act 2 reef, act 3 the deep.
+    "stentor": ((100, 190, 150), (190, 250, 210), (30, 75, 55)),
+    "ostracod": ((190, 170, 110), (240, 225, 170), (80, 65, 30)),
+    "vorticella": ((150, 200, 130), (220, 250, 190), (50, 80, 40)),
+    "gastrotrich": ((215, 210, 130), (250, 250, 200), (90, 85, 35)),
+    "zoanthid": ((240, 140, 120), (255, 210, 190), (110, 45, 35)),
+    "sponge": ((235, 150, 90), (255, 215, 170), (110, 60, 25)),
+    "barnacle": ((150, 175, 190), (220, 235, 245), (55, 75, 90)),
+    "mantis-shrimp": ((80, 200, 170), (180, 255, 230), (25, 85, 70)),
+    "anglerfish": ((70, 90, 140), (170, 190, 240), (25, 30, 70)),
+    "giant-isopod": ((150, 140, 170), (215, 210, 235), (60, 55, 85)),
+    "viperfish": ((60, 130, 140), (150, 220, 230), (20, 55, 65)),
+    "vampire-squid": ((140, 60, 100), (220, 150, 190), (60, 20, 45)),
     "unknown": ((120, 120, 140), (190, 190, 210), (50, 50, 60)),
 }
 
@@ -832,7 +845,12 @@ def main() -> None:
         "amoeba": (70, 0), "flagellate": (52, 0), "polyp": (84, 0), "rotifer": (58, 2),
         "hydroid": (64, 3), "diatom-swarm": (90, 0), "anemone": (76, 4), "nudibranch": (66, 1),
         "lamprey": (48, 0), "siphonophore": (100, 2), "tardigrade-king": (96, 4), "cuttle": (72, 5),
-        "colony": (110, 0), "leviathan-larva": (118, 3), "abyssal-mat": (126, 0), "unknown": (64, 0),
+        "colony": (110, 0), "leviathan-larva": (118, 3), "abyssal-mat": (126, 0),
+        # Challenge wave (2026-09-11): the twelve new enemies.
+        "stentor": (58, 2), "ostracod": (66, 0), "vorticella": (54, 3), "gastrotrich": (50, 1),
+        "zoanthid": (72, 4), "sponge": (82, 0), "barnacle": (64, 0), "mantis-shrimp": (70, 3),
+        "anglerfish": (88, 2), "giant-isopod": (92, 4), "viperfish": (68, 1), "vampire-squid": (78, 5),
+        "unknown": (64, 0),
     }
     for name, (cells, limbs) in specs.items():
         sprite(name, cells, limbs=limbs).save(OUT / f"{name}.png", optimize=True)

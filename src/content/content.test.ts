@@ -23,11 +23,11 @@ describe('content bundle', () => {
     });
   });
 
-  it('has twelve enemies in three act pools and one boss per act, unique ids, sane numbers, a sprite each', () => {
-    expect(CONTENT.enemies).toHaveLength(12);
+  it('has twenty-four enemies in three act pools and one boss per act, unique ids, sane numbers, a sprite each', () => {
+    expect(CONTENT.enemies).toHaveLength(24);
     expect(CONTENT.bosses).toHaveLength(3);
     for (const act of [1, 2, 3]) {
-      expect(CONTENT.enemies.filter((e) => e.act === act), `act ${act}`).toHaveLength(4);
+      expect(CONTENT.enemies.filter((e) => e.act === act), `act ${act}`).toHaveLength(8);
       expect(CONTENT.bosses.filter((e) => e.act === act), `boss act ${act}`).toHaveLength(1);
     }
     const all = [...CONTENT.enemies, ...CONTENT.bosses];
@@ -42,6 +42,21 @@ describe('content bundle', () => {
       if (e.traits?.armour) expect(e.traits.armour, e.id).toBeLessThanOrEqual(7); // a 7-letter word always lands in full
       expect(existsSync(`public/sprites/${e.id}.png`), e.id).toBe(true);
     }
+  });
+
+  it('demanders (challenge wave): three enemies carry resist, one per act, factor 0.5 (never 0), demand escalating by act', () => {
+    const resisters = [...CONTENT.enemies, ...CONTENT.bosses].filter((e) => e.traits?.resist);
+    expect(resisters.map((e) => e.id)).toEqual(['stentor', 'zoanthid', 'anglerfish']); // one per act, in act order
+    for (const e of resisters) {
+      const r = e.traits!.resist!;
+      expect(r.factor, e.id).toBe(0.5); // a demand halves; it never zeroes a fight (0 would be unwinnable)
+      expect(r.when.kind, e.id).toBe('minLength');
+    }
+    // Escalating: act 1 under 5, act 2 under 6, act 3 under 7.
+    const byId = (id: string) => resisters.find((e) => e.id === id)!.traits!.resist!.when;
+    expect(byId('stentor')).toEqual({ kind: 'minLength', value: 5 });
+    expect(byId('zoanthid')).toEqual({ kind: 'minLength', value: 6 });
+    expect(byId('anglerfish')).toEqual({ kind: 'minLength', value: 7 });
   });
 
   it('events (variety wave step 2): unique ids, short phone-legible text, a trade first and a walk-away last, player-side verbs only, a cost on every trade', () => {

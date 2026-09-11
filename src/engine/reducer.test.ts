@@ -2646,7 +2646,10 @@ describe('variety wave step 6: curses (save v10)', () => {
   });
 
   it('a cell run through cursed offers replays byte-identical and stays JSON-plain', () => {
-    for (const seed of [0, 1, 2, 3, 4]) {
+    // The seed window is wider than one might expect because which seed's greedy run happens to
+    // reach a cursed offer depends on the enemy draws (the challenge wave, PR #87, changed the
+    // pools, so the first cursed offer moved past seed 4); any seed that reaches one is enough.
+    for (const seed of Array.from({ length: 24 }, (_, i) => i)) {
       const a = greedyRun(seed, flat);
       const b = greedyRun(seed, flat);
       expect(JSON.stringify(a.final)).toBe(JSON.stringify(b.final));
@@ -2654,7 +2657,7 @@ describe('variety wave step 6: curses (save v10)', () => {
       const sawCursed = a.states.some((st) => st.phase === 'pick' && st.curses !== null);
       if (sawCursed) return;
     }
-    throw new Error('no seed in 0..4 reached a cursed offer');
+    throw new Error('no seed in 0..23 reached a cursed offer');
   });
 });
 
