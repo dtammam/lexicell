@@ -1,7 +1,7 @@
 <script lang="ts">
   import { CONTENT } from '../content/index';
   import { resolveEffects } from '../engine/effects';
-  import { conditionCtx, hitRange, type EngineContext } from '../engine/reducer';
+  import { conditionCtx, hitRange, resistLabel, type EngineContext } from '../engine/reducer';
   import type { RunState } from '../engine/types';
   import ItemIcon from './ItemIcon.svelte';
   import { enemyName, itemDef } from './lookup';
@@ -67,6 +67,7 @@
     if (t.armour) words.push(`armour ${t.armour}`);
     if (t.regen) words.push(`regen ${t.regen}`);
     if (t.hunger) words.push(`hunger +${t.hunger}`);
+    if (t.resist) words.push(resistLabel(t.resist));
     return words.join(' ');
   });
 

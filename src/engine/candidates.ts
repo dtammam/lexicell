@@ -12,7 +12,7 @@
 import { playableIndices, playableLetters } from './grid';
 import { gatherEffects } from './hooks';
 import { resolveEffects } from './effects';
-import { armourHit, conditionCtx, enemyDefOf, type EngineContext } from './reducer';
+import { armourHit, conditionCtx, enemyDefOf, resistHit, type EngineContext } from './reducer';
 import type { Tile } from './types';
 import { scoreWord } from './scoring';
 import { tilesForWord } from './solver';
@@ -31,12 +31,17 @@ export function candidateWords(state: RunState, ctx: EngineContext): Candidate[]
   // Anything that reads the word (a condition or a perUnit) must be resolved per word.
   const conditional = raw.some((e) => e.type === 'condition' || e.type === 'perUnit');
   const fixed = conditional ? null : resolveEffects(raw, base);
-  const armour = enemyDefOf(ctx, enc.enemy.id).traits?.armour ?? 0;
+  const traits = enemyDefOf(ctx, enc.enemy.id).traits;
+  const armour = traits?.armour ?? 0;
+  const resist = traits?.resist;
   const gilded = goldTiles(enc.grid);
   const out: Candidate[] = [];
   for (const word of ctx.solver.solve(playableLetters(enc.grid))) {
-    const effects = fixed ?? resolveEffects(raw, { ...base, word });
-    out.push({ word, damage: armourHit(word, scoreWord(word, effects, ctx.content.tuning).damage + bestGold(word, gilded), armour) });
+    const wctx = { ...base, word };
+    const effects = fixed ?? resolveEffects(raw, wctx);
+    // Armour then resist, the same order and the same helpers the landed hit takes (reducer.submitWord),
+    // so the candidate list and the Attack preview show the number that lands (resist is dormant until an enemy uses it).
+    out.push({ word, damage: resistHit(armourHit(word, scoreWord(word, effects, ctx.content.tuning).damage + bestGold(word, gilded), armour), resist, wctx) });
   }
   return out;
 }
