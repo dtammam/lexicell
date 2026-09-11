@@ -83,9 +83,8 @@ export type Action =
   | { readonly type: 'eventChoice'; readonly index: number }
   /* Variety wave step 3: the trait pick after a boss. */
   | { readonly type: 'pickTrait'; readonly index: number }
-  /* Evolution track (v11): the capability pick that follows the trait, and declining it. */
+  /* Evolution track (v11): the capability pick that follows the trait. Mandatory (Dean 2026-09-11): you must take one of the offered capabilities. */
   | { readonly type: 'pickCapability'; readonly index: number }
-  | { readonly type: 'skipCapability' }
   /* Evolution capabilities in a fight (v11): transmute a tile to a rare letter (once per fight),
      and the letter bank: store a tapped tile's letter (spending it rides on submitWord). */
   | { readonly type: 'transmuteTile'; readonly index: number }
@@ -186,8 +185,6 @@ export function reduce(state: RunState, action: Action, ctx: EngineContext): Run
       return pickTrait(state, action.index, ctx);
     case 'pickCapability':
       return pickCapability(state, action.index, ctx);
-    case 'skipCapability':
-      return skipCapability(state, ctx);
     case 'transmuteTile':
       return transmuteTile(state, action.index, ctx);
     case 'bankLetter':
@@ -774,11 +771,11 @@ function pickTrait(state: RunState, index: number, ctx: EngineContext): RunState
 /**
  * Evolution capability offer (v11): after the trait pick (or makeEvolve's no-trait fallback), offer
  * every capability the player does NOT yet hold, in fixed content order. No RNG is drawn (there are
- * only three, so the offer is deterministic) and nothing gameplay-affecting is touched, so a run
- * that declines every capability keeps the exact RNG stream and states of a pre-v11 run: that is
- * what makes the byte-identical-to-main determinism guarantee hold. With all held (Endless, bosses
- * recur) the offer is empty and the flow falls straight through to the cursable post-boss item
- * offer, exactly as before the track existed. An empty content.capabilities does the same.
+ * only three, so the offer is deterministic). The pick is MANDATORY (Dean 2026-09-11): pickCapability
+ * takes one, there is no skip. With all held (Endless, bosses recur) the offer is empty and the flow
+ * falls straight through to the cursable post-boss item offer, exactly as before the track existed;
+ * an empty content.capabilities does the same. The byte-identical-to-main guarantee rests on a run
+ * that NEVER reaches a boss (never evolves, caps stays empty), not on declining the offer.
  */
 function makeCapabilityOffer(state: RunState, ctx: EngineContext): RunState {
   const held = new Set(state.evolution.caps);
@@ -797,16 +794,6 @@ function pickCapability(state: RunState, index: number, ctx: EngineContext): Run
   const caps = state.evolution.caps.includes(cap) ? state.evolution.caps : [...state.evolution.caps, cap];
   const s: RunState = { ...state, rejected: null, evolution: { ...state.evolution, caps }, offer: null };
   return makeOffer(s, ctx, undefined, true);
-}
-
-/**
- * Decline the capability offer (v11): valid only on the capability phase. Forgoes the pick and goes
- * to the cursable post-boss item offer. RNG- and state-neutral, so declining every offer leaves a
- * run byte-identical to main (the item offer that follows draws exactly as it would have).
- */
-function skipCapability(state: RunState, ctx: EngineContext): RunState {
-  if (state.phase !== 'capability') return reject(state, 'not choosing a capability');
-  return makeOffer({ ...state, rejected: null, offer: null }, ctx, undefined, true);
 }
 
 /** The rare letters richest first (z, q = 8; j, x = 6; k = 5): transmute turns a tile into one of these. */

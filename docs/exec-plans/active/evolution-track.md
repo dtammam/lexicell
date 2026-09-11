@@ -160,6 +160,20 @@ threaded through `state.rng` like every other draw. `Math.random` is not used.
   turn start, not always-present".
 - **Scope creep toward 1C** (grid reshape): held; nothing changes GRID_SIZE.
 
+## Amendments (Dean, 2026-09-11, after the first smoke)
+
+- **Wildcard bounded to ONE PER FIGHT.** The always-present-and-refilling wild put the smoke greedy
+  at 100%. New lifecycle: `withWild` places exactly one wild at a fight's first turn (`enc.turn === 1`)
+  and never again; once played, the refill is a normal tile, so at most one wild exists per fight and
+  it is gone after one use. Still any-letter and auto-resolving; seeded placement, solver superset and
+  dead-grid safety unchanged. Smoke greedy dropped to 93.3% (still over the guard in the 30-run smoke;
+  the coordinator's 500-run sims decide whether to bound further).
+- **The capability pick is MANDATORY** (no skip). `skipCapability` and its UI are removed; you must
+  take one of the offered capabilities. The offer stays deterministic (all unheld caps, zero RNG). The
+  byte-identical-to-main guarantee no longer rests on declining: it is proved by a run driven only up
+  to the first boss (never evolves, caps stays empty), which is byte-identical to main (golden captured
+  from 8d18bfc).
+
 ## Acceptance
 
 - `npm test` green, `npm run lint` clean, `scripts/sim.ts --runs 30` runs without

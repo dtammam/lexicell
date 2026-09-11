@@ -21,15 +21,23 @@ const ctx = nodeContext({ ...FLAT, tuning: { ...CONTENT.tuning, startingPicks: 0
 function play(state: RunState, word: string, c: EngineContext = ctx): RunState {
   const enc = state.encounter;
   if (!enc) throw new Error('no encounter');
-  const idx = tilesForWord(
-    word,
-    enc.grid.map((t) => t.letter),
-    enc.grid.map((_, i) => i).filter((i) => (enc.grid[i]?.lockedTurns ?? 1) === 0),
-  );
+  // The engine's own mapping (v11: wild-aware, so a wildcard-enabled word maps through the wild tile).
+  const idx = candidateIndices(state, word);
   if (!idx) throw new Error(`cannot spell ${word}`);
   let s = state;
   for (const i of idx) s = reduce(s, { type: 'toggleTile', index: i }, c);
   return reduce(s, { type: 'submitWord' }, c);
+}
+
+/**
+ * The mandatory capability pick (v11): take the first offered capability that is NOT wildcard, so
+ * these base-game runs never place a wild and stay equivalent to a pre-v11 run (an unused transmute
+ * or letter-bank draws no RNG and touches no grid). Falls back to index 0 only if wildcard is the
+ * sole option left (Endless, both others held). The wildcard itself is exercised in evolution.test.ts.
+ */
+function nonWildCap(s: RunState): { type: 'pickCapability'; index: number } {
+  const at = (s.offer ?? []).findIndex((id) => id !== 'wildcard');
+  return { type: 'pickCapability', index: at >= 0 ? at : 0 };
 }
 
 /** Drive a whole run with a greedy policy, checking invariants at every step. Returns the action log and final state. */
@@ -62,11 +70,11 @@ function greedyRun(seed: number, c: EngineContext = ctx, pickIndex = 0): { final
       step({ type: 'pickTrait', index: 0 });
       continue;
     }
-    // Evolution track (v11): the greedy helper DECLINES every capability, so these base-game runs
-    // stay equivalent to main (byte-identical replay, HP curves, item counts unchanged). The
-    // capabilities themselves are exercised in evolution.test.ts.
+    // Evolution track (v11): the pick is mandatory, so the greedy helper takes a NON-wildcard
+    // capability (unused transmute/letter-bank are inert: no RNG, no grid change), keeping these
+    // base-game runs wild-free and equivalent to a pre-v11 run. Wildcard is exercised in evolution.test.ts.
     if (s.phase === 'capability') {
-      step({ type: 'skipCapability' });
+      step(nonWildCap(s));
       continue;
     }
     const best = candidateWords(s, c).sort((a, b) => b.damage - a.damage)[0];
@@ -1483,7 +1491,7 @@ describe('variety wave step 5: Normal and Endless (save v9)', () => {
       else if (s.phase === 'rest') s = reduce(s, { type: 'restHeal' }, c);
       else if (s.phase === 'event') s = reduce(s, { type: 'eventChoice', index: 1 }, c);
       else if (s.phase === 'evolve') s = reduce(s, { type: 'pickTrait', index: 0 }, c);
-      else if (s.phase === 'capability') s = reduce(s, { type: 'skipCapability' }, c);
+      else if (s.phase === 'capability') s = reduce(s, nonWildCap(s), c);
       else {
         const topped: RunState = { ...s, player: { ...s.player, hp: s.player.maxHp } };
         const best = candidateWords(topped, c).sort((a, b) => b.damage - a.damage)[0];
@@ -1836,7 +1844,7 @@ describe('variety wave step 3: evolution (save v7)', () => {
       // v11: the capability offer sits between the trait pick and the item offer; decline it here.
       expect(afterTrait.phase).toBe('capability');
       expect(afterTrait.offer?.length).toBeGreaterThan(0);
-      const picked = reduce(afterTrait, { type: 'skipCapability' }, flat);
+      const picked = reduce(afterTrait, { type: 'pickCapability', index: 0 }, flat);
       expect(picked.phase).toBe('pick');
       expect(picked.offer).toHaveLength(3);
       expect(picked.encounterIndex).toBe(2);
@@ -1875,7 +1883,7 @@ describe('variety wave step 3: evolution (save v7)', () => {
     const capsOnly = nodeContext({ ...flat.content, traits: [] });
     const wonCaps = play(bareBoss, candidateWords(bareBoss, capsOnly)[0]?.word ?? '', capsOnly);
     expect(wonCaps.phase).toBe('capability');
-    expect(reduce(wonCaps, { type: 'skipCapability' }, capsOnly).phase).toBe('pick');
+    expect(reduce(wonCaps, { type: 'pickCapability', index: 0 }, capsOnly).phase).toBe('pick');
     // The final boss: a win, not an evolve.
     const atBoss8: RunState = { ...atBoss5, encounterIndex: 8, encounter: { ...enc, enemy: { ...enc.enemy, id: 'abyssal-mat', hp: 1 } } };
     const finished = kill(atBoss8);
@@ -2166,7 +2174,7 @@ describe('variety wave step 2: encounter types (save v6)', () => {
         continue;
       }
       if (s.phase === 'capability') {
-        s = reduce(s, { type: 'skipCapability' }, flat);
+        s = reduce(s, nonWildCap(s), flat);
         continue;
       }
       const best = candidateWords(s, flat).sort((a, b) => b.damage - a.damage)[0];
@@ -2514,7 +2522,7 @@ describe('starting cells (save v4)', () => {
             continue;
           }
           if (s.phase === 'capability') {
-            s = reduce(s, { type: 'skipCapability' }, cc);
+            s = reduce(s, nonWildCap(s), cc);
             continue;
           }
           const best = candidateWords(s, cc).sort((a, b) => b.damage - a.damage)[0];

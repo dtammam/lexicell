@@ -17,7 +17,7 @@
 <section class="evolve">
   {#if capability}
     <h2>Evolve</h2>
-    <p class="hint">Your body reaches for a new ability. Pick one capability, yours for the whole run, or skip it.</p>
+    <p class="hint">Your body reaches for a new ability. Pick one capability. It is yours for the whole run.</p>
     {#each offer as id, i (id)}
       {@const c = capabilityDef(id)}
       <button class="offer" onclick={() => { dispatch({ type: 'pickCapability', index: i }); }}>
@@ -28,7 +28,6 @@
         </span>
       </button>
     {/each}
-    <button class="skip" onclick={() => { dispatch({ type: 'skipCapability' }); }}>Skip</button>
     {#if heldCaps.length > 0}
       <p class="held">You can already: {heldCaps.join(', ')}</p>
     {/if}
@@ -109,23 +108,5 @@
   .flavor {
     color: var(--muted);
     font-size: var(--text);
-  }
-  /* Skip the capability offer (v11): a quiet secondary action under the options. */
-  .skip {
-    align-self: flex-start;
-    font-family: var(--font-hud);
-    font-size: var(--hud-s);
-    letter-spacing: 0.1em;
-    background: var(--panel);
-    border: 2px solid var(--shade);
-    box-shadow: 2px 2px 0 var(--shade);
-    color: var(--muted);
-    border-radius: var(--radius);
-    padding: var(--s2) var(--s3);
-    touch-action: manipulation;
-  }
-  .skip:active {
-    transform: translate(2px, 2px);
-    box-shadow: none;
   }
 </style>

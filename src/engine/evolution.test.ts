@@ -18,13 +18,12 @@ const ctx: EngineContext = nodeContext();
 /**
  * A fully deterministic driver (no internal RNG): best word of <=7 letters (ties keep the first in
  * candidate order), trait 0, item 0, rest heals, event walks away (last choice), cursed offer
- * skipped. `onCapability` decides the capability phase. This is byte-for-byte the driver the golden
- * capture ran on main; the only branch main never reached is 'capability'.
+ * skipped, capability index 0 (the pick is mandatory, so index 0 = wildcard at the first boss).
  */
-function step(s: RunState, onCapability: 'skip' | 'pick0'): RunState {
+function step(s: RunState): RunState {
   if (s.phase === 'pick') return reduce(s, s.curses !== null ? { type: 'skipOffer' } : { type: 'pickItem', index: 0 }, ctx);
   if (s.phase === 'evolve') return reduce(s, { type: 'pickTrait', index: 0 }, ctx);
-  if (s.phase === 'capability') return reduce(s, onCapability === 'skip' ? { type: 'skipCapability' } : { type: 'pickCapability', index: 0 }, ctx);
+  if (s.phase === 'capability') return reduce(s, { type: 'pickCapability', index: 0 }, ctx);
   if (s.phase === 'rest') return reduce(s, { type: 'restHeal' }, ctx);
   if (s.phase === 'event') {
     const def = ctx.content.events.find((e) => e.id === s.event);
@@ -44,11 +43,11 @@ function step(s: RunState, onCapability: 'skip' | 'pick0'): RunState {
   return reduce(out, { type: 'submitWord' }, ctx);
 }
 
-function driveToEnd(seed: number, onCapability: 'skip' | 'pick0'): RunState {
+function driveToEnd(seed: number): RunState {
   let s = newRun(seed, ctx);
   for (let guard = 0; guard < 50000 && s.phase !== 'summary'; guard++) {
     const before = s;
-    s = step(s, onCapability);
+    s = step(s);
     if (s.rejected) throw new Error(`seed ${seed}: rejected ${s.rejected}`);
     if (s === before) throw new Error(`seed ${seed}: no progress at ${s.phase}`);
   }
@@ -57,29 +56,48 @@ function driveToEnd(seed: number, onCapability: 'skip' | 'pick0'): RunState {
 }
 
 /**
- * Drive a full run that takes ONE named capability (the first time it is offered) and skips every
- * other capability offer, never using the capability's in-fight action. Used to prove that merely
- * HOLDING a capability does not perturb the run relative to a skip run.
+ * Drive to the FIRST boss (phase 'evolve') or the run's end, whichever comes first. This prefix never
+ * gains a capability (the capability pick only follows pickTrait), so caps stays empty and it is
+ * byte-identical to main: the baseline the mandatory-pick change preserves.
+ */
+function driveToFirstBossOrEnd(seed: number): RunState {
+  let s = newRun(seed, ctx);
+  for (let guard = 0; guard < 50000 && s.phase !== 'evolve' && s.phase !== 'summary'; guard++) {
+    const before = s;
+    s = step(s);
+    if (s.rejected) throw new Error(`seed ${seed}: rejected ${s.rejected}`);
+    if (s === before) throw new Error(`seed ${seed}: no progress at ${s.phase}`);
+  }
+  return s;
+}
+
+/**
+ * Drive a full run that takes ONE named capability the first time it is offered and, at later bosses,
+ * the first offered capability that is NOT wildcard (so no wild is ever placed). Used to show that
+ * merely HOLDING an unused non-wildcard capability does not perturb the run.
  */
 function driveWithCapabilityPicks(seed: number, cap: string): RunState {
   let s = newRun(seed, ctx);
   for (let guard = 0; guard < 50000 && s.phase !== 'summary'; guard++) {
     if (s.phase === 'capability') {
-      const at = (s.offer ?? []).indexOf(cap);
-      s = reduce(s, at >= 0 ? { type: 'pickCapability', index: at } : { type: 'skipCapability' }, ctx);
+      const offer = s.offer ?? [];
+      const named = offer.indexOf(cap);
+      const nonWild = offer.findIndex((id) => id !== 'wildcard');
+      const at = named >= 0 ? named : nonWild >= 0 ? nonWild : 0;
+      s = reduce(s, { type: 'pickCapability', index: at }, ctx);
     } else {
-      s = step(s, 'skip');
+      s = step(s);
     }
     if (s.rejected) throw new Error(`seed ${seed}: rejected ${s.rejected}`);
   }
   return s;
 }
 
-/** Drive until the given phase is reached (or the run ends), handling capability by skipping. */
-function driveTo(seed: number, phase: RunState['phase'], onCapability: 'skip' | 'pick0' = 'skip'): RunState {
+/** Drive until the given phase is reached (or the run ends). */
+function driveTo(seed: number, phase: RunState['phase']): RunState {
   let s = newRun(seed, ctx);
   for (let guard = 0; guard < 50000 && s.phase !== phase && s.phase !== 'summary'; guard++) {
-    s = step(s, onCapability);
+    s = step(s);
     if (s.rejected) throw new Error(`seed ${seed}: rejected ${s.rejected}`);
   }
   return s;
@@ -115,15 +133,15 @@ describe('evolution track: capability offer flow', () => {
     // pickCapability off a non-capability phase is rejected too.
     const fight = driveTo(1, 'fight');
     expect(reduce(fight, { type: 'pickCapability', index: 0 }, ctx).rejected).toBe('not choosing a capability');
-    expect(reduce(fight, { type: 'skipCapability' }, ctx).rejected).toBe('not choosing a capability');
   });
 
-  it('declining is possible (skipCapability) and never gains a capability', () => {
-    let s = driveTo(2, 'capability');
+  it('the pick is mandatory: there is no way off the capability phase but taking one', () => {
+    const s = driveTo(2, 'capability');
     expect(s.phase).toBe('capability');
-    s = reduce(s, { type: 'skipCapability' }, ctx);
-    expect(s.phase).not.toBe('capability');
-    expect(s.evolution.caps).toEqual([]);
+    // Only pickCapability advances it; taking any offered index lands a capability.
+    const picked = reduce(s, { type: 'pickCapability', index: 0 }, ctx);
+    expect(picked.phase).not.toBe('capability');
+    expect(picked.evolution.caps.length).toBe(1);
   });
 
   it('with every capability held the offer is skipped gracefully (Endless: bosses recur)', () => {
@@ -136,7 +154,7 @@ describe('evolution track: capability offer flow', () => {
       // After all three are held, a pickTrait must NOT be followed by a capability phase.
       if (s.evolution.caps.length === 3 && prevPhase === 'evolve' && s.phase !== 'capability') sawSkipAfterFull = true;
       prevPhase = s.phase;
-      s = step(s, 'pick0');
+      s = step(s);
       if (s.rejected) throw new Error(`rejected ${s.rejected}`);
       if (s.evolution.caps.length === 3 && sawSkipAfterFull) break;
     }
@@ -145,42 +163,44 @@ describe('evolution track: capability offer flow', () => {
   });
 });
 
-describe('evolution track: determinism (no-capability run == main)', () => {
-  // Golden hashes of JSON.stringify(finalState) for the deterministic driver, captured from the
-  // engine at 8d18bfc (before the track) for seeds 0..11. A v11 run that DECLINES every capability
-  // must reproduce them exactly once its (empty) evolution field is stripped.
-  const GOLDEN = [
-    '4e91ad293d125d96',
-    '692f1b66cee2368d',
-    '0fc68503846a61de',
-    '31d61fcd3e80b6da',
-    'ecd3b5f0b54d4a88',
-    '395753a8ee95408f',
-    'c390dc513137d357',
-    '87b07152746efe2e',
-    '15d368c4d5ac4cac',
-    '24d2acc280ecc48a',
-    '3edb26cfff717b33',
-    '33dab77b910029fb',
+describe('evolution track: determinism (a run that never reaches a boss == main)', () => {
+  // The capability pick is mandatory (no skip), so the byte-identical baseline is a run driven only
+  // up to the FIRST boss (phase 'evolve') or its end, whichever comes first: that prefix never gains a
+  // capability, so caps stays empty and it is byte-identical to main. Golden hashes captured from the
+  // engine at 8d18bfc (before the track) with the same deterministic driver, seeds 0..11.
+  const BASELINE = [
+    'a4c47f3a2f00422a',
+    'adb82be435d538b4',
+    '5227fe631d3559c2',
+    '35f73b7540ca4b6e',
+    '67d84f3c37727deb',
+    '998e8c56dee46000',
+    'eb4085897fb1aba1',
+    'fba56de2f7d9b825',
+    'ec91de7f9cc89b19',
+    '565c46a2dc3625ca',
+    'f677c976342ff3ec',
+    '862facccc060280c',
   ];
-  it('replays byte-identical to main for every seed when no capability is taken', () => {
-    for (let seed = 0; seed < GOLDEN.length; seed++) {
-      const final = driveToEnd(seed, 'skip');
-      // No capability taken: the track stayed empty throughout.
-      expect(final.evolution).toEqual({ caps: [], transmuteUsed: false, bankedLetter: null });
+  it('replays byte-identical to main up to the first boss (caps stays empty)', () => {
+    for (let seed = 0; seed < BASELINE.length; seed++) {
+      const s = driveToFirstBossOrEnd(seed);
+      // No capability could have been gained yet: the track is untouched.
+      expect(s.evolution).toEqual({ caps: [], transmuteUsed: false, bankedLetter: null });
+      expect(['evolve', 'summary']).toContain(s.phase);
       // Renumber the version back to 10 and drop the (empty) v11-only field: what remains is
-      // byte-for-byte the v10 state main produced (same rng, player, grid, kinds, stats, key order).
-      const rest: Record<string, unknown> = { ...final, v: 10 };
+      // byte-for-byte the v10 state main produced at the same point (same rng, grid, kinds, key order).
+      const rest: Record<string, unknown> = { ...s, v: 10 };
       delete rest.evolution;
       const hash = createHash('sha256').update(JSON.stringify(rest)).digest('hex').slice(0, 16);
-      expect(hash, `seed ${seed}`).toBe(GOLDEN[seed]);
+      expect(hash, `seed ${seed}`).toBe(BASELINE[seed]);
     }
   });
 
   it('the reducer never reaches for Math.random (seeded RNG only): the same seed and actions give the same state', () => {
     for (const seed of [0, 5, 11]) {
-      const a = driveToEnd(seed, 'skip');
-      const b = driveToEnd(seed, 'skip');
+      const a = driveToEnd(seed);
+      const b = driveToEnd(seed);
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     }
   });
@@ -192,7 +212,7 @@ function fightStates(seed: number): RunState[] {
   let s = newRun(seed, ctx);
   for (let guard = 0; guard < 50000 && s.phase !== 'summary'; guard++) {
     if (s.phase === 'fight') out.push(s);
-    s = step(s, 'pick0');
+    s = step(s);
     if (s.rejected) throw new Error(`seed ${seed}: rejected ${s.rejected}`);
   }
   return out;
@@ -242,8 +262,8 @@ describe('evolution track: the wildcard verb', () => {
 
   it('a full wildcard run stays JSON-plain and replays byte-identical to itself (seeded, no Math.random)', () => {
     for (const seed of [1, 3, 7]) {
-      const a = driveToEnd(seed, 'pick0');
-      const b = driveToEnd(seed, 'pick0');
+      const a = driveToEnd(seed);
+      const b = driveToEnd(seed);
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
       expect(JSON.parse(JSON.stringify(a))).toEqual(a);
       // The wildcard was actually taken on this run (the first capability offered).
@@ -338,7 +358,7 @@ describe('evolution track: the transmute verb', () => {
     const startEnc = t1.encounterIndex;
     let resetSeen = false;
     for (let g = 0; g < 50000 && cur.phase !== 'summary'; g++) {
-      cur = step(cur, 'pick0');
+      cur = step(cur);
       if (cur.rejected) throw new Error(`rejected ${cur.rejected}`);
       if (cur.phase === 'fight' && cur.encounterIndex > startEnc) {
         expect(cur.evolution.transmuteUsed).toBe(false);
@@ -362,19 +382,22 @@ describe('evolution track: the transmute verb', () => {
     expect(reduce(wildState, { type: 'transmuteTile', index: 0 }, ctx).rejected).toBe('cannot transmute the wild tile');
   });
 
-  it('a run holding transmute (unused) still replays byte-identical to a run without it (no RNG in transmute)', () => {
-    // The driver never transmutes, so merely HOLDING the capability must not perturb the RNG stream.
-    // Compare a 'skip' run (no caps) to a run that picks only transmute at each boss but never uses it.
+  it('holding an unused non-wildcard capability does not perturb the run (transmute-first vs letter-bank-first)', () => {
+    // Neither transmute nor letter-bank draws RNG or touches the grid until used, so which of the two
+    // a run takes first (both non-wildcard, so no wild is ever placed) cannot change anything but the
+    // caps list. Stripping the evolution field, the two runs are byte-identical.
     for (const seed of [1, 2]) {
-      const withTransmute = driveWithCapabilityPicks(seed, 'transmute');
-      const skipped = driveToEnd(seed, 'skip');
-      // Stripping the (behaviourally inert) evolution field, the two runs are identical.
+      const transmuteFirst = driveWithCapabilityPicks(seed, 'transmute');
+      const bankFirst = driveWithCapabilityPicks(seed, 'letter-bank');
       const strip = (s: RunState) => {
         const r: Record<string, unknown> = { ...s };
         delete r.evolution;
         return JSON.stringify(r);
       };
-      expect(strip(withTransmute)).toBe(strip(skipped));
+      // Both hold the two non-wild caps, unused; neither ever placed a wild.
+      expect(transmuteFirst.evolution.caps.includes('wildcard')).toBe(false);
+      expect(bankFirst.evolution.caps.includes('wildcard')).toBe(false);
+      expect(strip(transmuteFirst)).toBe(strip(bankFirst));
     }
   });
 });
@@ -446,16 +469,14 @@ describe('evolution track: the letter-bank verb', () => {
     expect(reduce({ ...withCap, encounter: { ...enc, grid } }, { type: 'bankLetter', index: 0 }, ctx).rejected).toBe('cannot bank the wild tile');
   });
 
-  it('a run holding letter-bank (unused) replays byte-identical to a skip run (no RNG in the bank)', () => {
+  it('a full run holding letter-bank but never banking keeps the slot empty and stays JSON-plain', () => {
     for (const seed of [1, 2]) {
-      const withBank = driveWithCapabilityPicks(seed, 'letter-bank');
-      const skipped = driveToEnd(seed, 'skip');
-      const strip = (s: RunState) => {
-        const r: Record<string, unknown> = { ...s };
-        delete r.evolution;
-        return JSON.stringify(r);
-      };
-      expect(strip(withBank)).toBe(strip(skipped));
+      const run = driveWithCapabilityPicks(seed, 'letter-bank');
+      expect(run.evolution.caps).toContain('letter-bank');
+      // Never banked: the slot is empty the whole run, and no wildcard was placed (non-wild picks).
+      expect(run.evolution.bankedLetter).toBeNull();
+      expect(run.evolution.caps.includes('wildcard')).toBe(false);
+      expect(JSON.parse(JSON.stringify(run))).toEqual(run);
     }
   });
 });

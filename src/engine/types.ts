@@ -280,7 +280,7 @@ export interface Encounter {
 /**
  * rest and event (variety wave step 2): screens between fights; the reducer's restHeal, pickItem and
  * eventChoice leave them. evolve (step 3): the trait pick after a boss, left by pickTrait. capability
- * (v11): the capability pick that follows the trait, left by pickCapability or skipCapability.
+ * (v11): the mandatory capability pick that follows the trait, left by pickCapability.
  */
 export type Phase = 'fight' | 'pick' | 'rest' | 'event' | 'evolve' | 'capability' | 'summary';
 export type Outcome = 'won' | 'lost';
