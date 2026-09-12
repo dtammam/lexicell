@@ -1,11 +1,25 @@
 <script lang="ts">
   // One screen of onboarding after New run (Dean, 2026-09-08, after a first-time player asked
-  // "what am I doing here"). Three beats play on their own and a tap skips ahead; the button is
+  // "what am I doing here"). Six beats play on their own and a tap skips ahead; the button is
   // always there. Not a story screen: it says what the pick and the fight are, in the game's voice.
   let { onBegin, cell = 'balanced' }: { onBegin: () => void; cell?: string } = $props();
 
   const base = import.meta.env.BASE_URL;
-  const BEATS = ['Something ate your pond.', 'You escaped through the only door left: a portal made of letters.', 'A long word hits hard.'];
+  const BEATS = [
+    'Your pond was quiet. It always had been.',
+    'Something ate your pond.',
+    'You fled. Strange symbols rose from the dark. Letters, even.',
+    'A portal made of letters opened ahead. With nowhere else to go, you slipped in.',
+    'You surfaced somewhere unfamiliar, surrounded by tiles.',
+    'You combined a few. So this is how you touch the world. Long words hit hard.',
+  ];
+  const SYMBOLS = [
+    { c: '?', l: '12%', t: '18px' }, { c: 'A', l: '30%', t: '96px' },
+    { c: 'L', l: '46%', t: '38px' }, { c: '·', l: '20%', t: '124px' },
+    { c: 'E', l: '70%', t: '28px' }, { c: 'X', l: '84%', t: '92px' },
+    { c: 'O', l: '58%', t: '112px' }, { c: 'S', l: '38%', t: '14px' },
+    { c: 'R', l: '78%', t: '134px' },
+  ];
   const RING = 'LEXICELL·WORDS·';
   // Sixteen letters, one per tile, the whole lesson in a grid. Four rows of four, so the phrase
   // has to split cleanly at every fourth letter (Dean, 2026-09-08: WORDS HIT read as WORD SHIT).
@@ -16,7 +30,7 @@
 
   function schedule() {
     if (timer) clearTimeout(timer);
-    timer = beat < BEATS.length - 1 ? setTimeout(() => { beat += 1; schedule(); }, 2600) : null;
+    timer = beat < BEATS.length - 1 ? setTimeout(() => { beat += 1; schedule(); }, 3500) : null;
   }
   function skip() {
     if (beat < BEATS.length - 1) {
@@ -35,12 +49,21 @@
 <section class="intro">
   <button class="scene beat-{beat}" onclick={skip} aria-label="Skip ahead">
     {#key beat}
-      {#if beat === 0}
+      {#if beat === 0 || beat === 1}
         <div class="pond">
           <img class="you" src="{base}sprites/cell-{cell}-1.png" alt="" />
-          <img class="predator" src="{base}sprites/amoeba.png" alt="" />
+          {#if beat === 1}
+            <img class="predator" src="{base}sprites/amoeba.png" alt="" />
+          {/if}
         </div>
-      {:else if beat === 1}
+      {:else if beat === 2}
+        <div class="symbols">
+          <img class="you flee" src="{base}sprites/cell-{cell}-1.png" alt="" />
+          {#each SYMBOLS as s, i (i)}
+            <span class="sym" style="left: {s.l}; top: {s.t}; --i: {i}">{s.c}</span>
+          {/each}
+        </div>
+      {:else if beat === 3}
         <div class="portal">
           <img class="you dash" src="{base}sprites/cell-{cell}-1.png" alt="" />
           <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
@@ -94,10 +117,14 @@
     background: linear-gradient(180deg, #0d2a3a, #0d3a3a);
     touch-action: manipulation;
   }
-  .scene.beat-1 {
+  .scene.beat-2 {
+    background: radial-gradient(circle at 30% 40%, #12303a, #06131c 70%);
+  }
+  .scene.beat-3 {
     background: radial-gradient(circle at 70% 50%, #7b3fff, #1e0f3a 60%);
   }
-  .scene.beat-2 {
+  .scene.beat-4,
+  .scene.beat-5 {
     background: var(--panel-deep);
   }
   .caption {
@@ -173,6 +200,23 @@
     height: 40px;
     animation: dash 2.2s ease-in both;
   }
+  .symbols .sym {
+    position: absolute;
+    font-family: var(--font-hud);
+    font-size: var(--hud-m);
+    color: var(--score);
+    text-shadow: 0 0 6px var(--shade);
+    opacity: 0;
+    animation: floatUp 2.8s ease-out both;
+    animation-delay: calc(var(--i) * 160ms);
+  }
+  .symbols .you.flee {
+    left: 60%;
+    top: 70px;
+    width: 36px;
+    height: 36px;
+    animation: flee 3s ease-in both;
+  }
   .arrival {
     position: absolute;
     left: 50%;
@@ -247,6 +291,28 @@
       opacity: 1;
     }
   }
+  @keyframes floatUp {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    35% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0.2;
+      transform: translateY(-14px);
+    }
+  }
+  @keyframes flee {
+    from {
+      transform: none;
+    }
+    to {
+      transform: translateX(-120px) scale(0.85);
+      opacity: 0.5;
+    }
+  }
   @keyframes caption {
     from {
       opacity: 0;
@@ -260,6 +326,8 @@
   @media (prefers-reduced-motion: reduce) {
     .pond .you,
     .pond .predator,
+    .symbols .sym,
+    .symbols .you.flee,
     .portal .ring,
     .portal .you.dash,
     .arrival .tile,
