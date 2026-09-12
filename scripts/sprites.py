@@ -697,6 +697,22 @@ CURSES = {
     "curse-fester": "star", "curse-tremor": "wave",
 }
 
+# Traits and capabilities (2026-09-12): neither carries a rarity, so each category gets ONE Plasma
+# tone rather than a per-rarity one, and a player tells the three kinds apart at a glance. Traits are
+# a permanent part of the body, so a green-teal body tone (the --life family). Capabilities are a new
+# verb of play, so a brighter gold (the --score family). Each glyph is a template kind seeded by its
+# id, exactly like the templated items, so all sixteen are distinct and reproducible.
+TRAIT_TONE = ((60, 210, 170), (190, 255, 225), (18, 8, 38))
+CAP_TONE = ((255, 214, 90), (255, 255, 240), (60, 40, 0))
+TRAITS = {
+    "thick-membrane": "shield", "predatory": "spike", "long-reach": "star", "regenerative": "ring",
+    "venom-glands": "drop", "chitin-shell": "shield", "photosynthesis": "cluster", "fast-twitch": "wave",
+    "vowel-sense": "blob", "rare-taste": "star", "adrenal": "spike", "midas": "ring", "colonial": "cluster",
+}
+CAPS = {
+    "wildcard": "star", "transmute": "drop", "letter-bank": "shield",
+}
+
 
 def template_rows(kind: str, seed: str) -> list[str]:
     """A per-kind glyph that reads the seed for real variation (Dean, 2026-09-10: many
@@ -823,8 +839,10 @@ def template_rows(kind: str, seed: str) -> list[str]:
     return ["".join(r) for r in grid]
 
 
-def item_icon(rarity: str, rows: list[str]) -> Image.Image:
-    fill, hi, outline = ITEM_TONES[rarity]
+def glyph_icon(tone: tuple, rows: list[str]) -> Image.Image:
+    """Render a two-tone glyph in an explicit tone (fill, highlight, outline). Items key the tone by
+    rarity; traits and capabilities pass their category tone. Same body/outline logic either way."""
+    fill, hi, outline = tone
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     px = img.load()
     body = {(x, y) for y, row in enumerate(rows) for x, ch in enumerate(row) if ch in "#o"}
@@ -836,6 +854,10 @@ def item_icon(rarity: str, rows: list[str]) -> Image.Image:
             if 0 <= nx < SIZE and 0 <= ny < SIZE and (nx, ny) not in body:
                 px[nx, ny] = (*outline, 255)
     return img.resize((SIZE * SCALE, SIZE * SCALE), Image.NEAREST)
+
+
+def item_icon(rarity: str, rows: list[str]) -> Image.Image:
+    return glyph_icon(ITEM_TONES[rarity], rows)
 
 
 def main() -> None:
@@ -871,6 +893,16 @@ def main() -> None:
     for item_id, kind in CURSES.items():
         item_icon("curse", template_rows(kind, item_id)).save(items_dir / f"{item_id}.png", optimize=True)
         print(f"wrote items/{item_id}.png (curse, {kind})")
+    traits_dir = OUT / "traits"
+    traits_dir.mkdir(parents=True, exist_ok=True)
+    for trait_id, kind in TRAITS.items():
+        glyph_icon(TRAIT_TONE, template_rows(kind, trait_id)).save(traits_dir / f"{trait_id}.png", optimize=True)
+        print(f"wrote traits/{trait_id}.png ({kind})")
+    caps_dir = OUT / "capabilities"
+    caps_dir.mkdir(parents=True, exist_ok=True)
+    for cap_id, kind in CAPS.items():
+        glyph_icon(CAP_TONE, template_rows(kind, cap_id)).save(caps_dir / f"{cap_id}.png", optimize=True)
+        print(f"wrote capabilities/{cap_id}.png ({kind})")
 
 
 if __name__ == "__main__":

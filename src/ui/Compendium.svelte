@@ -167,6 +167,7 @@
       <p class="hint">After each boss but the last, you evolve: three of these are offered and one is kept for the run.</p>
       {#each CONTENT.traits as t (t.id)}
         <div class="entry">
+          <ItemIcon id={t.id} kind="traits" size={32} />
           <span class="text">
             <span class="name">{t.name}</span>
             <span class="desc">{t.description}</span>
@@ -178,6 +179,7 @@
       <p class="hint">A capability is a new way to play, gained alongside a trait as your cell descends. One is kept per boss.</p>
       {#each CONTENT.capabilities as c (c.id)}
         <div class="entry">
+          <ItemIcon id={c.id} kind="capabilities" size={32} />
           <span class="text">
             <span class="name">{c.name}</span>
             <span class="desc">{c.description}</span>

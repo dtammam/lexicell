@@ -95,6 +95,7 @@ describe('content bundle', () => {
       expect(t.flavor.length, t.id).toBeGreaterThan(0);
       expect(t.flavor, t.id).not.toMatch(/\d/);
       expect(Object.values(t.hooks).some((e) => (e?.length ?? 0) > 0), t.id).toBe(true);
+      expect(existsSync(`public/sprites/traits/${t.id}.png`), t.id).toBe(true); // generated glyph (scripts/sprites.py)
     }
   });
 
@@ -108,6 +109,7 @@ describe('content bundle', () => {
       expect(c.description.length, c.id).toBeGreaterThan(0);
       expect(c.flavor.length, c.id).toBeGreaterThan(0);
       expect(c.flavor, c.id).not.toMatch(/\d/);
+      expect(existsSync(`public/sprites/capabilities/${c.id}.png`), c.id).toBe(true); // generated glyph (scripts/sprites.py)
     }
   });
 
