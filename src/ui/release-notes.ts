@@ -21,6 +21,7 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  { build: 93, pr: 91, sha: 'pending', date: '2026-09-12', title: 'Scoring detail', notes: 'The How to play page now spells out the exact scoring for anyone who wants the precise math: the full letter-value table and the real length-bonus curve, both read straight from the game so they always match. See just how much a longer word is worth.' },
   { build: 92, pr: 90, sha: 'pending', date: '2026-09-12', title: 'Trait and capability art', notes: 'Evolution traits and capabilities have their own pixel icons now, in the same style as your mutations. You see each one in the compendium and again when you pick it after a boss.' },
   { build: 91, pr: 89, sha: '7623630', date: '2026-09-11', title: 'The Compendium', notes: 'One place to study everything now: mutations and defects, a full bestiary with every creature and its tricks, the evolution traits, and the capabilities your cell can gain. Tap between the five sections from the title screen.' },
   { build: 90, pr: 88, sha: '9769a86', date: '2026-09-11', title: 'Evolution', notes: 'Your cell now evolves real abilities as you descend: a wildcard tile that plays as any letter, a once-a-fight transmutation into a rare letter, and a letter you can bank and spend later. Late-run words reach places a starting grid never could.' },

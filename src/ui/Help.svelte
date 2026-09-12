@@ -1,5 +1,6 @@
 <script lang="ts">
   import { LETTER_VALUE } from '../engine/scoring';
+  import { CONTENT } from '../content/index';
 
   let { onBack }: { onBack: () => void } = $props();
 
@@ -8,6 +9,27 @@
   const VENOM_MARK = '\u2623';
   const LOCK_MARK = '\u{1F512}';
   const CRACK_MARK = '\u23F3';
+
+  // Scoring detail is generated from the engine constants so it can never drift from the formula.
+  // Letters grouped by value ascending, letters uppercased, group order follows LETTER_VALUE.
+  const LETTER_GROUPS = (() => {
+    const byValue: Record<number, string[]> = {};
+    for (const [letter, value] of Object.entries(LETTER_VALUE)) {
+      (byValue[value] ??= []).push(letter.toUpperCase());
+    }
+    return Object.keys(byValue)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((value) => ({ value, letters: (byValue[value] ?? []).join(' ') }));
+  })();
+
+  // The real length-multiplier curve, read straight from the tuning table.
+  const LENGTH_CURVE = CONTENT.tuning.lengthBonus;
+  const LENGTH_CAP = LENGTH_CURVE[LENGTH_CURVE.length - 1] ?? 1;
+  const LENGTH_ROWS = [4, 5, 6, 7, 8, 9, 10].map((len) => ({
+    len,
+    mult: LENGTH_CURVE[len] ?? LENGTH_CAP,
+  }));
 </script>
 
 <section class="help">
@@ -34,6 +56,23 @@
       <li><span class="tile cracked">N<small>{CRACK_MARK}2</small></span><span>Cracked: crumbles in that many turns and a fresh letter drops in. Play it first if you want it.</span></li>
       <li><span class="tile selected">S</span><span>Selected. It turns green when the letters spell a real word.</span></li>
     </ul>
+
+    <h3>Scoring detail</h3>
+    <p>The exact numbers, for anyone who wants them. Each letter is worth this many points:</p>
+    <ul class="values">
+      {#each LETTER_GROUPS as g (g.value)}
+        <li><span class="pts">{g.value}</span><span>{g.letters}</span></li>
+      {/each}
+    </ul>
+    <p>The rare letters are worth more, but pulled below their Scrabble values on purpose, so no single tile decides a run.</p>
+    <p>A word's letter total is then multiplied by a bonus for its length. Below six letters there is no bonus (times 1); from six up it climbs half a point per letter:</p>
+    <ul class="values">
+      {#each LENGTH_ROWS as r (r.len)}
+        <li><span class="pts">{r.len}</span><span>x{r.mult}</span></li>
+      {/each}
+    </ul>
+    <p>For very long words the bonus stops climbing and caps at x{LENGTH_CAP}. In practice a seven-letter word lands around four times as hard as a four-letter one, so length is where the real damage comes from.</p>
+    <p>The full formula: the letter total (plus any letter bonuses) is multiplied by the length bonus, then flat bonuses are added, then the whole thing is scaled by your percent mutations.</p>
 
     <h3>Your turn</h3>
     <p>Tap tiles to spell, then Attack. Clear empties the selection. Shuffle redraws every unlocked tile and costs your turn, unless a mutation gave you a free shuffle. After your word the enemy hits back, the tiles you used fall away and new ones drop in.</p>
@@ -104,6 +143,29 @@
     display: flex;
     align-items: center;
     gap: var(--s3);
+  }
+  .values {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+  }
+  .values li {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+  }
+  .pts {
+    flex: none;
+    min-width: 2.2em;
+    text-align: center;
+    padding: 2px 6px;
+    border: 1px solid var(--tile-line);
+    border-radius: var(--radius);
+    font-family: var(--font-hud);
+    color: var(--score);
   }
   .tile {
     position: relative;
