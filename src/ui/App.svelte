@@ -287,6 +287,33 @@
         <button class="menu" onclick={toTitle}>Menu</button>
       {/if}
       {#if screen !== 'settings'}
+        <button
+          class="menu icon-toggle"
+          class:is-muted={settings.sfxMuted}
+          aria-pressed={settings.sfxMuted}
+          aria-label={settings.sfxMuted ? 'Unmute sound effects' : 'Mute sound effects'}
+          title={settings.sfxMuted ? 'Unmute sound effects' : 'Mute sound effects'}
+          onclick={toggleSfxMuted}
+        >
+          <svg class="glyph" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 9 H8 L13 5 V19 L8 15 H4 Z" />
+            <path d="M16.5 8.5 A5 5 0 0 1 16.5 15.5" />
+          </svg>
+        </button>
+        <button
+          class="menu icon-toggle"
+          class:is-muted={settings.musicMuted}
+          aria-pressed={settings.musicMuted}
+          aria-label={settings.musicMuted ? 'Unmute music' : 'Mute music'}
+          title={settings.musicMuted ? 'Unmute music' : 'Mute music'}
+          onclick={toggleMusicMuted}
+        >
+          <svg class="glyph" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+            <circle cx="7.5" cy="17.5" r="3" />
+            <path d="M10.5 17.5 V5 L18 3 V13" />
+            <circle cx="15" cy="13" r="3" />
+          </svg>
+        </button>
         <button class="menu gear" aria-label="Settings" title="Settings" onclick={toSettings}>&#9881;</button>
       {/if}
     </div>
@@ -393,6 +420,38 @@
     letter-spacing: 0;
     padding-left: var(--s2);
     padding-right: var(--s2);
+  }
+  /* The sfx and music toggles are square .menu buttons sized to match the gear, each centering an
+     inline SVG. position:relative anchors the muted slash. */
+  .icon-toggle {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding-left: var(--s2);
+    padding-right: var(--s2);
+    line-height: 0;
+  }
+  /* The glyph inherits the button colour via currentColor; ~1.1em reads at the gear glyph's weight. */
+  .icon-toggle .glyph {
+    display: block;
+    width: 1.1em;
+    height: 1.1em;
+  }
+  /* Off is unmistakable: dim the glyph and draw one diagonal slash across the icon. Both toggles
+     share the treatment, so the on/off language is uniform; the speaker vs note shapes distinguish them. */
+  .icon-toggle.is-muted {
+    color: var(--muted);
+  }
+  .icon-toggle.is-muted::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1.4em;
+    height: 2px;
+    background: var(--muted);
+    transform: translate(-50%, -50%) rotate(45deg);
+    pointer-events: none;
   }
   .screen {
     flex: 1;
