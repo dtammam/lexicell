@@ -281,7 +281,7 @@
 
 <main data-readable={settings.readable ? '' : undefined}>
   <header class="top">
-    <h1><img class="brand" src="{base}logo/bookends-wordmark.svg" alt="Lexicell" /></h1>
+    <h1><button class="brand-btn" onclick={toTitle} aria-label="Main menu" title="Main menu"><img class="brand" src="{base}logo/bookends-wordmark.svg" alt="Lexicell" /></button></h1>
     <div class="bar-actions">
       {#if screen === 'run'}
         <button class="menu" onclick={toTitle}>Menu</button>
@@ -394,6 +394,21 @@
     width: auto;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
+  }
+  /* The wordmark doubles as a home button back to the title (Dean, 2026-09-12). */
+  .brand-btn {
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    line-height: 0;
+    cursor: pointer;
+  }
+  .brand-btn:focus-visible {
+    outline: 2px solid var(--score);
+    outline-offset: 3px;
+    border-radius: 2px;
   }
   .menu {
     font-family: var(--font-hud);
