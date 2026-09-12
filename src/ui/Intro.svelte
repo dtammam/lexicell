@@ -20,6 +20,12 @@
     { c: 'O', l: '58%', t: '112px' }, { c: 'S', l: '38%', t: '14px' },
     { c: 'R', l: '78%', t: '134px' },
   ];
+  const SCATTER = [
+    { c: 'A', l: '16%', t: '16px', r: -12 }, { c: 'R', l: '64%', t: '10px', r: 8 },
+    { c: 'T', l: '80%', t: '66px', r: -6 }, { c: 'E', l: '28%', t: '104px', r: 10 },
+    { c: '?', l: '8%', t: '78px', r: 14 }, { c: 'S', l: '52%', t: '126px', r: -10 },
+    { c: 'O', l: '84%', t: '124px', r: 6 }, { c: 'N', l: '70%', t: '96px', r: 12 },
+  ];
   const RING = 'LEXICELL·WORDS·';
   // Sixteen letters, one per tile, the whole lesson in a grid. Four rows of four, so the phrase
   // has to split cleanly at every fourth letter (Dean, 2026-09-08: WORDS HIT read as WORD SHIT).
@@ -49,12 +55,15 @@
 <section class="intro">
   <button class="scene beat-{beat}" onclick={skip} aria-label="Skip ahead">
     {#key beat}
-      {#if beat === 0 || beat === 1}
-        <div class="pond">
+      {#if beat === 0}
+        <div class="pond calm">
           <img class="you" src="{base}sprites/cell-{cell}-1.png" alt="" />
-          {#if beat === 1}
-            <img class="predator" src="{base}sprites/amoeba.png" alt="" />
-          {/if}
+          {#each [0, 1, 2, 3] as b (b)}<span class="bubble" style="--b: {b}"></span>{/each}
+        </div>
+      {:else if beat === 1}
+        <div class="attack">
+          <img class="predator" src="{base}sprites/amoeba.png" alt="" />
+          <img class="you cower" src="{base}sprites/cell-{cell}-1.png" alt="" />
         </div>
       {:else if beat === 2}
         <div class="symbols">
@@ -73,6 +82,13 @@
             <circle cx="60" cy="60" r="44" />
             <text><textPath href="#ring-path">{RING.repeat(2)}</textPath></text>
           </svg>
+        </div>
+      {:else if beat === 4}
+        <div class="scatter">
+          <img class="you" src="{base}sprites/cell-{cell}-1.png" alt="" />
+          {#each SCATTER as s, i (i)}
+            <span class="chip" style="left: {s.l}; top: {s.t}; --r: {s.r}deg; --i: {i}">{s.c}</span>
+          {/each}
         </div>
       {:else}
         <div class="arrival">
@@ -117,15 +133,20 @@
     background: linear-gradient(180deg, #0d2a3a, #0d3a3a);
     touch-action: manipulation;
   }
+  .scene.beat-1 {
+    background: radial-gradient(circle at 50% 45%, #5a1030, #180612 65%); /* danger red */
+  }
   .scene.beat-2 {
-    background: radial-gradient(circle at 30% 40%, #12303a, #06131c 70%);
+    background: radial-gradient(circle at 30% 40%, #12303a, #06131c 70%); /* dark water - keep */
   }
   .scene.beat-3 {
-    background: radial-gradient(circle at 70% 50%, #7b3fff, #1e0f3a 60%);
+    background: radial-gradient(circle at 70% 50%, #7b3fff, #1e0f3a 60%); /* portal purple - keep */
   }
-  .scene.beat-4,
+  .scene.beat-4 {
+    background: radial-gradient(circle at 50% 60%, #123a44, #0a1f2e 70%); /* teal deep - scatter */
+  }
   .scene.beat-5 {
-    background: var(--panel-deep);
+    background: var(--panel-deep); /* word grid - keep */
   }
   .caption {
     position: absolute;
@@ -166,12 +187,57 @@
     height: 40px;
     animation: bob 1.6s ease-in-out infinite;
   }
-  .pond .predator {
-    right: -10%;
-    top: 10px;
+  .pond .bubble {
+    position: absolute;
+    bottom: 12px;
+    left: calc(18% + var(--b) * 20%);
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    animation: rise 3s ease-in infinite;
+    animation-delay: calc(var(--b) * 0.6s);
+  }
+  .attack .predator {
+    left: 50%;
+    top: 50%;
     width: 150px;
     height: 150px;
-    animation: loom 2.4s ease-in both;
+    transform: translate(-50%, -50%);
+    animation: chomp 1.6s ease-in-out both;
+  }
+  .attack .you.cower {
+    left: 14%;
+    top: 118px;
+    width: 30px;
+    height: 30px;
+    animation: cower 1.4s ease-out both;
+  }
+  .scatter .you {
+    left: 50%;
+    top: 64px;
+    width: 38px;
+    height: 38px;
+    transform: translateX(-50%);
+    animation: bob 1.6s ease-in-out infinite;
+  }
+  .scatter .chip {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--shade);
+    border-radius: var(--radius);
+    box-shadow: 2px 2px 0 var(--shade);
+    background: var(--tile);
+    color: var(--ink);
+    font-family: var(--font-tile);
+    font-size: var(--hud-s);
+    opacity: 0;
+    animation: chipIn 460ms var(--ease-settle) both;
+    animation-delay: calc(var(--i) * 70ms);
   }
   .portal .ring {
     position: absolute;
@@ -255,14 +321,48 @@
       transform: translateY(-6px);
     }
   }
-  @keyframes loom {
+  @keyframes rise {
     from {
-      transform: translateX(120px) scale(0.6) rotate(-10deg);
+      transform: translateY(0);
       opacity: 0;
     }
+    30% {
+      opacity: 0.6;
+    }
     to {
-      transform: translateX(0) scale(1) rotate(0deg);
+      transform: translateY(-120px);
+      opacity: 0;
+    }
+  }
+  @keyframes chomp {
+    0% {
+      transform: translate(-50%, -50%) scale(0.7);
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+  @keyframes cower {
+    from {
       opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0.5;
+      transform: translateY(6px) scale(0.85);
+    }
+  }
+  @keyframes chipIn {
+    from {
+      opacity: 0;
+      transform: translateY(-16px) rotate(var(--r));
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) rotate(var(--r));
     }
   }
   @keyframes spin {
@@ -325,11 +425,15 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .pond .you,
-    .pond .predator,
+    .pond .bubble,
+    .attack .predator,
+    .attack .you.cower,
     .symbols .sym,
     .symbols .you.flee,
     .portal .ring,
     .portal .you.dash,
+    .scatter .you,
+    .scatter .chip,
     .arrival .tile,
     .caption {
       animation: none;

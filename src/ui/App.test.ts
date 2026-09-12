@@ -147,10 +147,11 @@ describe('App', () => {
     expect(getByText('Your pond was quiet. It always had been.')).toBeTruthy();
     expect(document.querySelector('.pond .you')).not.toBeNull();
     expect(document.querySelector('.pond .predator')).toBeNull();
+    expect(document.querySelector('.pond .bubble')).not.toBeNull();
     await click(document.querySelector('.scene'));
-    // Beat 1: the predator looms over the same pond.
+    // Beat 1: the predator dominates the frame; the pond scene is gone.
     expect(getByText('Something ate your pond.')).toBeTruthy();
-    expect(document.querySelector('.pond .predator')?.getAttribute('src')).toBe('/sprites/amoeba.png');
+    expect(document.querySelector('.attack .predator')?.getAttribute('src')).toBe('/sprites/amoeba.png');
     await click(document.querySelector('.scene'));
     // Beat 2: the drifting symbols scene.
     expect(getByText(/Strange symbols rose/)).toBeTruthy();
@@ -160,9 +161,10 @@ describe('App', () => {
     expect(getByText(/a portal made of letters/i)).toBeTruthy();
     expect(document.querySelector('.portal .ring')).not.toBeNull();
     await click(document.querySelector('.scene'));
-    // Beat 4: arrival among the tiles.
+    // Beat 4: the scattered chips; the arrival grid is not here yet.
     expect(getByText(/surrounded by tiles/)).toBeTruthy();
-    expect(document.querySelector('.arrival .tile')).not.toBeNull();
+    expect(document.querySelector('.scatter .chip')).not.toBeNull();
+    expect(document.querySelector('.arrival')).toBeNull();
     await click(document.querySelector('.scene'));
     // Beat 5: the lesson, on the same arrival grid.
     expect(getByText(/Long words hit hard\./)).toBeTruthy();

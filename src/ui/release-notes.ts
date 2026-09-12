@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 95, pr: 93, sha: 'pending', date: '2026-09-12', title: 'A longer intro', notes: 'The opening cutscene is longer now: six short beats that follow your cell from its quiet pond, through the thing that ate it, into a portal of letters, and out among the tiles on the other side.' },
+  { build: 96, pr: 94, sha: 'pending', date: '2026-09-12', title: 'Distinct intro scenes', notes: 'Each of the six intro beats now has its own picture instead of repeating: a calm pond, the attack, the rising symbols, the portal, the scattered tiles, and the word grid.' },
+  { build: 95, pr: 93, sha: 'a06f94a', date: '2026-09-12', title: 'A longer intro', notes: 'The opening cutscene is longer now: six short beats that follow your cell from its quiet pond, through the thing that ate it, into a portal of letters, and out among the tiles on the other side.' },
   { build: 94, pr: 92, sha: '21d0674', date: '2026-09-12', title: 'Quick mute toggles', notes: 'The top bar now has sound-effects and music mute buttons right next to the settings gear, reachable from the menu and in the middle of a run. The game remembers what you left muted, so the music no longer starts up on its own if you turned it off.' },
   { build: 93, pr: 91, sha: 'e6c0227', date: '2026-09-12', title: 'Scoring detail', notes: 'The How to play page now spells out the exact scoring for anyone who wants the precise math: the full letter-value table and the real length-bonus curve, both read straight from the game so they always match. See just how much a longer word is worth.' },
   { build: 92, pr: 90, sha: 'c56bf09', date: '2026-09-12', title: 'Trait and capability art', notes: 'Evolution traits and capabilities have their own pixel icons now, in the same style as your mutations. You see each one in the compendium and again when you pick it after a boss.' },
