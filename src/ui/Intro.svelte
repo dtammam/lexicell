@@ -6,12 +6,12 @@
 
   const base = import.meta.env.BASE_URL;
   const BEATS = [
-    'Your pond was quiet. It always had been.',
-    'Something ate your pond.',
-    'You fled. Strange symbols rose from the dark. Somehow you knew to call them letters.',
-    'A portal made of letters opened ahead. With nowhere else to go, you slipped in.',
-    'You surfaced somewhere unfamiliar, surrounded by tiles.',
-    'You combined a few. So this is how you touch the world. Long words hit hard.',
+    'Pond quiet. Pond safe. Always.',
+    'Big thing come. Pond gone.',
+    'Me run. Shapes rise in dark. Marks.',
+    'Ring of marks. No way but in. Me go.',
+    'New place. Tiles all around me.',
+    'Push tiles. Make word. Long word hit hard.',
   ];
   const SYMBOLS = [
     { c: '?', l: '12%', t: '18px' }, { c: 'A', l: '30%', t: '96px' },

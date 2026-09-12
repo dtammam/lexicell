@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 98, pr: 96, sha: 'pending', date: '2026-09-12', title: 'Readable intro captions', notes: 'The story captions in the intro are easy to read now: each line sits on a soft dark plate with a crisp outline, so it stays clear even over the busy scenes and the word grid.' },
+  { build: 99, pr: 97, sha: 'pending', date: '2026-09-12', title: 'The cell speaks', notes: 'The intro is told in a new voice: a creature that has only just met language, in broken first words. Pond quiet. Big thing come. Push tiles, make word, long word hit hard.' },
+  { build: 98, pr: 96, sha: 'a7a10f0', date: '2026-09-12', title: 'Readable intro captions', notes: 'The story captions in the intro are easy to read now: each line sits on a soft dark plate with a crisp outline, so it stays clear even over the busy scenes and the word grid.' },
   { build: 97, pr: 95, sha: '677337c', date: '2026-09-12', title: 'Intro wording', notes: 'A small line change in the opening: as the symbols rise from the dark, you now somehow knew to call them letters.' },
   { build: 96, pr: 94, sha: '1486488', date: '2026-09-12', title: 'Distinct intro scenes', notes: 'Each of the six intro beats now has its own picture instead of repeating: a calm pond, the attack, the rising symbols, the portal, the scattered tiles, and the word grid.' },
   { build: 95, pr: 93, sha: 'a06f94a', date: '2026-09-12', title: 'A longer intro', notes: 'The opening cutscene is longer now: six short beats that follow your cell from its quiet pond, through the thing that ate it, into a portal of letters, and out among the tiles on the other side.' },
