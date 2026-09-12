@@ -142,20 +142,34 @@ describe('App', () => {
     expect(document.querySelector('button.cell .name')?.textContent).toContain('Amoeba');
     await click(document.querySelector('button.cell'));
     expect(await findByText('You are a cell.')).toBeTruthy();
-    // Three beats: auto-play, and a tap on the scene skips ahead; the button never waits for them.
+    // Six beats: auto-play, and a tap on the scene skips ahead; the button never waits for them.
+    // Beat 0: the calm pond, no predator yet.
+    expect(getByText('Your pond was quiet. It always had been.')).toBeTruthy();
+    expect(document.querySelector('.pond .you')).not.toBeNull();
+    expect(document.querySelector('.pond .predator')).toBeNull();
+    await click(document.querySelector('.scene'));
+    // Beat 1: the predator looms over the same pond.
     expect(getByText('Something ate your pond.')).toBeTruthy();
     expect(document.querySelector('.pond .predator')?.getAttribute('src')).toBe('/sprites/amoeba.png');
     await click(document.querySelector('.scene'));
-    expect(getByText(/a portal made of letters/)).toBeTruthy();
+    // Beat 2: the drifting symbols scene.
+    expect(getByText(/Strange symbols rose/)).toBeTruthy();
+    expect(document.querySelector('.symbols')).not.toBeNull();
+    await click(document.querySelector('.scene'));
+    // Beat 3: the portal.
+    expect(getByText(/a portal made of letters/i)).toBeTruthy();
     expect(document.querySelector('.portal .ring')).not.toBeNull();
     await click(document.querySelector('.scene'));
-    expect(getByText('A long word hits hard.')).toBeTruthy();
+    // Beat 4: arrival among the tiles.
+    expect(getByText(/surrounded by tiles/)).toBeTruthy();
+    expect(document.querySelector('.arrival .tile')).not.toBeNull();
+    await click(document.querySelector('.scene'));
+    // Beat 5: the lesson, on the same arrival grid.
+    expect(getByText(/Long words hit hard\./)).toBeTruthy();
     const arrival = Array.from(document.querySelectorAll('.arrival .tile')).map((t) => t.textContent).join('');
     expect(arrival).toBe('LONGWORDHITSHARD');
     // Rows of four must each be a word: the grid reads row by row on the screen.
     expect(arrival.match(/.{4}/g)).toEqual(['LONG', 'WORD', 'HITS', 'HARD']);
-    await click(document.querySelector('.scene'));
-    expect(getByText('A long word hits hard.')).toBeTruthy();
     await click(getButton('Divide and conquer'));
     await findByText('Choose a starting item', 15000);
     expect(getByText(/Tap one\. You keep it/)).toBeTruthy();
