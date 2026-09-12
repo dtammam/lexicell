@@ -31,18 +31,25 @@
   // has to split cleanly at every fourth letter (Dean, 2026-09-08: WORDS HIT read as WORD SHIT).
   const GRID = 'LONGWORDHITSHARD';
 
+  const BEAT_MS = 3500;
+  // The storyboard loops forever; the last beat holds a touch longer before it
+  // wraps back to the start, so the loop reads as a pause, not a hard cut (Dean, 2026-09-12).
+  const LOOP_PAUSE_MS = 6000;
+
   let beat = $state.raw(0);
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   function schedule() {
     if (timer) clearTimeout(timer);
-    timer = beat < BEATS.length - 1 ? setTimeout(() => { beat += 1; schedule(); }, 3500) : null;
+    const last = beat === BEATS.length - 1;
+    timer = setTimeout(() => {
+      beat = last ? 0 : beat + 1;
+      schedule();
+    }, last ? LOOP_PAUSE_MS : BEAT_MS);
   }
   function skip() {
-    if (beat < BEATS.length - 1) {
-      beat += 1;
-      schedule();
-    }
+    beat = beat === BEATS.length - 1 ? 0 : beat + 1;
+    schedule();
   }
   $effect(() => {
     schedule();
