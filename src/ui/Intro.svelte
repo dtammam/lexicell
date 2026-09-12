@@ -8,7 +8,7 @@
   const BEATS = [
     'Your pond was quiet. It always had been.',
     'Something ate your pond.',
-    'You fled. Strange symbols rose from the dark. Letters, even.',
+    'You fled. Strange symbols rose from the dark. Somehow you knew to call them letters.',
     'A portal made of letters opened ahead. With nowhere else to go, you slipped in.',
     'You surfaced somewhere unfamiliar, surrounded by tiles.',
     'You combined a few. So this is how you touch the world. Long words hit hard.',
