@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Action } from '../engine/reducer';
   import type { RunState } from '../engine/types';
+  import ItemIcon from './ItemIcon.svelte';
   import { capabilityDef, traitDef } from './lookup';
 
   let { run, dispatch }: { run: RunState; dispatch: (action: Action) => void } = $props();
@@ -21,6 +22,7 @@
     {#each offer as id, i (id)}
       {@const c = capabilityDef(id)}
       <button class="offer" onclick={() => { dispatch({ type: 'pickCapability', index: i }); }}>
+        <ItemIcon id={c.id} kind="capabilities" size={32} />
         <span class="text">
           <span class="name">{c.name}</span>
           <span class="desc">{c.description}</span>
@@ -37,6 +39,7 @@
     {#each offer as id, i (id)}
       {@const t = traitDef(id)}
       <button class="offer" onclick={() => { dispatch({ type: 'pickTrait', index: i }); }}>
+        <ItemIcon id={t.id} kind="traits" size={32} />
         <span class="text">
           <span class="name">{t.name}</span>
           <span class="desc">{t.description}</span>
