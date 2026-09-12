@@ -158,7 +158,15 @@
     font-weight: 500;
     font-size: var(--text);
     color: var(--ink);
-    text-shadow: 1px 1px 0 var(--shade), 0 0 6px var(--shade);
+    /* Legibility over busy scene art (Dean, 2026-09-12): a translucent dark plate guarantees
+       contrast on every beat, and a pixel outline keeps the letters crisp against whatever
+       scene texture shows through the plate. */
+    background: rgba(18, 8, 38, 0.66);
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    text-shadow:
+      2px 0 var(--shade), -2px 0 var(--shade), 0 2px var(--shade), 0 -2px var(--shade),
+      1px 1px var(--shade), -1px -1px var(--shade), 1px -1px var(--shade), -1px 1px var(--shade);
     animation: caption var(--dur-settle) var(--ease-settle) both;
   }
   .dots {

@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 97, pr: 95, sha: 'pending', date: '2026-09-12', title: 'Intro wording', notes: 'A small line change in the opening: as the symbols rise from the dark, you now somehow knew to call them letters.' },
+  { build: 98, pr: 96, sha: 'pending', date: '2026-09-12', title: 'Readable intro captions', notes: 'The story captions in the intro are easy to read now: each line sits on a soft dark plate with a crisp outline, so it stays clear even over the busy scenes and the word grid.' },
+  { build: 97, pr: 95, sha: '677337c', date: '2026-09-12', title: 'Intro wording', notes: 'A small line change in the opening: as the symbols rise from the dark, you now somehow knew to call them letters.' },
   { build: 96, pr: 94, sha: '1486488', date: '2026-09-12', title: 'Distinct intro scenes', notes: 'Each of the six intro beats now has its own picture instead of repeating: a calm pond, the attack, the rising symbols, the portal, the scattered tiles, and the word grid.' },
   { build: 95, pr: 93, sha: 'a06f94a', date: '2026-09-12', title: 'A longer intro', notes: 'The opening cutscene is longer now: six short beats that follow your cell from its quiet pond, through the thing that ate it, into a portal of letters, and out among the tiles on the other side.' },
   { build: 94, pr: 92, sha: '21d0674', date: '2026-09-12', title: 'Quick mute toggles', notes: 'The top bar now has sound-effects and music mute buttons right next to the settings gear, reachable from the menu and in the middle of a run. The game remembers what you left muted, so the music no longer starts up on its own if you turned it off.' },
