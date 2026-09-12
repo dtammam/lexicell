@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 100, pr: 98, sha: 'pending', date: '2026-09-12', title: 'The intro loops', notes: 'The opening storyboard now plays on a loop while you sit on it, holding a beat on the last scene before it starts over. Tap to skip ahead as always, or hit Divide and conquer whenever you are ready.' },
+  { build: 101, pr: 99, sha: 'pending', date: '2026-09-12', title: 'Logo goes home', notes: 'Tapping the Lexicell wordmark in the top-left now takes you back to the main menu from anywhere. Your run is kept, so you can dip out and Continue right where you left off.' },
+  { build: 100, pr: 98, sha: '8e8f483', date: '2026-09-12', title: 'The intro loops', notes: 'The opening storyboard now plays on a loop while you sit on it, holding a beat on the last scene before it starts over. Tap to skip ahead as always, or hit Divide and conquer whenever you are ready.' },
   { build: 99, pr: 97, sha: '17c7fe1', date: '2026-09-12', title: 'The cell speaks', notes: 'The intro is told in a new voice: a creature that has only just met language, in broken first words. Pond quiet. Big thing come. Push tiles, make word, long word hit hard.' },
   { build: 98, pr: 96, sha: 'a7a10f0', date: '2026-09-12', title: 'Readable intro captions', notes: 'The story captions in the intro are easy to read now: each line sits on a soft dark plate with a crisp outline, so it stays clear even over the busy scenes and the word grid.' },
   { build: 97, pr: 95, sha: '677337c', date: '2026-09-12', title: 'Intro wording', notes: 'A small line change in the opening: as the symbols rise from the dark, you now somehow knew to call them letters.' },
