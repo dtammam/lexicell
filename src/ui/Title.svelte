@@ -92,10 +92,8 @@
         <button class="btn life" onclick={onContinue}>Continue</button>
       {/if}
       {#if dailyOpen}
-        <button class="btn daily" onclick={() => { request('daily'); }}>
-          <span>Today's challenge</span>
-          <small class="seed">Seed {dailySeed}</small>
-        </button>
+        <button class="btn daily" onclick={() => { request('daily'); }}>Today's challenge</button>
+        <small class="daily-seed">Seed {dailySeed}</small>
       {:else}
         <div class="daily done">
           <span>Today's challenge {dailyOutcome ? outcomeWord[dailyOutcome] : 'played'}</span>
@@ -114,8 +112,10 @@
 
   {#if wotd}
     <div class="wotd">
-      <span class="label">Word of the day</span>
-      <strong class="word">{wotd.word}</strong>
+      <div class="wotd-head">
+        <span class="label">Word of the day</span>
+        <strong class="word">{wotd.word}</strong>
+      </div>
       <span class="gloss">{wotd.gloss}</span>
     </div>
   {/if}
@@ -125,10 +125,10 @@
   .title {
     display: flex;
     flex-direction: column;
-    /* s4, not s5: the daily control is a seventh row, so the sections sit a little closer to keep the
-       whole title inside one phone screen (390x844) without an internal scroll. */
-    gap: var(--s4);
-    padding-top: var(--s5);
+    /* Tight rhythm so the whole title, build line and word-of-the-day card fit one phone screen
+       without an internal scroll, even under Safari's toolbar (Dean, 2026-09-13: WOTD was clipping). */
+    gap: var(--s2);
+    padding-top: var(--s3);
   }
   .mark {
     display: flex;
@@ -145,7 +145,7 @@
     /* min(100%, ...) collapsed against the shrink-wrapped centered parent and rendered tiny on a
        phone; a viewport-relative width makes the wordmark a reliable hero (about 331px on a 390px
        screen) without reintroducing vertical overflow. */
-    width: min(85vw, 420px);
+    width: min(74vw, 360px);
     height: auto;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
@@ -165,15 +165,21 @@
   .buttons {
     display: flex;
     flex-direction: column;
-    gap: var(--s2);
+    gap: var(--s1);
   }
   /* The daily is the headline action: the select accent sets it apart from New run, and its seed
      rides a second line so a player sees it is the same run for everyone. */
   .daily {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--s2);
+  }
+  /* The played-state card carries more text and may wrap to two lines; the live button stays one. */
+  .daily.done {
+    flex-wrap: wrap;
   }
   button.daily {
     background: var(--select);
@@ -181,8 +187,21 @@
   }
   .daily .seed {
     font-family: var(--font-hud);
-    font-size: var(--hud-s);
-    letter-spacing: 0.05em;
+    font-size: 0.66em;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    opacity: 0.85;
+  }
+  /* Today's seed rides as a small caption under the one-line daily button (Dean, 2026-09-13):
+     the ten-digit seed will not fit one readable line beside the label, and it must stay visible
+     so a player can see the run is the same for everyone. */
+  .daily-seed {
+    margin: 0;
+    text-align: center;
+    font-family: var(--font-hud);
+    font-size: 0.72em;
+    color: var(--muted);
+    letter-spacing: 0.04em;
   }
   .daily.done {
     padding: var(--s3) var(--s2);
@@ -206,11 +225,18 @@
     display: flex;
     flex-direction: column;
     gap: var(--s1);
-    padding: var(--s3);
+    padding: var(--s2) var(--s3);
     background: var(--panel);
     border: 2px solid var(--shade);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
+  }
+  /* Label and the word share a line so the card is three lines, not four (Dean, 2026-09-13). */
+  .wotd-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s2);
+    flex-wrap: wrap;
   }
   .label {
     font-family: var(--font-hud);
