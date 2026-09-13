@@ -439,9 +439,10 @@
   /* The grid is a square no larger than the space left, read through container query units. */
   .grid-box {
     flex: 1;
-    /* The grid shrinks to absorb a longer report but never collapses; below this the screen
-       scrolls instead (App.svelte). */
-    min-height: 160px;
+    /* The grid shrinks to absorb a longer report or the evolution mutation row but never
+       collapses; 132px keeps the tile letters at their 16px step (below ~128px they halve).
+       Below this the screen scrolls instead (App.svelte). */
+    min-height: 132px;
     container-type: size;
     display: flex;
     justify-content: center;
@@ -702,6 +703,9 @@
   }
   .mutations .mut {
     flex: 1;
+    /* A slim strip, not a full button row: it is a secondary turn tool and every vertical pixel
+       is budgeted so the fight stays on one screen when the row appears (Dean, 2026-09-13). */
+    padding: var(--s1) var(--s2);
   }
   .btn.mut.armed {
     background: var(--select);

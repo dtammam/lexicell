@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 102, pr: 100, sha: 'pending', date: '2026-09-13', title: 'Quick rules in a fight', notes: 'A rules button in the top bar during a fight now pops up a condensed reference: the letter points and what each tile type does. Check the rules without ever leaving the fight.' },
+  { build: 103, pr: 101, sha: 'pending', date: '2026-09-13', title: 'The fight stays on one screen', notes: 'When an evolution mutation like Transmute is available, its buttons no longer push the fight into a scroll. The mutation row is slimmer and the grid gives it room, so a fight fits one screen even on a shorter phone.' },
+  { build: 102, pr: 100, sha: '3099860', date: '2026-09-13', title: 'Quick rules in a fight', notes: 'A rules button in the top bar during a fight now pops up a condensed reference: the letter points and what each tile type does. Check the rules without ever leaving the fight.' },
   { build: 101, pr: 99, sha: '46b6bfd', date: '2026-09-12', title: 'Logo goes home', notes: 'Tapping the Lexicell wordmark in the top-left now takes you back to the main menu from anywhere. Your run is kept, so you can dip out and Continue right where you left off.' },
   { build: 100, pr: 98, sha: '8e8f483', date: '2026-09-12', title: 'The intro loops', notes: 'The opening storyboard now plays on a loop while you sit on it, holding a beat on the last scene before it starts over. Tap to skip ahead as always, or hit Divide and conquer whenever you are ready.' },
   { build: 99, pr: 97, sha: '17c7fe1', date: '2026-09-12', title: 'The cell speaks', notes: 'The intro is told in a new voice: a creature that has only just met language, in broken first words. Pond quiet. Big thing come. Push tiles, make word, long word hit hard.' },
