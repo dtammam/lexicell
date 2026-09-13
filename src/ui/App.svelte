@@ -12,6 +12,7 @@
   import Title from './Title.svelte';
   import Compendium from './Compendium.svelte';
   import Help from './Help.svelte';
+  import QuickRules from './QuickRules.svelte';
   import History from './History.svelte';
   import CellPick from './CellPick.svelte';
   import Event from './Event.svelte';
@@ -222,6 +223,15 @@
     tap();
     screen = 'items';
   }
+  // Quick rules overlay: a condensed rules card a player can pull up mid-fight without leaving it.
+  let rulesOpen = $state.raw(false);
+  function openRules() {
+    tap();
+    rulesOpen = true;
+  }
+  function closeRules() {
+    rulesOpen = false;
+  }
   function toNotes() {
     tap();
     screen = 'notes';
@@ -285,6 +295,12 @@
     <div class="bar-actions">
       {#if screen === 'run'}
         <button class="menu" onclick={toTitle}>Menu</button>
+        <button class="menu icon-toggle" aria-label="Quick rules" title="Quick rules" onclick={openRules}>
+          <svg class="glyph" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 5 A2 2 0 0 1 6 3 H11 V20 H6 A2 2 0 0 0 4 22 Z" />
+            <path d="M20 5 A2 2 0 0 0 18 3 H13 V20 H18 A2 2 0 0 1 20 22 Z" />
+          </svg>
+        </button>
       {/if}
       {#if screen !== 'settings'}
         <button
@@ -356,6 +372,7 @@
     {/snippet}
   </svelte:boundary>
   </div>
+  {#if rulesOpen}<QuickRules onClose={closeRules} />{/if}
 </main>
 
 <style>
@@ -427,7 +444,9 @@
   .bar-actions {
     display: flex;
     align-items: center;
-    gap: var(--s2);
+    /* Five controls beside the wordmark during a run (Menu, rules, sfx, music, gear); the tighter
+       gap keeps the row inside a 390px phone without shrinking the wordmark or the Menu text. */
+    gap: var(--s1);
   }
   /* The gear is a square .menu: system font so the glyph renders, the same height as Menu. */
   .gear {
