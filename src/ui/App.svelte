@@ -330,7 +330,12 @@
             <circle cx="15" cy="13" r="3" />
           </svg>
         </button>
-        <button class="menu gear" aria-label="Settings" title="Settings" onclick={toSettings}>&#9881;</button>
+        <button class="menu icon-toggle" aria-label="Settings" title="Settings" onclick={toSettings}>
+          <svg class="glyph" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22 M4.9 4.9 L7 7 M17 17 L19.1 19.1 M19.1 4.9 L17 7 M7 17 L4.9 19.1" />
+          </svg>
+        </button>
       {/if}
     </div>
   </header>
@@ -448,15 +453,8 @@
        gap keeps the row inside a 390px phone without shrinking the wordmark or the Menu text. */
     gap: var(--s1);
   }
-  /* The gear is a square .menu: system font so the glyph renders, the same height as Menu. */
-  .gear {
-    font-family: system-ui, sans-serif;
-    letter-spacing: 0;
-    padding-left: var(--s2);
-    padding-right: var(--s2);
-  }
-  /* The sfx and music toggles are square .menu buttons sized to match the gear, each centering an
-     inline SVG. position:relative anchors the muted slash. */
+  /* The sfx, music and settings toggles are square .menu buttons, each centering an
+     inline SVG line glyph. position:relative anchors the muted slash. */
   .icon-toggle {
     position: relative;
     display: grid;
