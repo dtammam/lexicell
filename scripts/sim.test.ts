@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { candidateIndices, candidateWords } from '../src/engine/candidates';
 import { newRun } from '../src/engine/reducer';
-import { chooseCursed, chooseTrait, curseCost, GREEDY_MAX_LENGTH, makeBot, nextAction, spendingVenom } from './lib/bots';
+import { chooseCursed, chooseTrait, curseCost, GREEDY_MAX_LENGTH, makeBot, nextAction, spendingVenom, stackerPickScore } from './lib/bots';
 import { nodeContext } from './lib/context';
 import { simulate, simulateRun, summarise } from './lib/simulate';
 import { contentFor, exitCriteria, parseArgs, renderTable, stripCurses } from './sim';
@@ -32,6 +32,23 @@ describe('bots', () => {
     expect(m?.word.length).toBeGreaterThanOrEqual(4);
     expect(m?.word.length).toBeLessThanOrEqual(5);
     expect(nextAction(makeBot('greedy', 1), s, ctx)?.at(-1)).toEqual({ type: 'submitWord' });
+  });
+
+  it('stacker plays the max-damage word (any length) and drafts offense over utility (power-scaling wave)', () => {
+    const s = newRun(1, ctx);
+    const cands = candidateWords(s, ctx);
+    const top = Math.max(...cands.map((c) => c.damage));
+    // Longwordmaxxing: like the solver, no length cap. This is what models phuzion's one-shots.
+    expect(makeBot('stacker', 1).chooseWord(s, cands)?.damage).toBe(top);
+    // The pick heuristic ranks a multiplier above a letter bonus above a flat add above a non-scoring item.
+    const item = (hooks: ItemDef['hooks']): ItemDef => ({ id: 'x', name: 'x', rarity: 'common', description: '', flavor: '', hooks });
+    const mult = stackerPickScore(item({ onWordScored: [{ type: 'addMult', value: 1 }] }));
+    const bonus = stackerPickScore(item({ onWordScored: [{ type: 'letterBonus', letters: 'aeiou', value: 2 }] }));
+    const flat = stackerPickScore(item({ onWordScored: [{ type: 'addFlat', value: 5 }] }));
+    const none = stackerPickScore(item({ onDamageTaken: [{ type: 'reduceDamage', value: 2 }] }));
+    expect(mult).toBeGreaterThan(bonus);
+    expect(bonus).toBeGreaterThan(flat);
+    expect(flat).toBeGreaterThan(none);
   });
 
   it('chooseTrait takes the highest-scoring hooks and keeps the first on a tie (gate W5, PR #64)', () => {

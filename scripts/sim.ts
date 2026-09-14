@@ -15,7 +15,7 @@
 import { fileURLToPath } from 'node:url';
 import { CONTENT } from '../src/content/index';
 import type { Content, RunMode } from '../src/engine/types';
-import { BOT_NAMES, GREEDY_MAX_LENGTH, type BotName } from './lib/bots';
+import { ALL_BOT_NAMES, BOT_NAMES, GREEDY_MAX_LENGTH, type BotName } from './lib/bots';
 import { nodeContext } from './lib/context';
 import { simulate, type Summary } from './lib/simulate';
 import { VARIANT_NAMES, applyVariant, type VariantName } from './lib/variants';
@@ -52,7 +52,7 @@ export function parseArgs(argv: readonly string[]): Options {
         break;
       case '--bot':
         if (v !== 'all') {
-          if (!BOT_NAMES.includes(v as BotName)) throw new Error(`unknown bot ${v ?? ''}`);
+          if (!ALL_BOT_NAMES.includes(v as BotName)) throw new Error(`unknown bot ${v ?? ''}`);
           opts.bots = [v as BotName];
         }
         i++;

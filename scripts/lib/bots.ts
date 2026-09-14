@@ -9,8 +9,15 @@ import { createRng, nextInt, type Rng } from '../../src/engine/rng';
 import type { Condition, Effect } from '../../src/engine/effects';
 import type { EventChoice, ItemDef, Rarity, RunState } from '../../src/engine/types';
 
-export type BotName = 'greedy' | 'mediocre' | 'solver';
+export type BotName = 'greedy' | 'mediocre' | 'solver' | 'stacker';
+/** The bots the default sim runs and the exit criteria judge. */
 export const BOT_NAMES: readonly BotName[] = ['greedy', 'mediocre', 'solver'];
+/**
+ * Every selectable bot, including `stacker` (power-scaling wave, 2026-09-14): an opt-in diagnostic
+ * that models the run-away human phuzion described. It is NOT in BOT_NAMES, so the default table and
+ * the criteria are unchanged; run it with `--bot stacker` or via scripts/power-scaling.ts.
+ */
+export const ALL_BOT_NAMES: readonly BotName[] = ['greedy', 'mediocre', 'solver', 'stacker'];
 
 /**
  * Dean's ruling (2026-09-06): the greedy bot models a strong HUMAN, not a
@@ -76,6 +83,73 @@ export function solverBot(seed: number): Bot {
       let i: number;
       [i, rng] = nextInt(rng, state.offer?.length ?? 1);
       return i;
+    },
+  };
+}
+
+/**
+ * How much an offered item feeds a run-away offense (power-scaling wave, 2026-09-14). A multiplier
+ * compounds with everything else, so it is weighted highest; a letter bonus and a vowel push both
+ * enable longer, higher-value words; a flat add is the weakest. Non-scoring effects score ~0, so the
+ * stacker takes them only when nothing offensive is offered. This is the "rich get richer" drafting
+ * phuzion described, not an optimal solver.
+ */
+export function stackerPickScore(item: ItemDef): number {
+  let score = 0;
+  const walk = (effects: readonly Effect[], weight: number) => {
+    for (const e of effects) {
+      if (e.type === 'condition') {
+        walk(e.then, weight * (usableCondition(e.when) ? 0.7 : 0.2));
+        continue;
+      }
+      if (e.type === 'perUnit') {
+        walk(e.then, weight);
+        continue;
+      }
+      switch (e.type) {
+        case 'addMult':
+          score += 10 * e.value * weight;
+          break;
+        case 'letterBonus':
+          score += 3 * e.value * weight;
+          break;
+        case 'vowelWeight':
+          score += 4 * (e.value - 1) * weight;
+          break;
+        case 'addFlat':
+          score += 0.5 * e.value * weight;
+          break;
+        case 'damagePlayer':
+          score -= 2 * e.value * weight;
+          break;
+        default:
+          break;
+      }
+    }
+  };
+  for (const effects of Object.values(item.hooks)) walk(effects ?? [], 1);
+  return score;
+}
+
+/**
+ * The stacker (power-scaling wave): longwordmaxxing (best word of ANY length, like the solver) plus
+ * greedy offense drafting (always takes the most damage-boosting item on offer). Models the human who
+ * one-shot 25+ enemies in a row; used to measure the snowball, not an exit criterion.
+ */
+export function stackerBot(seed: number): Bot {
+  let rng = createRng(seed ^ 0x9e3779b9);
+  return {
+    name: 'stacker',
+    chooseWord: (s, candidates) => best(spendingVenom(s, candidates)),
+    choosePick: (state, ctx) => {
+      const offer = state.offer ?? [];
+      if (offer.length === 0) return 0;
+      const scores = offer.map((id) => stackerPickScore(ctx.content.items.find((it) => it.id === id) as ItemDef));
+      const top = Math.max(...scores);
+      const tied = scores.map((sc, i) => (sc === top ? i : -1)).filter((i) => i >= 0);
+      let k: number;
+      [k, rng] = nextInt(rng, tied.length);
+      return tied[k] ?? 0;
     },
   };
 }
@@ -219,7 +293,8 @@ export function chooseCursed(name: BotName, state: RunState, ctx: EngineContext)
   const boon = (i: number): number => offerScore(item(offer[i] as string));
   const cost = (i: number): number => curseCost(item(curses[i] as string));
   if (offer.length === 0) return null;
-  if (name === 'greedy') {
+  // The stacker wants damage and eats curses for it, so it drafts cursed offers like greedy.
+  if (name === 'greedy' || name === 'stacker') {
     let bestI = 0;
     for (let i = 1; i < offer.length; i++) if (boon(i) > boon(bestI)) bestI = i;
     return boon(bestI) >= GREEDY_CURSE_BAR ? bestI : null;
@@ -279,6 +354,8 @@ export function makeBot(name: BotName, seed: number): Bot {
       return mediocreBot(seed);
     case 'solver':
       return solverBot(seed);
+    case 'stacker':
+      return stackerBot(seed);
   }
 }
 

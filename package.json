@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "lint": "eslint . && tsc --noEmit && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "sim": "tsx scripts/sim.ts",
+    "power": "tsx scripts/power-scaling.ts",
     "diag:words": "tsx scripts/word-gap.ts",
     "dict:build": "tsx scripts/build-dictionary.ts",
     "supp:build": "tsx scripts/build-supplement.ts",
