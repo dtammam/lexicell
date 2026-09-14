@@ -1,9 +1,14 @@
 # Exec plan: dictionary expansion (accept far more words)
 
-Status: ACTIVE, opened 2026-09-14. Touches `src/engine` (the reducer's
-validation path and the EngineContext shape) so it takes a plan and one
-adversarial round under iteration mode, with the adversarial seat briefed
-to break replay determinism.
+Status: CLOSED 2026-09-14 (PR #104). Touches `src/engine` (the reducer's
+validation path and the EngineContext shape) so it took a plan and one
+adversarial round under iteration mode, the adversarial seat briefed to
+break replay determinism. The seat APPROVED: it mutation-tested the split
+(solver from full -> context.test RED; drop the baseline-exclusion ->
+build-supplement.test RED), confirmed grids byte-identical for seeds
+0..59 and the baseline blob unchanged, and re-ran the sim itself to match
+the pasted table. Its two SUGGESTIONs (both documentation accuracy about
+the wild-path sim nuance and the unrefetched sha pin) are applied below.
 
 ## Dean's ask
 
@@ -44,15 +49,26 @@ bots would find better words).
 - **Full validation set** = union(ENABLE, words_alpha filtered to length
   3-15, `^[a-z]+$`, existing blocklist applied). Used ONLY by
   `ctx.dictionary.has()` — validating the word a player played and
-  resolving a wild tile. 380,021 words vs 168,411 today; the supplement
-  (union minus ENABLE) is ~211,610 words, ~2.26 MB raw, lazy-loaded and
-  cached by the service worker like the baseline already is.
+  resolving a wild tile. 379,977 words vs 168,411 today; the supplement
+  (union minus ENABLE, blocklist applied) is 211,566 words, ~2.26 MB raw,
+  lazy-loaded and cached by the service worker like the baseline already is.
 - Consequence: a supplement word can only ever be **accepted** when a
-  player types it. It is never generated onto a grid, never suggested as
-  the best word, never shown as word-of-the-day, never played by a sim
-  bot. So junk in words_alpha cannot taint suggestions or balance, and
-  the sim output is expected byte-identical (the solver is unchanged);
-  the rerun is a confirmation, not a retune.
+  player types it (or when a wild resolves to it, see below). It is never
+  generated onto a grid, never suggested as the best word, never shown as
+  word-of-the-day. So junk in words_alpha cannot taint suggestions or
+  the difficulty the sim measures.
+- One nuance the adversarial round surfaced (2026-09-14): `resolveSelectedWord`
+  resolves a wild tile by trying all 26 letters against `ctx.dictionary`
+  (the full set), so a wild CAN resolve to a supplement word. That is
+  intended (the wild gets to reach the wider vocabulary), but it means
+  the sim, which plays real `submitWord` actions, is dictionary-dependent
+  through the wild path: 46 of 1500 runs diverge per-run from the
+  baseline-dict result. Player determinism is untouched (every player
+  ships the same full dict and the reducer is pure over its context, so
+  daily and shared seeds reproduce identically for everyone on a build).
+  The rounded aggregate table is unchanged and re-verified, NOT because
+  "the solver is unchanged" alone but because those per-run wild-path
+  diffs wash out at the aggregate.
 - `isDead` stays on the baseline solver deliberately: moving it to the
   full set would change the auto-reshuffle decision and diverge the RNG.
   The residual cost, disclosed: a grid whose only 3+ letter words are
@@ -122,8 +138,13 @@ Exit criteria:
   PASS  no run hit a grid with zero valid words
 ```
 
-If a future rerun differs, the baseline path was touched by mistake and
-the change is wrong.
+Note (adversarial round): a future rerun differing does NOT by itself
+prove the baseline solver path was touched. Because a wild tile resolves
+against the full dictionary, editing `supplement.txt` can shift per-run
+sim outcomes (and so the aggregate) with the baseline solver perfectly
+intact. Diagnose a moved table by checking the wild path, not only the
+solver. The `context.test.ts` grid-identity test (seeds 0..59) is the
+real guard that grid generation stayed baseline.
 
 ## Risks
 
