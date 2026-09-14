@@ -18,6 +18,7 @@
     "sim": "tsx scripts/sim.ts",
     "diag:words": "tsx scripts/word-gap.ts",
     "dict:build": "tsx scripts/build-dictionary.ts",
+    "supp:build": "tsx scripts/build-supplement.ts",
     "defs:build": "tsx scripts/build-definitions.ts"
   },
   "devDependencies": {

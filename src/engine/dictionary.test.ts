@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadDictionary } from '../../scripts/lib/load-dictionary';
+import { loadDictionary, loadFullDictionary } from '../../scripts/lib/load-dictionary';
 import { MAX_WORD_LENGTH, MIN_WORD_LENGTH, createDictionary } from './dictionary';
 
 describe('createDictionary', () => {
@@ -56,6 +56,42 @@ describe('shipped ENABLE list', () => {
     for (const w of d.words) {
       if (!/^[a-z]+$/.test(w) || w.length < MIN_WORD_LENGTH || w.length > MAX_WORD_LENGTH) {
         throw new Error(`bad word in shipped list: ${JSON.stringify(w)}`);
+      }
+    }
+  });
+});
+
+describe('full validation set (baseline + supplement)', () => {
+  const base = loadDictionary();
+  const full = loadFullDictionary();
+
+  it('is the baseline unioned with the disjoint supplement', () => {
+    // baseline 168,411 + supplement 211,566 (words_alpha minus ENABLE, len 3-15, blocklist).
+    // Pinned so a silent change to the supplement source (sha in build-supplement.ts), cap, or
+    // blocklist fails here. The supplement is disjoint from the baseline by construction.
+    expect(full.size).toBe(168_411 + 211_566);
+    expect(full.size).toBe(base.size + 211_566);
+  });
+
+  it('accepts words the baseline lacked (the ask: brewmaster and friends)', () => {
+    for (const w of ['brewmaster', 'unfriend']) {
+      expect(base.has(w), `baseline should lack ${w}`).toBe(false);
+      expect(full.has(w), `full should have ${w}`).toBe(true);
+    }
+  });
+
+  it('is a superset of the baseline', () => {
+    for (const w of ['cat', 'quiz', 'aardvark', 'zymurgy', 'the']) expect(full.has(w), w).toBe(true);
+  });
+
+  it('still drops blocklisted words', () => {
+    for (const w of ['nigger', 'kike', 'faggot', 'wetback']) expect(full.has(w), w).toBe(false);
+  });
+
+  it('every word is lowercase a-z within the length cap', () => {
+    for (const w of full.words) {
+      if (!/^[a-z]+$/.test(w) || w.length < MIN_WORD_LENGTH || w.length > MAX_WORD_LENGTH) {
+        throw new Error(`bad word in full set: ${JSON.stringify(w)}`);
       }
     }
   });
