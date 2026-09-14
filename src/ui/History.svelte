@@ -90,6 +90,9 @@
   .history {
     display: flex;
     flex-direction: column;
+    /* height:100% bounds the root (App forces min-height:100% and flex-shrink:0), so a long run list
+       scrolls inside .list instead of scrolling the whole page (Dean, 2026-09-14). */
+    height: 100%;
     min-height: 0;
     gap: var(--s2);
   }

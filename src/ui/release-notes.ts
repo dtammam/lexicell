@@ -21,7 +21,8 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
-  { build: 104, pr: 102, sha: 'pending', date: '2026-09-13', title: 'Tidier title screen', notes: 'The settings icon is a drawn glyph now instead of an emoji, the daily challenge is a single line, and the whole title is tightened so the word of the day no longer gets cut off at the bottom of the screen.' },
+  { build: 105, pr: 103, sha: 'pending', date: '2026-09-14', title: 'Every screen fits one screen', notes: 'The title now fits a small phone even with a Continue button waiting, the menu buttons sit two to a row, and the word of the day is fully in view. The release notes, history and how-to-play pages scroll their own list instead of nudging the whole page.' },
+  { build: 104, pr: 102, sha: '6111e66', date: '2026-09-13', title: 'Tidier title screen', notes: 'The settings icon is a drawn glyph now instead of an emoji, the daily challenge is a single line, and the whole title is tightened so the word of the day no longer gets cut off at the bottom of the screen.' },
   { build: 103, pr: 101, sha: 'c7ec679', date: '2026-09-13', title: 'The fight stays on one screen', notes: 'When an evolution mutation like Transmute is available, its buttons no longer push the fight into a scroll. The mutation row is slimmer and the grid gives it room, so a fight fits one screen even on a shorter phone.' },
   { build: 102, pr: 100, sha: '3099860', date: '2026-09-13', title: 'Quick rules in a fight', notes: 'A rules button in the top bar during a fight now pops up a condensed reference: the letter points and what each tile type does. Check the rules without ever leaving the fight.' },
   { build: 101, pr: 99, sha: '46b6bfd', date: '2026-09-12', title: 'Logo goes home', notes: 'Tapping the Lexicell wordmark in the top-left now takes you back to the main menu from anywhere. Your run is kept, so you can dip out and Continue right where you left off.' },
