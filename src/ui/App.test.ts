@@ -873,6 +873,40 @@ describe('App', () => {
     expect('kjxqz'.includes((after.encounter as NonNullable<RunState['encounter']>).grid[2]?.letter ?? '')).toBe(true);
   }, 30000);
 
+  it('keyboard play: a wild tile is the last resort, so a real matching tile is taken first (Dean, 2026-09-14)', async () => {
+    await startRun();
+    cleanup();
+    const blob = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as RunState;
+    const enc = blob.encounter as NonNullable<RunState['encounter']>;
+    const plain = (letter: string) => ({ letter, lockedTurns: 0, venom: 0, gold: 0, cracked: 0 });
+    // A wild DRAWN as 'o' at 0, a real 'o' at 1, and d/g so the grid holds a word (dog); the rest 'e'.
+    // Only two tiles carry 'o': the wild and the real one.
+    const grid = Array.from({ length: 16 }, (_, i) =>
+      i === 0 ? { ...plain('o'), wild: true as const } : i === 1 ? plain('o') : i === 2 ? plain('d') : i === 3 ? plain('g') : plain('e'),
+    );
+    const seeded: RunState = {
+      ...blob,
+      evolution: { caps: ['wildcard'], transmuteUsed: false, bankedLetter: null },
+      player: { ...blob.player, items: [] },
+      encounter: { ...enc, grid, enemy: { ...enc.enemy, id: 'amoeba', hp: 100000, maxHp: 100000, damage: 0 }, selection: [] },
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(seeded));
+    render(App);
+    await click(await findByText('Continue', 15000));
+    await findByText('Enc 1/9');
+    expect(tiles()[0]?.classList.contains('wild')).toBe(true);
+    const press = (key: string) => window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    // First 'o' selects the real tile (index 1), never the wild (index 0).
+    press('o');
+    await tick();
+    expect(tiles()[1]?.classList.contains('selected')).toBe(true);
+    expect(tiles()[0]?.classList.contains('selected')).toBe(false);
+    // A second 'o' now falls back to the wild, the only remaining 'o'.
+    press('o');
+    await tick();
+    expect(tiles()[0]?.classList.contains('selected')).toBe(true);
+  }, 30000);
+
   it('grid rules: a gold tile and a cracked tile carry their badges, the legend lists them, and the preview counts the gold (step 4)', async () => {
     await startRun();
     cleanup();

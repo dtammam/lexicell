@@ -173,6 +173,8 @@
    * unlocked tile carrying that letter, a venomed one first since it wants spending; Backspace
    * drops the last tile; Enter attacks when the button would; Escape clears. Modifier chords and
    * typing into a control are left alone. Touch devices never send these, so nothing changes there.
+   * A wild '?' tile reads as its drawn letter to the keyboard, but it is the LAST resort (Dean,
+   * 2026-09-14): typing O takes a real O tile before the wild, since the player sees '?', not O.
    */
   function onKey(e: KeyboardEvent) {
     if (!enc || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
@@ -199,14 +201,20 @@
     if (key.length !== 1 || !/[a-z]/i.test(key)) return;
     const letter = key.toLowerCase();
     const selected = new Set(enc.selection);
-    let pick = -1;
+    let pick = -1; // best real (non-wild) tile with this letter, a venomed one preferred
+    let wildPick = -1; // a wild tile drawn as this letter: used only when no real tile matches
     for (let i = 0; i < enc.grid.length; i++) {
       const tile = enc.grid[i];
       if (!tile || tile.letter !== letter || tile.lockedTurns > 0 || selected.has(i)) continue;
+      if (tile.wild) {
+        if (wildPick < 0) wildPick = i;
+        continue;
+      }
       if (pick < 0 || (tile.venom > 0 && (enc.grid[pick]?.venom ?? 0) === 0)) pick = i;
     }
-    if (pick >= 0) {
-      dispatch({ type: 'toggleTile', index: pick });
+    const chosen = pick >= 0 ? pick : wildPick;
+    if (chosen >= 0) {
+      dispatch({ type: 'toggleTile', index: chosen });
       e.preventDefault();
     }
   }
