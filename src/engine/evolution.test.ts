@@ -164,23 +164,30 @@ describe('evolution track: capability offer flow', () => {
 });
 
 describe('evolution track: determinism (a run that never reaches a boss == main)', () => {
-  // The capability pick is mandatory (no skip), so the byte-identical baseline is a run driven only
-  // up to the FIRST boss (phase 'evolve') or its end, whichever comes first: that prefix never gains a
-  // capability, so caps stays empty and it is byte-identical to main. Golden hashes captured from the
-  // engine at 8d18bfc (before the track) with the same deterministic driver, seeds 0..11.
+  // The capability pick is mandatory (no skip), so the baseline is a run driven only up to the FIRST
+  // boss (phase 'evolve') or its end, whichever comes first: that prefix never gains a capability, so
+  // caps stays empty. It is a determinism/regression pin: the deterministic driver (best <=7 word,
+  // trait 0, item 0, ...) must reproduce this exact state.
+  // Recaptured 2026-09-14 for the power-scaling tuning (PR #106): flattening lengthBonus changed word
+  // damages, so the damage-greedy driver plays different words, which cascades into different refills
+  // and state. That is a deliberate content change, not an engine regression; the engine's own replay
+  // determinism is proven by the self-replay tests (reducer "replaying the action log reproduces the
+  // final state exactly", and the byte-identical cell/variety runs), which all still pass. Original
+  // hashes were captured from 8d18bfc (before the evolution track) proving the track did not perturb
+  // non-track runs; that guarantee is in git history.
   const BASELINE = [
-    'a4c47f3a2f00422a',
-    'adb82be435d538b4',
-    '5227fe631d3559c2',
-    '35f73b7540ca4b6e',
-    '67d84f3c37727deb',
-    '998e8c56dee46000',
-    'eb4085897fb1aba1',
-    'fba56de2f7d9b825',
-    'ec91de7f9cc89b19',
-    '565c46a2dc3625ca',
-    'f677c976342ff3ec',
-    '862facccc060280c',
+    '0e6cbe252f163cd4',
+    '715f2847bd520a28',
+    'fc0fd7f0a8bd2d02',
+    '69916f4ee63b316c',
+    '67a23d2661b26d7a',
+    '5de34be26e1d3906',
+    '270f1e19efa187f8',
+    '5db581dfdd370636',
+    '945f46bfe2102c73',
+    '2feb0fe85e07d393',
+    'd7ee04889e62fdb4',
+    '9e2953b90680b11b',
   ];
   it('replays byte-identical to main up to the first boss (caps stays empty)', () => {
     for (let seed = 0; seed < BASELINE.length; seed++) {
