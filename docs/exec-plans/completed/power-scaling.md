@@ -1,9 +1,11 @@
 # Exec plan: power-scaling rebalance (make it harder)
 
-Status: ACTIVE, opened 2026-09-14. Touches balance and likely `src/engine`
-(enemy HP scaling and/or the scoring path), so it takes a plan, a sim
-rerun, and one adversarial round under iteration mode, the adversarial
-seat briefed to break replay determinism.
+Status: CLOSED 2026-09-14 (PR #106). Landed entirely in CONTENT tuning
+(`TUNING.lengthBonus` and the `ENCOUNTERS` curve in src/content/acts.ts),
+no `src/engine`, save, or persist change, so under iteration mode it ships
+on `npm test` + `npm run lint` + CI + the sim, NO adversarial round
+(that seat is only for engine/save/persist). Replay is unaffected: no RNG
+or reducer path changed, only the numbers the engine reads.
 
 ## The ask
 
@@ -68,21 +70,58 @@ the enemy's HP, the p90 up to 5x mid-run. This is phuzion's report,
 quantified. (Enemy HP already grows more than the raw table via existing
 per-encounter scaling; the offense still outruns it.)
 
-## Design (task 2+, tuning, TBD and measured)
+## Design and result (measured, 3 passes)
 
-Target band: median words-to-kill ~2-3 for the stacker, one-shot rate
-well down (a stretch goal to define with Dean once the first tuning pass
-has numbers), while the existing criteria hold (mediocre 20-40%, greedy
-< 90%, no dead grids). Levers, in the order I will try them and
-re-measure with `npm run power` after each:
-1. Enemy HP scales with depth (raise the wall so a good word does not lap
-   it). The existing scaling knob is where this lands; find it and steepen.
-2. Soften enemy burst where HP goes up, so a non-one-shot turn is
-   survivable (the "dead" half of the swing).
-3. Trim the top offense stackers (the +2 addMult items, the heaviest
-   letterBonus stacks) if HP scaling alone leaves the p90 absurd.
-Diminishing returns on mult stacking is a fallback if 1-3 are not enough;
-it is an engine change to `scoring.ts` and would get the closest scrutiny.
+Dean's target (2026-09-14): tactical band, 2-3 words typical, one-shot
+rate ~20-30%, bosses/elites never one-shot; a great grid may still
+one-shot weak/early enemies as a reward. Feel fork: he chose the BLEND
+(flatten the TOP of the length curve + tankier mid + softer burst), not
+HP-sponges and not a hard flatten.
+
+Key measurement that set the lever: the best-word / best-4-5-letter-word
+ratio is a stable ~3.2x at EVERY encounter, and 4-5 letter words already
+kill in ~1.5-3 words. So the one-shot was the superlinear length bonus,
+not a global item/HP problem, and the fix is to compress the long-word
+premium, not to raise HP globally (which would sink the weak player).
+
+Levers applied, re-measured with `npm run power` after each:
+1. Flattened `lengthBonus` from length 6 up (length 7: 2.5 -> 2.2, 10:
+   4.0 -> 2.95, 15: 6.5 -> 3.5). Short words (4-5) untouched, so the
+   criteria bots and weak players barely move; the stacker's long words
+   come down. This dropped the strong/weak ratio 3.2x -> ~2.3x.
+2. Raised the `ENCOUNTERS` wall in acts 2-3 (act 1 left gentle by the
+   act-1 ruling and because early one-shots are within the target).
+3. Cut enemy burst hard where HP rose (pass 1's HP bump alone sank the
+   mediocre bot to 16.3% by making fights longer; softer burst is the
+   "a non-one-shot turn is not lethal" half, and brought it back to band).
+
+### Power (`npm run power -- --runs 150`, balanced), before -> after
+
+```
+overall one-shot rate: 79.8% -> 38.5% (act 2-3 fights ~27%, in the 20-30% band; act 1 stays a stomp)
+overall overkill:      median 1.6x -> 0.9x, p90 3.4x -> 1.8x, max 9.6x -> 5.8x
+median words-to-kill:  1.0 -> 2.0
+per-encounter one-shot % after: enc1 92.7 (act1, gentle) / enc2 39.8 / enc3 43.3 (act1 boss, see open item)
+  / enc4 38.0 / enc5 40.0 / enc6 18.7 / enc7 29.3 / enc8 28.0 / enc9 8.8
+```
+
+### Sim (`npm run sim`, 500 runs) after, all three criteria PASS
+
+```
+|      bot | runs | win rate | median enc. | mean turns |
+|   greedy |  500 |    71.0% |           9 |       24.1 |   (was 85.2% pre-wave: genuinely harder, still < 90)
+| mediocre |  500 |    23.6% |           7 |       35.2 |   (in the 20-40 band)
+|   solver |  500 |    86.4% |           9 |       19.2 |
+  PASS mediocre 20-40 | PASS greedy < 90 | PASS no dead grids
+```
+
+## Open item
+
+The act-1 boss (enc 3) is still one-shot ~43% of the time because act 1
+is the deliberately gentle stomp act (hpScale 0.7, untouched by the
+act-1 ruling). That rubs against "bosses never one-shot." Left for Dean:
+bump only the act-1 boss HP, or keep act 1 as the opening stomp. Raised
+in the report and ROADMAP.
 
 ## Risks
 

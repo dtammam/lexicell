@@ -14,7 +14,12 @@ export const PLAYER_MAX_HP = 100;
  * with zero items.
  */
 export const TUNING: Tuning = {
-  lengthBonus: [1, 1, 1, 1, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5],
+  // Power-scaling wave (2026-09-14): the TOP of this curve was the one-shot engine. A 10-letter word
+  // at 4.0 (vs a 5-letter's 1.5) plus its extra letters did ~3x a short word on the same item stack,
+  // so the stacker one-shot ~80% of fights. Flattened from length 6 up so a long word is still clearly
+  // the best play, not a nuke: length 7 is 2.2 (was 2.5), 10 is 2.95 (was 4), 15 is 3.5 (was 6.5).
+  // Short words (the weak/mediocre band, 4-5) are untouched. Re-measured with npm run power.
+  lengthBonus: [1, 1, 1, 1, 1, 1.5, 1.9, 2.2, 2.5, 2.75, 2.95, 3.1, 3.25, 3.35, 3.45, 3.5],
   startingPicks: 1,
   venomMax: 4,
   // Effects wave (2026-09-08): poison is a bounded burn, the shield a bounded buffer, and the addMult
@@ -68,10 +73,24 @@ export const ENCOUNTERS: readonly EncounterDef[] = [
   // ten (66.8 to 57.2). Softer acts 2 and 3 bring the casual bot back to 24.4%; the strong bot
   // lands at 84.0%, under the 90% cap but well above the 67% it had with the bug. Measured
   // alternatives: G 66.2 / 12.0, I 78.6 / 19.4, K 83.6 / 20.2, L 75.2 / 17.8, M 79.6 / 20.4.
-  { act: 2, boss: false, hpScale: 1.2, damageScale: 0.9 },
-  { act: 2, boss: false, hpScale: 1.35, damageScale: 1.05 },
-  { act: 2, boss: true, hpScale: 1.2, damageScale: 1.15 },
-  { act: 3, boss: false, hpScale: 2.1, damageScale: 1.6 },
-  { act: 3, boss: false, hpScale: 2.4, damageScale: 1.8 },
-  { act: 3, boss: true, hpScale: 1.9, damageScale: 1.9 },
+  // Power-scaling wave (2026-09-14), pass 1: acts 2 and 3 grow the wall so a flattened long word does
+  // a third-to-half of an enemy, not all of it (target: 2-3 words, one-shots down to a reward on weak
+  // grids, bosses/elites never one-shot). Burst comes down where HP goes up so a non-one-shot turn is
+  // survivable, not the "straight dead" half of the swing. Act 1 stays gentle (early one-shots are
+  // within Dean's target and the act-1 easing ruling). Re-measured with npm run power + npm run sim.
+  // Pass 2 (2026-09-14): pass 1 (HP up, some burst down) fixed the one-shots but sank the mediocre bot
+  // to 16.3% (fights got longer, so it took more hits and died). The wall stays up for the stacker;
+  // burst comes down HARD so the weak player survives the longer fights (mediocre back toward band).
+  // Act 3 HP rises further to cut the act-3 one-shots: the mediocre bot rarely reaches act 3 (median
+  // enc 6), so that does not cost it. Re-measured with npm run power + npm run sim.
+  // Pass 3 (2026-09-14): pass 2 passed all three criteria (mediocre 25.7%, greedy 69.3%), leaving
+  // headroom. The last hot spots were the act-2 fights (enc 4-5, ~52-62% one-shot) and act-3 fight 2
+  // (enc 8, ~42%). Their HP goes up to pull those into the 20-30% band; burst stays soft so mediocre
+  // keeps its band. Re-measured with npm run power + npm run sim.
+  { act: 2, boss: false, hpScale: 2.4, damageScale: 0.6 },
+  { act: 2, boss: false, hpScale: 2.6, damageScale: 0.68 },
+  { act: 2, boss: true, hpScale: 2.2, damageScale: 0.78 },
+  { act: 3, boss: false, hpScale: 3.4, damageScale: 1.2 },
+  { act: 3, boss: false, hpScale: 4.3, damageScale: 1.35 },
+  { act: 3, boss: true, hpScale: 3.2, damageScale: 1.5 },
 ];
