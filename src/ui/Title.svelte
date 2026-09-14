@@ -101,10 +101,15 @@
         </div>
       {/if}
       <button class="btn" class:life={!hasSave} onclick={() => { request('new'); }}>New run</button>
-      <button class="btn" onclick={onItems}>Compendium</button>
-      <button class="btn" onclick={onHistory}>History</button>
-      <button class="btn" onclick={onHelp}>How to play</button>
-      <button class="btn" onclick={onNotes}>Release notes</button>
+      <!-- The four secondary destinations ride a two-column grid: the primary actions above stay
+           full width, and the nav halves its vertical footprint so the whole title (with a Continue
+           button present) fits one 667px phone screen without a scroll (Dean, 2026-09-14). -->
+      <div class="nav-grid">
+        <button class="btn" onclick={onItems}>Compendium</button>
+        <button class="btn" onclick={onHistory}>History</button>
+        <button class="btn" onclick={onHelp}>How to play</button>
+        <button class="btn" onclick={onNotes}>Release notes</button>
+      </div>
     {/if}
   </div>
 
@@ -125,6 +130,9 @@
   .title {
     display: flex;
     flex-direction: column;
+    /* border-box so padding-top counts inside the min-height:100% the App gives this child; as
+       content-box the 12px padding stacked on top of 100% and the screen scrolled by exactly that. */
+    box-sizing: border-box;
     /* Tight rhythm so the whole title, build line and word-of-the-day card fit one phone screen
        without an internal scroll, even under Safari's toolbar (Dean, 2026-09-13: WOTD was clipping). */
     gap: var(--s2);
@@ -165,6 +173,12 @@
   .buttons {
     display: flex;
     flex-direction: column;
+    gap: var(--s1);
+  }
+  /* Compendium / History / How to play / Release notes, two per row. */
+  .nav-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: var(--s1);
   }
   /* The daily is the headline action: the select accent sets it apart from New run, and its seed

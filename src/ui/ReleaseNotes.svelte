@@ -37,6 +37,10 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    /* Bound the screen height (App gives the child min-height:100% and flex-shrink:0, so without an
+       explicit height the root grows to its content and the whole page scrolls): with height:100%
+       the .list below is the one scroll container, and the header stays put (Dean, 2026-09-14). */
+    height: 100%;
     min-height: 0;
     gap: var(--s2);
   }
