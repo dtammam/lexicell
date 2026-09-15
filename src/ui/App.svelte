@@ -23,6 +23,7 @@
   import { audio } from './audio';
   import SettingsScreen from './Settings.svelte';
   import { RELEASE_NOTES } from './release-notes';
+  import { loadSeenBuild, saveSeenBuild, shouldShowReleaseNotes } from './seen';
   import { sfxForTransition } from './audio-events';
   import { dailyPlayedDay, dailySeed, isDailyRun, markDailyPlayed } from './daily';
   import { dayNumber } from './definitions';
@@ -148,6 +149,12 @@
       ctx = c;
       const saved = persist.load();
       savedOnDisk = saved !== null && saved.phase !== 'summary';
+      // Returning player, first launch on a newer build: show the Release notes once so they catch
+      // what changed (Dean, 2026-09-15). Brand-new players are left on the title. Back returns to it.
+      const currentBuild = RELEASE_NOTES[0]?.build ?? null;
+      const hasPlayed = history.length > 0 || saved !== null;
+      if (shouldShowReleaseNotes({ seen: loadSeenBuild(storage), current: currentBuild, hasPlayed })) screen = 'notes';
+      if (currentBuild !== null) saveSeenBuild(storage, currentBuild);
     })
     .catch((e: unknown) => {
       error = e instanceof Error ? e.message : String(e);
