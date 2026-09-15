@@ -3,7 +3,8 @@
   import Definition from './Definition.svelte';
   import ItemIcon from './ItemIcon.svelte';
   import { CONTENT } from '../content/index';
-  import { copyText, resultText, SHARE_TITLE } from './share';
+  import { copyText, resultText, shareImage, SHARE_TITLE } from './share';
+  import { renderShareBlob } from './shareCard';
 
   // A finished run as a card someone would screenshot (variety wave step 7). The card is tinted by
   // the act the run reached, wears the cell's body at that act, and shows the seed and items as
@@ -53,17 +54,24 @@
       bestWordDamage: run.stats.bestWordDamage,
       seed: run.rng.seed,
     });
-    // Native share where the browser has it; a cancelled sheet throws, and we say nothing then.
-    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ title: SHARE_TITLE, text });
-        return;
-      } catch {
-        return;
-      }
-    }
-    const ok = await copyText(text);
-    shareLabel = ok ? 'Copied to clipboard' : 'Copy failed';
+    shareLabel = 'Preparing...';
+    const blob = await renderShareBlob({
+      caption: won ? 'I beat Lexicell' : 'My Lexicell run',
+      cellName,
+      spriteUrl: `${base}sprites/cell-${run.cell}-${actLook}.png`,
+      act: actLook as 1 | 2 | 3,
+      mode: run.mode,
+      status: run.mode === 'endless' ? `Reached encounter ${reached}` : `Encounter ${reached} / 9`,
+      hp: run.player.hp,
+      maxHp: run.player.maxHp,
+      bestWord: run.stats.bestWord,
+      bestWordDamage: run.stats.bestWordDamage,
+      mutations: run.player.items.length,
+      seed: run.rng.seed,
+      banner: won ? 'You won' : run.mode === 'endless' ? 'The deep took you' : 'You died',
+    });
+    const result = await shareImage({ blob, text, title: SHARE_TITLE, filename: 'lexicell-run.png' });
+    shareLabel = result === 'shared' ? 'Share' : result === 'downloaded' ? 'Saved image' : result === 'copied' ? 'Copied to clipboard' : 'Copy failed';
     setTimeout(() => { shareLabel = 'Share'; }, 1600);
   }
 </script>

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { parseSeed, resultText, SHARE_URL } from './share';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { parseSeed, resultText, shareImage, SHARE_URL } from './share';
 
 describe('parseSeed', () => {
   it('reads a run of digits and clamps to uint32', () => {
@@ -50,5 +50,19 @@ describe('resultText', () => {
 
   it('a normal loss says died', () => {
     expect(resultText({ won: false, mode: 'normal', cellName: 'Amoeba', reached: 3, bestWord: 'ox', bestWordDamage: 4, seed: 1 })).toContain('died as Amoeba');
+  });
+});
+
+describe('shareImage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('copies the text line when there is no image blob', async () => {
+    const writes: string[] = [];
+    vi.stubGlobal('navigator', { clipboard: { writeText: (t: string) => { writes.push(t); return Promise.resolve(); } } });
+    const result = await shareImage({ blob: null, text: `hi ${SHARE_URL}` });
+    expect(result).toBe('copied');
+    expect(writes[0]).toContain(SHARE_URL);
   });
 });
