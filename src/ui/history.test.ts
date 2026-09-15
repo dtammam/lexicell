@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { CONTENT } from '../content/index';
 import { newRun } from '../engine/reducer';
-import { appendRun, clearHistory, entryFrom, exportCsv, exportJson, HISTORY_CAP, HISTORY_KEY, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
+import { appendRun, bestEndlessDepth, clearHistory, entryFrom, exportCsv, exportJson, HISTORY_CAP, HISTORY_KEY, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
 import type { StorageLike } from './persist';
 
 function fake(initial: Record<string, string> = {}, refuse = false): StorageLike & { data: Map<string, string> } {
@@ -167,5 +167,30 @@ describe('run history', () => {
     // In a v2 blob (no migration to backfill it), a non-boolean or missing daily is invalid and dropped.
     expect(loadHistory(fake({ [HISTORY_KEY]: JSON.stringify({ v: 2, runs: [{ ...entry(13), daily: 'yes' }] }) }))).toEqual([]);
     expect(loadHistory(fake({ [HISTORY_KEY]: JSON.stringify({ v: 2, runs: [withoutDaily] }) }))).toEqual([]);
+  });
+});
+
+describe('bestEndlessDepth', () => {
+  it('is the deepest endless run, ignoring normal runs, 0 when there are none', () => {
+    expect(bestEndlessDepth([])).toBe(0);
+    // Normal runs never count, however deep their (capped) reach.
+    expect(bestEndlessDepth([entry(1, { mode: 'normal', encounterReached: 9 })])).toBe(0);
+    const runs = [
+      entry(1, { mode: 'endless', encounterReached: 14 }),
+      entry(2, { mode: 'normal', encounterReached: 9 }),
+      entry(3, { mode: 'endless', encounterReached: 22 }),
+      entry(4, { mode: 'endless', encounterReached: 17 }),
+    ];
+    expect(bestEndlessDepth(runs)).toBe(22);
+  });
+
+  it('excludeSeed drops that run, so the caller can ask for the best BEFORE the current run', () => {
+    const runs = [
+      entry(1, { mode: 'endless', encounterReached: 14 }),
+      entry(2, { mode: 'endless', encounterReached: 22 }),
+    ];
+    // Excluding the record-holder gives the prior best; a run that beats it is a new record, a run that does not is not.
+    expect(bestEndlessDepth(runs, 2)).toBe(14);
+    expect(bestEndlessDepth(runs, 1)).toBe(22);
   });
 });

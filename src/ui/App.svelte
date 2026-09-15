@@ -18,7 +18,7 @@
   import Event from './Event.svelte';
   import ReleaseNotes from './ReleaseNotes.svelte';
   import Evolve from './Evolve.svelte';
-  import { appendRun, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
+  import { appendRun, bestEndlessDepth, clearHistory, entryFrom, loadHistory, markRunStarted, runStartedAt, type HistoryEntry } from './history';
   import { loadSettings, saveSettings, type Settings } from './settings';
   import { audio } from './audio';
   import SettingsScreen from './Settings.svelte';
@@ -132,6 +132,16 @@
   let savedOnDisk = $state.raw(false);
   const hasSave = $derived.by(() => (store && run ? run.phase !== 'summary' : savedOnDisk));
   let recoveries = 0;
+
+  // Endless personal best (encouragement, 2026-09-15): the deepest an endless run has reached, so the
+  // summary can celebrate a new record. The current run is already in `history` by the time its summary
+  // shows, so exclude its seed to get the PRIOR best and compare. Meaningful only for endless runs.
+  const endless = $derived.by(() => {
+    if (!run || run.mode !== 'endless') return { best: 0, newBest: false };
+    const depth = run.encounterIndex + 1;
+    const prior = bestEndlessDepth(history, run.rng.seed);
+    return { best: Math.max(prior, depth), newBest: depth > prior };
+  });
 
   loadContext()
     .then((c) => {
@@ -370,7 +380,7 @@
     {:else if run.phase === 'evolve' || run.phase === 'capability'}
       <Evolve {run} {dispatch} />
     {:else}
-      <Summary {run} onNewRun={newRun} onHistory={toHistory} onReplay={replayRun} />
+      <Summary {run} endlessBest={endless.best} endlessNewBest={endless.newBest} onNewRun={newRun} onHistory={toHistory} onReplay={replayRun} />
     {/if}
     {#snippet failed()}
       <p class="error">The saved run could not be drawn. Starting a new one.</p>
