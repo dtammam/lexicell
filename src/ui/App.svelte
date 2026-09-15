@@ -24,6 +24,8 @@
   import SettingsScreen from './Settings.svelte';
   import { RELEASE_NOTES } from './release-notes';
   import { loadSeenBuild, saveSeenBuild, shouldShowReleaseNotes } from './seen';
+  import { shareImage, SHARE_TITLE, SHARE_URL } from './share';
+  import { renderShareBlob } from './shareCard';
   import { sfxForTransition } from './audio-events';
   import { dailyPlayedDay, dailySeed, isDailyRun, markDailyPlayed } from './daily';
   import { dayNumber } from './definitions';
@@ -240,6 +242,37 @@
     tap();
     screen = 'items';
   }
+  // In-run share (Dean, 2026-09-15): a card of where you are now ("Check out where I am in Lexicell"),
+  // built from the live run and sent through the native share sheet. Available on any run screen.
+  let sharingRun = $state.raw(false);
+  async function shareCurrent() {
+    const r = run;
+    const c = ctx;
+    if (!r || !c || sharingRun) return;
+    tap();
+    sharingRun = true;
+    try {
+      const actLook = Math.min(3, Math.floor(r.encounterIndex / 3) + 1) as 1 | 2 | 3;
+      const cell = c.content.cells.find((x) => x.id === r.cell);
+      const blob = await renderShareBlob({
+        caption: 'Check out where I am in Lexicell',
+        cellName: cell?.name ?? r.cell,
+        spriteUrl: `${base}sprites/cell-${r.cell}-${actLook}.png`,
+        act: actLook,
+        mode: r.mode,
+        status: r.mode === 'endless' ? `Encounter ${r.encounterIndex + 1}` : `Encounter ${Math.min(9, r.encounterIndex + 1)} / 9`,
+        hp: r.player.hp,
+        maxHp: r.player.maxHp,
+        bestWord: r.stats.bestWord,
+        bestWordDamage: r.stats.bestWordDamage,
+        mutations: r.player.items.length,
+        seed: r.rng.seed,
+      });
+      await shareImage({ blob, text: `Check out where I am in Lexicell. ${SHARE_URL}`, title: SHARE_TITLE, filename: 'lexicell.png' });
+    } finally {
+      sharingRun = false;
+    }
+  }
   // Quick rules overlay: a condensed rules card a player can pull up mid-fight without leaving it.
   let rulesOpen = $state.raw(false);
   function openRules() {
@@ -316,6 +349,14 @@
           <svg class="glyph" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
             <path d="M4 5 A2 2 0 0 1 6 3 H11 V20 H6 A2 2 0 0 0 4 22 Z" />
             <path d="M20 5 A2 2 0 0 0 18 3 H13 V20 H18 A2 2 0 0 1 20 22 Z" />
+          </svg>
+        </button>
+        <button class="menu icon-toggle" aria-label="Share where I am" title="Share where I am" onclick={shareCurrent} disabled={sharingRun}>
+          <svg class="glyph" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+            <circle cx="18" cy="5" r="2.5" />
+            <circle cx="6" cy="12" r="2.5" />
+            <circle cx="18" cy="19" r="2.5" />
+            <path d="M8.2 10.8 L15.8 6.2 M8.2 13.2 L15.8 17.8" />
           </svg>
         </button>
       {/if}
@@ -466,8 +507,9 @@
   .bar-actions {
     display: flex;
     align-items: center;
-    /* Five controls beside the wordmark during a run (Menu, rules, sfx, music, gear); the tighter
-       gap keeps the row inside a 390px phone without shrinking the wordmark or the Menu text. */
+    /* Six controls beside the wordmark during a run (Menu, rules, share, sfx, music, gear); the tight
+       gap plus the slim icon padding below keep the row inside a 390px phone without shrinking the
+       wordmark or the Menu text. */
     gap: var(--s1);
   }
   /* The sfx, music and settings toggles are square .menu buttons, each centering an
@@ -476,8 +518,10 @@
     position: relative;
     display: grid;
     place-items: center;
-    padding-left: var(--s2);
-    padding-right: var(--s2);
+    /* Slim horizontal padding so six controls fit a 390px phone during a run (share button added
+       2026-09-15); the ~1.1em glyph plus this keeps a ~30px tap target. */
+    padding-left: var(--s1);
+    padding-right: var(--s1);
     line-height: 0;
   }
   /* The glyph inherits the button colour via currentColor; ~1.1em reads at the gear glyph's weight. */
