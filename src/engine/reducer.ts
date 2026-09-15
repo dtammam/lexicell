@@ -232,7 +232,11 @@ export function encounterDefFor(content: Content, index: number): EncounterDef {
   const base = [...list].reverse().find((e) => e.act === lastAct && e.boss === boss) ?? list[list.length - 1];
   if (!base) throw new Error('no encounters in content');
   const past = index - (list.length - 1);
-  const hpScale = base.hpScale * Math.pow(content.tuning.endlessHpGrowth, past);
+  // HP growth rate climbs past the victory lap (consequence scaling): flat endlessHpGrowth for the
+  // first endlessLap slots, then super-exponential so endless ends. Damage stays on its own growth,
+  // so once the player can no longer one-shot (HP outran the word) the escalating hits finish the run.
+  const hpGrowth = content.tuning.endlessHpGrowth + content.tuning.endlessHpAccel * Math.max(0, past - content.tuning.endlessLap);
+  const hpScale = base.hpScale * Math.pow(hpGrowth, past);
   const damageScale = base.damageScale * Math.pow(content.tuning.endlessDamageGrowth, past);
   return { act: lastAct, boss, hpScale, damageScale };
 }

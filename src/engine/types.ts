@@ -225,6 +225,17 @@ export interface Tuning {
    */
   readonly endlessHpGrowth: number;
   readonly endlessDamageGrowth: number;
+  /**
+   * Consequence scaling (2026-09-15): the flat endlessHpGrowth^past was a fixed exponential the
+   * player's item stack laps forever (the stacker one-shot 93% of fights at slot 40). To make endless
+   * a Balatro-style race that ends, the HP growth RATE itself climbs past a victory lap: for the first
+   * `endlessLap` slots past the content it stays at endlessHpGrowth (the power-fantasy lap), then the
+   * effective growth is `endlessHpGrowth + endlessHpAccel * (past - endlessLap)`, so HP goes
+   * super-exponential and overtakes any build, ending the run at a bounded depth. See
+   * docs/exec-plans/active/consequence-scaling.md.
+   */
+  readonly endlessLap: number;
+  readonly endlessHpAccel: number;
 }
 
 export interface Content {
