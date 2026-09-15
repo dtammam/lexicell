@@ -167,6 +167,22 @@ export function entryFrom(state: RunState, outcome: HistoryOutcome, endedAt: str
   };
 }
 
+/**
+ * The deepest an endless run has ever reached on this device (encouragement, 2026-09-15): the max
+ * encounterReached over recorded endless runs, or 0 if there are none. `excludeSeed` drops the run
+ * with that seed, so the caller can ask "the best BEFORE this run" to detect a new record. Normal
+ * runs are ignored (they cap at 9); this is self-competition, no leaderboard (scope guard).
+ */
+export function bestEndlessDepth(runs: readonly HistoryEntry[], excludeSeed?: number): number {
+  let best = 0;
+  for (const r of runs) {
+    if (r.mode !== 'endless') continue;
+    if (excludeSeed !== undefined && r.seed === excludeSeed) continue;
+    if (r.encounterReached > best) best = r.encounterReached;
+  }
+  return best;
+}
+
 export function exportJson(runs: readonly HistoryEntry[]): string {
   return JSON.stringify({ v: HISTORY_VERSION, exportedAt: new Date().toISOString(), runs }, null, 2);
 }

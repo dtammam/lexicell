@@ -1,9 +1,11 @@
 # Exec plan: consequence scaling (make endless a race that ends)
 
-Status: ACTIVE, opened 2026-09-15. Touches `src/engine` (the endless
-curve in `encounterDefFor`, and likely a gentle finite `ENCOUNTERS`
-tweak), so it takes a plan, a sim + `npm run power` rerun, and one
-adversarial round briefed to break replay determinism.
+Status: CLOSED 2026-09-15. The endless curve shipped as PR #108 / build 110
+(engine, adversarial APPROVE); the "encouraged to keep going" encouragement
+shipped as PR #109 / build 111 (UI: the endless end screen shows the deepest
+dive ever and "New best!" when beaten, from the local run history; in scope,
+no leaderboard). No gentle finite tweak was needed - the finite game was left
+as the power fantasy per Dean. Both measured with `npm run power` / `npm run sim`.
 
 ## The ask
 

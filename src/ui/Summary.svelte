@@ -8,8 +8,12 @@
   // A finished run as a card someone would screenshot (variety wave step 7). The card is tinted by
   // the act the run reached, wears the cell's body at that act, and shows the seed and items as
   // glyphs. Share is native where the browser has it, otherwise the same line goes to the clipboard.
-  let { run, onNewRun, onHistory, onReplay }: {
+  let { run, endlessBest = 0, endlessNewBest = false, onNewRun, onHistory, onReplay }: {
     run: RunState;
+    /** Deepest endless slot ever reached on this device (this run included); 0 outside endless. */
+    endlessBest?: number;
+    /** True when this endless run set a new personal-best depth. */
+    endlessNewBest?: boolean;
     onNewRun: () => void;
     onHistory: () => void;
     onReplay: () => void;
@@ -72,6 +76,9 @@
       <div class="who">
         <span class="name">{cellName}</span>
         <span class="reach hud-s">{run.mode === 'endless' ? `Encounter ${reached}` : `Encounter ${reached} / 9`}</span>
+        {#if run.mode === 'endless' && endlessBest > 0}
+          <span class="best-depth hud-s" class:record={endlessNewBest}>{endlessNewBest ? `New best! Deepest dive ${endlessBest}` : `Deepest dive ${endlessBest}`}</span>
+        {/if}
       </div>
     </div>
     <div class="best">
@@ -160,6 +167,14 @@
   }
   .reach {
     color: var(--muted);
+  }
+  /* Endless personal best: a quiet "deepest dive N" that flips to a bright record colour on a new best. */
+  .best-depth {
+    color: var(--muted);
+  }
+  .best-depth.record {
+    color: var(--score);
+    font-weight: 700;
   }
   .best {
     display: flex;
