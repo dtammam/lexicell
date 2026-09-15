@@ -11,6 +11,7 @@ import { tilesForWord } from '../engine/solver';
 import { tick } from 'svelte';
 import App from './App.svelte';
 import { SAVE_KEY } from './persist';
+import { SEEN_BUILD_KEY } from './seen';
 import { cleanup, click, findByText, getButton, getByText, queryButton, queryByText, render } from './test-utils';
 import { dailySeed } from './daily';
 
@@ -112,6 +113,9 @@ async function startRun() {
 
 beforeEach(() => {
   localStorage.clear();
+  // Suppress the returning-player "see the new release notes once" redirect for the gameplay tests
+  // (they seed saves and expect the title); the redirect has its own tests below.
+  localStorage.setItem(SEEN_BUILD_KEY, String(RELEASE_NOTES[0]?.build ?? 0));
   vi.spyOn(Date, 'now').mockReturnValue(SEED);
 });
 afterEach(() => {
@@ -120,6 +124,26 @@ afterEach(() => {
 });
 
 describe('App', () => {
+  it('sends a returning player to the release notes once after an update, then leaves them on the title', async () => {
+    await startRun(); // the player now has a run in progress on disk
+    cleanup();
+    localStorage.removeItem(SEEN_BUILD_KEY); // they have not seen the current build's notes yet
+    render(App);
+    expect(await findByText(/Every build since the first commit/i)).toBeTruthy(); // the notes screen
+    cleanup();
+    // The build is recorded now, so a second launch is not redirected: back to the title (Continue for the save).
+    render(App);
+    expect(await findByText('Continue', 15000)).toBeTruthy();
+    expect(queryByText(/Every build since the first commit/i)).toBe(null);
+  }, 30000);
+
+  it('leaves a brand-new player on the title, never the release notes', async () => {
+    localStorage.removeItem(SEEN_BUILD_KEY); // nothing seen, and no save or history
+    render(App);
+    expect(await findByText(/New run/i)).toBeTruthy();
+    expect(queryByText(/Every build since the first commit/i)).toBe(null);
+  });
+
   it('loads to the title with a word of the day, New run opens the starting pick, then the fight with 16 tiles and Attack disabled', async () => {
     render(App);
     expect(getByText('Loading words...')).toBeTruthy();
