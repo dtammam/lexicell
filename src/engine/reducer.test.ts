@@ -1521,18 +1521,26 @@ describe('variety wave step 5: Normal and Endless (save v9)', () => {
     const boss = CONTENT.encounters[8] as EncounterDefT;
     const g = CONTENT.tuning.endlessHpGrowth;
     const d = CONTENT.tuning.endlessDamageGrowth;
+    const lap = CONTENT.tuning.endlessLap;
+    const accel = CONTENT.tuning.endlessHpAccel;
+    // Consequence scaling: HP growth stays flat for the first `lap` slots past the content, then its
+    // rate climbs by `accel` per further slot (super-exponential). Damage stays on its flat growth.
+    const hpGrowth = (past: number) => g + accel * Math.max(0, past - lap);
     for (const i of [9, 10, 12, 13, 21]) {
       const def = encounterDefFor(CONTENT, i);
       expect(def.act).toBe(3);
       expect(def.boss).toBe(false);
-      expect(def.hpScale).toBeCloseTo(fight.hpScale * Math.pow(g, i - 8), 9);
+      expect(def.hpScale).toBeCloseTo(fight.hpScale * Math.pow(hpGrowth(i - 8), i - 8), 9);
       expect(def.damageScale).toBeCloseTo(fight.damageScale * Math.pow(d, i - 8), 9);
     }
     for (const i of [11, 14, 17]) {
       const def = encounterDefFor(CONTENT, i);
       expect(def.boss).toBe(true);
-      expect(def.hpScale).toBeCloseTo(boss.hpScale * Math.pow(g, i - 8), 9);
+      expect(def.hpScale).toBeCloseTo(boss.hpScale * Math.pow(hpGrowth(i - 8), i - 8), 9);
     }
+    // Within the victory lap the growth is still exactly flat; past it, it accelerates beyond flat.
+    expect(encounterDefFor(CONTENT, 8 + lap).hpScale).toBeCloseTo(fight.hpScale * Math.pow(g, lap), 9);
+    expect(encounterDefFor(CONTENT, 8 + lap + 5).hpScale).toBeGreaterThan(fight.hpScale * Math.pow(g, lap + 5));
     expect(encounterDefFor(CONTENT, 30)).toEqual(encounterDefFor(CONTENT, 30));
     expect(encounterDefFor(CONTENT, 11).hpScale).toBeGreaterThan(encounterDefFor(CONTENT, 8).hpScale);
   });

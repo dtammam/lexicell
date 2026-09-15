@@ -30,13 +30,16 @@ interface Fight {
   readonly oneShot: boolean;
 }
 
-function fightsForRun(botName: BotName, seed: number): Fight[] {
+function fightsForRun(botName: BotName, seed: number, mode: 'normal' | 'endless', maxDepth: number): { fights: Fight[]; depthReached: number } {
   const ctx = nodeContext();
   const bot = makeBot(botName, seed);
-  let state: RunState = newRun(seed, ctx);
+  let state: RunState = newRun(seed, ctx, undefined, mode);
   const fights: Fight[] = [];
   let cur: { encounter: number; enemyMaxHp: number; firstWordDamage: number; weakWordDamage: number; words: number } | null = null;
-  for (let guard = 0; guard < 50000; guard++) {
+  for (let guard = 0; guard < 200000; guard++) {
+    // Endless never ends on its own if the curve is too shallow; cap the measurement depth so a run
+    // that out-scales the wall is bounded (it reads as "reached the cap", i.e. the curve is too soft).
+    if (state.encounter && state.encounterIndex + 1 > maxDepth) break;
     const actions = nextAction(bot, state, ctx);
     if (!actions) break;
     // Raw word damage (the "8000-point word"): the best candidate's previewed damage, which applies
@@ -64,7 +67,8 @@ function fightsForRun(botName: BotName, seed: number): Fight[] {
       }
     }
   }
-  return fights;
+  const depthReached = state.phase === 'summary' ? state.encounterIndex + 1 : maxDepth;
+  return { fights, depthReached };
 }
 
 function quantile(xs: number[], q: number): number {
@@ -84,11 +88,23 @@ function main() {
   const bot = arg('--bot', 'stacker') as BotName;
   const runs = Number(arg('--runs', '300'));
   const seedBase = Number(arg('--seed', '0'));
+  const mode: 'normal' | 'endless' = arg('--mode', 'normal') === 'endless' ? 'endless' : 'normal';
+  const maxDepth = Number(arg('--maxdepth', mode === 'endless' ? '60' : '9'));
 
   const all: Fight[] = [];
-  for (let i = 0; i < runs; i++) all.push(...fightsForRun(bot, seedBase + i));
+  const depths: number[] = [];
+  for (let i = 0; i < runs; i++) {
+    const r = fightsForRun(bot, seedBase + i, mode, maxDepth);
+    all.push(...r.fights);
+    depths.push(r.depthReached);
+  }
 
-  console.log(`Power-scaling: bot ${bot}, ${runs} runs, seeds ${seedBase}..${seedBase + runs - 1}, ${all.length} fights.\n`);
+  console.log(`Power-scaling: bot ${bot}, mode ${mode}, ${runs} runs, seeds ${seedBase}..${seedBase + runs - 1}, ${all.length} fights.`);
+  if (mode === 'endless') {
+    const capped = depths.filter((d) => d >= maxDepth).length;
+    console.log(`Endless depth reached (slot the run ended on): median ${median(depths)}, p90 ${quantile(depths, 0.9)}, max ${Math.max(...depths)}, min ${Math.min(...depths)}. ${capped}/${runs} hit the ${maxDepth} measurement cap (curve too soft to end them).`);
+  }
+  console.log('');
   console.log('| enc | fights | one-shot % | overkill x (med) | overkill x (p90) | enemy HP | strong word | weak word | strong/weak |');
   console.log('|-----|--------|------------|------------------|------------------|----------|-------------|-----------|-------------|');
   const maxEnc = Math.max(1, ...all.map((f) => f.encounter));

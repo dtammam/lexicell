@@ -59,12 +59,29 @@ Spire / Binding of Isaac, then: "let's pivot."
   hard depth cap / terminal condition so the run always resolves (Balatro's overflow
   analogue), no 600-turn tails.
 
-## The one knob (Dean's, pure feel) — PENDING
+## The one knob (Dean's, pure feel) — ANSWERED
 
-How long should the endless victory lap last before the wall starts winning for a
-STRONG build? Proposed default: ~5-10 slots of power fantasy past slot 9, tightening
-after, run ends by ~20-30 deep. `g0`, `c` and the cap are fit to that. Awaiting Dean;
-default above is used if he says "run with it."
+Dean 2026-09-15: "that sounds right" (the ~5-10 lap, ends by 20-30) + "I want people to
+be encouraged somehow to keep going." Implemented as `endlessLap = 8`,
+`endlessHpAccel = 0.02` (fit on the first try). The encouragement (chase your deepest
+endless run, a personal best from run history; no leaderboard, in scope) is the immediate
+follow-up PR so the ending reads as an achievement, not a nerf.
+
+## Measured result (stacker, `npm run power -- --mode endless`)
+
+Baseline (flat 1.06^past): the stacker one-shot 93.6% of fights even at slot 40, overkill
+median 2.4x, and 0/25 runs ever ended (all hit the depth cap). Endless never scaled with
+consequence. After (endlessLap 8 / endlessHpAccel 0.02):
+
+```
+Endless depth reached (slot the run ended on): median 24, p90 30, max 30, min 9. 0/40 lapped the cap.
+slots 10-20 stay a one-shot-heavy VICTORY LAP (overkill 1.6-3.5x); slot 21 overkill drops to 0.8
+(wall bites); slots 22-24 overkill 0.3-1.0; slots 25-30 overkill ~0 (HP 4k -> 97k) and the run ends.
+```
+
+~10 slots of power fantasy past the ninth, wall bites ~slot 21, every run ends by ~24-30 (median
+24), none lap the curve. The finite game is untouched (the endless branch of `encounterDefFor`
+only fires past the content list).
 
 ## Tooling
 

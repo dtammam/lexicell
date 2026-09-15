@@ -43,6 +43,12 @@ export const TUNING: Tuning = {
   // 600 turns against million-HP enemies it could out-heal).
   endlessHpGrowth: 1.06,
   endlessDamageGrowth: 1.08,
+  // Consequence scaling (2026-09-15): a strong build gets ~endlessLap slots of victory lap past the
+  // ninth, then the HP growth rate climbs by endlessHpAccel per further slot, so endless goes
+  // super-exponential and ends the run (target: dead by ~slot 25-30 for a stacker). Fitted with
+  // npm run power -- --mode endless. endlessLap is Dean's "victory lap" knob.
+  endlessLap: 8,
+  endlessHpAccel: 0.02,
 };
 
 export const ENCOUNTERS: readonly EncounterDef[] = [
