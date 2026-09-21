@@ -5,7 +5,7 @@ branch: feat/more-capabilities
 anchor: spec
 status: Gate:APPROVED r2 @908d2ae
 next: Dean to merge feat/more-capabilities; then move this plan to completed/ on Shipped
-design: Approved 2026-09-21 @2266092
+design: Approved 2026-09-21 @908d2ae
 gate: APPROVED r2 @908d2ae (Adversary + QA)
 ---
 
@@ -153,7 +153,7 @@ Baseline for reference (main @2266092): balanced greedy 86.5%, aggro 89.8%. aggr
 sits at the cap by design; the wave leaves it at 89.1%, at or below its baseline.
 
 ## Status log
-- 2026-09-21 Approved @2266092. Design agreed in intake (R1-R4, 10 caps).
+- 2026-09-21 Intake agreed (R1-R4, 10 caps) at base 2266092.
 - 2026-09-21 Built by subagent (offer randomization + 10 passive caps). Golden
   BASELINE hashes needed no change (they pin only the pre-first-boss prefix).
   Tests 390/390, lint clean. Subagent looped on the sim and never committed; the
