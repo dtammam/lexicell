@@ -10,8 +10,8 @@ import { describe, expect, it } from 'vitest';
 import { nodeContext } from '../../scripts/lib/context';
 import { candidateIndices, candidateWords } from './candidates';
 import { playableLetters, playableWildCount } from './grid';
-import { newRun, reduce, scoreSelection, type EngineContext } from './reducer';
-import { CAPABILITIES, type RunState, type Tile } from './types';
+import { newRun, OFFER_SIZE, reduce, scoreSelection, type EngineContext } from './reducer';
+import { CAPABILITIES, type Capability, type RunState, type Tile } from './types';
 
 const ctx: EngineContext = nodeContext();
 
@@ -72,22 +72,33 @@ function driveToFirstBossOrEnd(seed: number): RunState {
 }
 
 /**
- * Drive a full run that takes ONE named capability the first time it is offered and, at later bosses,
- * the first offered capability that is NOT wildcard (so no wild is ever placed). Used to show that
- * merely HOLDING an unused non-wildcard capability does not perturb the run.
+ * Take a specific capability at a capability offer. The offer is now a RANDOM subset of the unheld
+ * caps (more-capabilities wave), so the named cap may not be present at a given boss; when it is not
+ * (and not already held), inject it at the front of the offer and take it. pickCapability draws NO RNG
+ * and every capability but the three verbs is inert until it fires through collectEffects, so forcing
+ * WHICH capability is held leaves the run's RNG stream and grid byte-identical to any other forced pick.
+ * When the named cap is already held, take the first offered non-wildcard cap (so no wild is placed).
+ */
+function forceCapPick(s: RunState, cap: string): RunState {
+  const offer = s.offer ?? [];
+  const named = offer.indexOf(cap);
+  if (named >= 0) return reduce(s, { type: 'pickCapability', index: named }, ctx);
+  if (!s.evolution.caps.includes(cap as Capability)) {
+    return reduce({ ...s, offer: [cap, ...offer] }, { type: 'pickCapability', index: 0 }, ctx);
+  }
+  const nonWild = offer.findIndex((id) => id !== 'wildcard');
+  return reduce(s, { type: 'pickCapability', index: nonWild >= 0 ? nonWild : 0 }, ctx);
+}
+
+/**
+ * Drive a full run that takes ONE named capability (forced, so it is guaranteed held) and, at later
+ * bosses, the first offered capability that is NOT wildcard (so no wild is ever placed). Used to show
+ * that merely HOLDING an unused non-wildcard capability does not perturb the run.
  */
 function driveWithCapabilityPicks(seed: number, cap: string): RunState {
   let s = newRun(seed, ctx);
   for (let guard = 0; guard < 50000 && s.phase !== 'summary'; guard++) {
-    if (s.phase === 'capability') {
-      const offer = s.offer ?? [];
-      const named = offer.indexOf(cap);
-      const nonWild = offer.findIndex((id) => id !== 'wildcard');
-      const at = named >= 0 ? named : nonWild >= 0 ? nonWild : 0;
-      s = reduce(s, { type: 'pickCapability', index: at }, ctx);
-    } else {
-      s = step(s);
-    }
+    s = s.phase === 'capability' ? forceCapPick(s, cap) : step(s);
     if (s.rejected) throw new Error(`seed ${seed}: rejected ${s.rejected}`);
   }
   return s;
@@ -104,24 +115,49 @@ function driveTo(seed: number, phase: RunState['phase']): RunState {
 }
 
 describe('evolution track: capability offer flow', () => {
-  it('offers the capabilities the player lacks after a boss, alongside the trait, and a pick lands in evolution.caps', () => {
+  it('draws a random subset of the capabilities the player lacks after a boss, and a pick lands in evolution.caps', () => {
     // Reach the first evolve (after the act-1 boss), then take the trait: the capability offer follows.
     let s = driveTo(0, 'evolve');
     expect(s.phase).toBe('evolve');
     expect(s.evolution.caps).toEqual([]);
     const rngAtEvolve = s.rng;
     s = reduce(s, { type: 'pickTrait', index: 0 }, ctx);
-    // The trait pick and building the capability offer consume NO RNG: the stream is untouched.
     expect(s.phase).toBe('capability');
-    expect(s.rng).toEqual(rngAtEvolve);
-    // The first boss offers every capability (none held yet), in fixed content order.
-    expect(s.offer).toEqual(CAPABILITIES.map((c) => c));
-    expect(s.offer).toEqual(ctx.content.capabilities.map((c) => c.id));
+    // Building the offer now DRAWS from the run RNG (the randomized offer, more-capabilities wave): the
+    // stream has advanced past the trait pick. Before this wave the offer was every unheld cap in content
+    // order and consumed no RNG.
+    expect(s.rng).not.toEqual(rngAtEvolve);
+    const offer = (s.offer ?? []) as Capability[];
+    // Up to OFFER_SIZE unheld capabilities: all real, unique, none held.
+    expect(offer.length).toBe(Math.min(OFFER_SIZE, CAPABILITIES.length));
+    expect(new Set(offer).size).toBe(offer.length);
+    for (const id of offer) expect(CAPABILITIES).toContain(id);
     // Picking one lands it in caps (pick order) and moves off the capability phase.
     s = reduce(s, { type: 'pickCapability', index: 0 }, ctx);
-    expect(s.evolution.caps).toEqual(['wildcard']);
+    expect(s.evolution.caps).toEqual([offer[0]]);
     expect(s.phase).not.toBe('capability');
     expect(['pick', 'rest', 'fight', 'summary']).toContain(s.phase);
+  });
+
+  it('the offer is seed-stable (same seed, same subset) and never wildcard every time (dilution)', () => {
+    let sawOfferWithoutWildcard = false;
+    for (let seed = 0; seed < 20; seed++) {
+      const a = driveTo(seed, 'capability');
+      if (a.phase !== 'capability') continue;
+      const b = driveTo(seed, 'capability');
+      // Deterministic per seed: the random draw reproduces exactly.
+      expect(a.offer, `seed ${seed}`).toEqual(b.offer);
+      const offer = (a.offer ?? []) as Capability[];
+      expect(offer.length).toBe(Math.min(OFFER_SIZE, CAPABILITIES.length));
+      expect(new Set(offer).size).toBe(offer.length);
+      for (const id of offer) {
+        expect(CAPABILITIES).toContain(id);
+        expect(a.evolution.caps).not.toContain(id); // only unheld caps are offered
+      }
+      if (!offer.includes('wildcard')) sawOfferWithoutWildcard = true;
+    }
+    // The whole point of the change: wildcard is one option among many, not a guaranteed grab.
+    expect(sawOfferWithoutWildcard).toBe(true);
   });
 
   it('a bad or unknown capability index is rejected without changing state', () => {
@@ -145,21 +181,18 @@ describe('evolution track: capability offer flow', () => {
   });
 
   it('with every capability held the offer is skipped gracefully (Endless: bosses recur)', () => {
-    // Endless: pick a capability at every offer until all three are held, then confirm a later boss
-    // sends the flow straight from the trait to the item offer with no capability phase.
-    let s = newRun(3, ctx, 'balanced', 'endless');
-    let sawSkipAfterFull = false;
-    let prevPhase: RunState['phase'] = s.phase;
-    for (let guard = 0; guard < 30000 && s.phase !== 'summary'; guard++) {
-      // After all three are held, a pickTrait must NOT be followed by a capability phase.
-      if (s.evolution.caps.length === 3 && prevPhase === 'evolve' && s.phase !== 'capability') sawSkipAfterFull = true;
-      prevPhase = s.phase;
-      s = step(s);
-      if (s.rejected) throw new Error(`rejected ${s.rejected}`);
-      if (s.evolution.caps.length === 3 && sawSkipAfterFull) break;
-    }
-    expect(s.evolution.caps.slice().sort()).toEqual([...CAPABILITIES].sort());
-    expect(sawSkipAfterFull).toBe(true);
+    // Reach an evolve, then hold ALL capabilities and take the trait: with the unheld pool empty the
+    // offer is skipped and the flow goes straight from the trait to the item offer, no capability phase.
+    // (There are thirteen caps now, more than a finite run's three bosses can hand out, so this is the
+    // clean way to exercise the all-held path rather than grinding endless bosses.)
+    const s = driveTo(3, 'evolve');
+    expect(s.phase).toBe('evolve');
+    const full: RunState = { ...s, evolution: { ...s.evolution, caps: [...CAPABILITIES] } };
+    const after = reduce(full, { type: 'pickTrait', index: 0 }, ctx);
+    expect(after.phase).not.toBe('capability');
+    // No capability is added or removed when the pool is empty; the draw loop never runs.
+    expect(after.evolution.caps.slice().sort()).toEqual([...CAPABILITIES].sort());
+    expect(['pick', 'rest', 'fight', 'summary']).toContain(after.phase);
   });
 });
 
@@ -265,12 +298,14 @@ describe('evolution track: the wildcard verb', () => {
   });
 
   it('a full wildcard run stays JSON-plain and replays byte-identical to itself (seeded, no Math.random)', () => {
+    // The offer is a random subset now, so force wildcard (forceCapPick) to guarantee it is held; the
+    // run is still fully deterministic per seed, so it replays byte-identical to itself.
     for (const seed of [1, 3, 7]) {
-      const a = driveToEnd(seed);
-      const b = driveToEnd(seed);
+      const a = driveWithCapabilityPicks(seed, 'wildcard');
+      const b = driveWithCapabilityPicks(seed, 'wildcard');
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
       expect(JSON.parse(JSON.stringify(a))).toEqual(a);
-      // The wildcard was actually taken on this run (the first capability offered).
+      // The wildcard was actually taken on this run.
       expect(a.evolution.caps).toContain('wildcard');
     }
   });
@@ -482,5 +517,95 @@ describe('evolution track: the letter-bank verb', () => {
       expect(run.evolution.caps.includes('wildcard')).toBe(false);
       expect(JSON.parse(JSON.stringify(run))).toEqual(run);
     }
+  });
+});
+
+describe('evolution track: passive capabilities (declarative hooks)', () => {
+  const plain = (letter: string): Tile => ({ letter, lockedTurns: 0, venom: 0, gold: 0, cracked: 0 });
+
+  it('osmosis lifesteals on a word: with the cap the player heals 12% of the damage, without it not at all', () => {
+    const base = driveTo(1, 'fight');
+    const enc = base.encounter as NonNullable<RunState['encounter']>;
+    // A controlled grid spelling a high-scoring real word (quartz: two rich rare letters over six tiles,
+    // so 15% of its damage floors above zero), an invincible harmless enemy so the fight does not end, the
+    // player wounded so a heal is visible, items/traits stripped so osmosis is the only lifesteal.
+    const q = 'quartz';
+    const grid: Tile[] = Array.from({ length: 16 }, (_, i) => (i < q.length ? plain(q[i] as string) : plain('e')));
+    const make = (caps: Capability[]): RunState => ({
+      ...base,
+      player: { ...base.player, hp: 1, items: [], traits: [] },
+      evolution: { caps, transmuteUsed: false, bankedLetter: null },
+      encounter: { ...enc, grid, enemy: { ...enc.enemy, hp: 1_000_000, maxHp: 1_000_000, damage: 0 }, selection: [] },
+    });
+    const play = (s0: RunState): RunState => {
+      let s = s0;
+      for (let i = 0; i < q.length; i++) s = reduce(s, { type: 'toggleTile', index: i }, ctx);
+      const r = reduce(s, { type: 'submitWord' }, ctx);
+      if (r.rejected) throw new Error(`submit rejected: ${r.rejected}`);
+      return r;
+    };
+    const withCap = play(make(['osmosis']));
+    const without = play(make([]));
+    expect(without.lastTurn?.healed).toBe(0);
+    expect(withCap.lastTurn?.healed).toBeGreaterThan(0);
+    const dealt = 1_000_000 - (withCap.encounter as NonNullable<RunState['encounter']>).enemy.hp;
+    expect(withCap.lastTurn?.healed).toBe(Math.floor(dealt * 0.12));
+  });
+
+  it('chitin softens every hit by 5 (an onDamageTaken passive hook fires end to end)', () => {
+    const base = driveTo(2, 'fight');
+    const enc = base.encounter as NonNullable<RunState['encounter']>;
+    // Full HP, no shield, items/traits stripped so chitin is the only onDamageTaken source; invincible
+    // enemy so the fight does not end, and a large fixed hit (damage 60) so the 5-point reduction is
+    // always visible on the SAME turn (a small hit that chitin absorbs to zero would land the two runs'
+    // first non-zero hit on different turns). chitin changes no RNG and no word choice, so the two runs
+    // play the identical words and take the identical enemy roll; only the reduction differs.
+    const make = (caps: Capability[]): RunState => ({
+      ...base,
+      player: { ...base.player, hp: base.player.maxHp, shield: 0, items: [], traits: [] },
+      evolution: { caps, transmuteUsed: false, bankedLetter: null },
+      encounter: { ...enc, enemy: { ...enc.enemy, hp: 1_000_000, maxHp: 1_000_000, damage: 60 } },
+    });
+    const firstHit = (s0: RunState): number => {
+      let s = s0;
+      for (let g = 0; g < 300 && s.phase === 'fight'; g++) {
+        s = step(s);
+        if (s.rejected) throw new Error(`rejected ${s.rejected}`);
+        if ((s.lastTurn?.enemyDamage ?? 0) > 0) return s.lastTurn?.enemyDamage ?? 0;
+      }
+      throw new Error('enemy never hit');
+    };
+    const raw = firstHit(make([]));
+    const softened = firstHit(make(['chitin']));
+    expect(raw).toBeGreaterThan(5);
+    expect(softened).toBe(raw - 5);
+  });
+
+  it('vesicle heals 5 on a short word (<=5 letters) and nothing on a long word: the maxLength gate is greedy-proof', () => {
+    const base = driveTo(1, 'fight');
+    const enc = base.encounter as NonNullable<RunState['encounter']>;
+    // A controlled grid, the player wounded so a heal is visible, items/traits stripped so vesicle is the
+    // only heal, an invincible harmless enemy so the fight does not end. Vesicle heals a flat 5 only when
+    // the word played is 5 letters or fewer: greedy plays 6-7 letter words so it never triggers, while the
+    // mediocre bot's 4-5 letter words always do. That asymmetry is the point of the swap.
+    const makeGrid = (word: string): Tile[] => Array.from({ length: 16 }, (_, i) => (i < word.length ? plain(word[i] as string) : plain('e')));
+    const make = (caps: Capability[], word: string): RunState => ({
+      ...base,
+      player: { ...base.player, hp: 1, items: [], traits: [] },
+      evolution: { caps, transmuteUsed: false, bankedLetter: null },
+      encounter: { ...enc, grid: makeGrid(word), enemy: { ...enc.enemy, hp: 1_000_000, maxHp: 1_000_000, damage: 0 }, selection: [] },
+    });
+    const play = (s0: RunState, word: string): RunState => {
+      let s = s0;
+      for (let i = 0; i < word.length; i++) s = reduce(s, { type: 'toggleTile', index: i }, ctx);
+      const r = reduce(s, { type: 'submitWord' }, ctx);
+      if (r.rejected) throw new Error(`submit rejected: ${r.rejected}`);
+      return r;
+    };
+    const short = 'stone'; // 5 letters -> the gate fires
+    const long = 'stones'; // 6 letters -> the gate does not fire
+    expect(play(make([], short), short).lastTurn?.healed).toBe(0);
+    expect(play(make(['vesicle'], short), short).lastTurn?.healed).toBe(5);
+    expect(play(make(['vesicle'], long), long).lastTurn?.healed).toBe(0);
   });
 });

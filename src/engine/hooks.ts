@@ -13,7 +13,7 @@
  * Applying the effects is the reducer's job. This module only decides *what*.
  */
 import { resolveEffects, type ConditionContext, type Effect } from './effects';
-import type { CellDef, Content, Hook, ItemDef, TraitDef } from './types';
+import type { CapabilityDef, CellDef, Content, Hook, ItemDef, TraitDef } from './types';
 
 export function itemDef(content: Content, id: string): ItemDef {
   const def = content.items.find((i) => i.id === id);
@@ -33,13 +33,24 @@ export function traitDef(content: Content, id: string): TraitDef {
   return def;
 }
 
+export function capabilityDef(content: Content, id: string): CapabilityDef {
+  const def = content.capabilities.find((c) => c.id === id);
+  if (!def) throw new Error(`unknown capability id ${JSON.stringify(id)}`);
+  return def;
+}
+
 /**
- * Raw (unresolved) effects for a hook: the starting cell's traits first (it is the item held
- * before every other), then the evolution traits in pick order (variety wave step 3), then the
- * items in acquisition order. That order is load-bearing for order-sensitive verbs (reduceDamage
- * clamps between entries).
+ * Raw (unresolved) effects for a hook, gathered in a FIXED order that is part of the run's
+ * determinism (order is load-bearing for order-sensitive verbs, e.g. reduceDamage clamps between
+ * entries). The order:
+ *   1. the starting cell's traits (it is the item held before every other),
+ *   2. the evolution traits in pick order (variety wave step 3),
+ *   3. the items in acquisition order,
+ *   4. the passive capabilities in pick order (more-capabilities wave, 2026-09-21).
+ * Capabilities come LAST, after the items: the three verb capabilities carry no hooks, so a run that
+ * never gains a PASSIVE capability contributes nothing here and stays byte-identical to before this wave.
  */
-export function gatherEffects(hook: Hook, itemIds: readonly string[], content: Content, cellId?: string, traitIds: readonly string[] = []): Effect[] {
+export function gatherEffects(hook: Hook, itemIds: readonly string[], content: Content, cellId?: string, traitIds: readonly string[] = [], capIds: readonly string[] = []): Effect[] {
   const out: Effect[] = [];
   if (cellId !== undefined) {
     const traits = cellDef(content, cellId).traits[hook];
@@ -53,10 +64,14 @@ export function gatherEffects(hook: Hook, itemIds: readonly string[], content: C
     const contributed = itemDef(content, id).hooks[hook];
     if (contributed) out.push(...contributed);
   }
+  for (const id of capIds) {
+    const contributed = capabilityDef(content, id).hooks?.[hook];
+    if (contributed) out.push(...contributed);
+  }
   return out;
 }
 
 /** Resolved effects for a hook: conditions evaluated, EFFECT_ORDER applied. */
-export function collectEffects(hook: Hook, itemIds: readonly string[], content: Content, ctx: ConditionContext, cellId?: string, traitIds: readonly string[] = []): Effect[] {
-  return resolveEffects(gatherEffects(hook, itemIds, content, cellId, traitIds), ctx);
+export function collectEffects(hook: Hook, itemIds: readonly string[], content: Content, ctx: ConditionContext, cellId?: string, traitIds: readonly string[] = [], capIds: readonly string[] = []): Effect[] {
+  return resolveEffects(gatherEffects(hook, itemIds, content, cellId, traitIds, capIds), ctx);
 }

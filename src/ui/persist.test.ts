@@ -212,9 +212,12 @@ describe('persist', () => {
     expect(cleaned?.evolution.caps).toEqual(['wildcard']);
     expect(cleaned?.evolution.bankedLetter).toBeNull();
     expect(cleaned?.evolution.transmuteUsed).toBe(true);
-    // A valid banked letter and known caps survive.
-    const kept = createPersist(fakeStorage({ [SAVE_KEY]: withEvo({ caps: ['transmute', 'letter-bank'], transmuteUsed: false, bankedLetter: 'q' }) })).load();
-    expect(kept?.evolution).toEqual({ caps: ['transmute', 'letter-bank'], transmuteUsed: false, bankedLetter: 'q' });
+    // A valid banked letter and known caps survive, including a new passive capability id (osmosis);
+    // an unknown id sitting beside it is still stripped. No save-version bump: passive caps are stateless.
+    const kept = createPersist(fakeStorage({ [SAVE_KEY]: withEvo({ caps: ['transmute', 'letter-bank', 'osmosis'], transmuteUsed: false, bankedLetter: 'q' }) })).load();
+    expect(kept?.evolution).toEqual({ caps: ['transmute', 'letter-bank', 'osmosis'], transmuteUsed: false, bankedLetter: 'q' });
+    const mixed = createPersist(fakeStorage({ [SAVE_KEY]: withEvo({ caps: ['osmosis', 'not-a-cap'], transmuteUsed: false, bankedLetter: null }) })).load();
+    expect(mixed?.evolution.caps).toEqual(['osmosis']);
 
     // A v11 run with a live track round-trips through save/load unchanged, and the shape check rejects a broken track.
     const live: RunState = { ...(migrated as RunState), evolution: { caps: ['wildcard'], transmuteUsed: true, bankedLetter: 'x' } };

@@ -169,14 +169,53 @@ export interface EventDef {
  *   transmute   once per fight, turn a tile into the best rare letter (transmuteTile action)
  *   letter-bank a one-slot letter bank: store a tile's letter, spend it into a later word (bankLetter)
  */
-export type Capability = 'wildcard' | 'transmute' | 'letter-bank';
-export const CAPABILITIES: readonly Capability[] = ['wildcard', 'transmute', 'letter-bank'];
+export type Capability =
+  | 'wildcard'
+  | 'transmute'
+  | 'letter-bank'
+  /**
+   * Passive capabilities (more-capabilities wave, 2026-09-21): pure declarative hooks (like traits/items),
+   * no engine verb of their own. They exist to deepen the post-boss offer pool so the random draw (there
+   * are now three bosses and thirteen capabilities) makes the strong verbs a minority, not a guarantee.
+   * Their behaviour is entirely their CapabilityDef.hooks, gathered through collectEffects like any hook.
+   */
+  | 'osmosis'
+  | 'chitin'
+  | 'catalyst'
+  | 'mitosis'
+  | 'vesicle'
+  | 'cilia'
+  | 'vacuole'
+  | 'spines'
+  | 'elongation'
+  | 'first-contact';
+export const CAPABILITIES: readonly Capability[] = [
+  'wildcard',
+  'transmute',
+  'letter-bank',
+  'osmosis',
+  'chitin',
+  'catalyst',
+  'mitosis',
+  'vesicle',
+  'cilia',
+  'vacuole',
+  'spines',
+  'elongation',
+  'first-contact',
+];
 
 export interface CapabilityDef {
   readonly id: Capability;
   readonly name: string;
   readonly description: string;
   readonly flavor: string;
+  /**
+   * A passive capability's effects, mirroring TraitDef.hooks exactly (more-capabilities wave): declarative
+   * effects gathered at each hook through collectEffects. The three verb capabilities (wildcard, transmute,
+   * letter-bank) carry no hooks; their behaviour is hard-coded engine logic keyed by the id.
+   */
+  readonly hooks?: Partial<Record<Hook, readonly Effect[]>>;
 }
 
 /**
