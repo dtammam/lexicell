@@ -117,7 +117,7 @@ you edit loses its em dashes as part of the edit.
 
 - [ ] `npm run lint` clean
 - [ ] `npm test` green, new behaviour covered, sim still runs
-- [ ] Engine contract intact (see CLAUDE.md non-negotiables)
-- [ ] Gate APPROVE: one adversarial round per wave until the Phase 2 exit (Dean, 2026-09-08), then two-reviewer APPROVE x2
+- [ ] Engine contract intact (see `AGENTS.md` non-negotiables and `docs/ARCHITECTURE.md` invariants)
+- [ ] Gate APPROVE from every required seat, per `.harness/lib/gate-protocol.md`, sized by `.harness/scrutiny.toml`
 - [ ] Exec plan updated; residuals filed in the tech-debt tracker
 - [ ] No TODO/FIXME without a tracker row
