@@ -3,10 +3,10 @@ plan: more-capabilities
 harness: v2 · lean
 branch: feat/more-capabilities
 anchor: spec
-status: Building
-next: r2 doc-only re-verdict from both seats, then hand to Dean to merge
+status: Gate:APPROVED r2 @908d2ae
+next: Dean to merge feat/more-capabilities; then move this plan to completed/ on Shipped
 design: Approved 2026-09-21 @2266092
-gate: pending
+gate: APPROVED r2 @908d2ae (Adversary + QA)
 ---
 
 # Exec plan: more capabilities (dilute the wildcard)
@@ -236,3 +236,35 @@ once the em-dash WARNING is fixed. Re-engage this instance at the fix commit for
 a doc-only delta re-verdict.
 
 Gate: CHANGES r1 @2eb4da2 - adversary
+
+## Adversary gate (r2, delta)
+
+Delta re-review of the doc-only fix commit 908d2ae (parent 2eb4da2). Verified:
+git diff 2eb4da2..908d2ae touches ONLY this plan doc; no src/scripts/public
+file changed, so the five code surfaces confirmed at r1 carry forward unchanged
+(no re-run needed). Both r1 findings resolved as prescribed:
+- WARNING (em dashes) - FIXED. The doc now holds 0 em dashes (was 14).
+- SUGGESTION (stale "hashes regenerated" prose) - FIXED. R3, the acceptance
+  bullet, the replay attack-surface bullet and the status log now say the
+  BASELINE hashes pin only the pre-first-boss prefix and stay unchanged, with the
+  post-boss replay tests self-comparing. Accurate against the test code.
+No new issue introduced by the fix.
+
+Gate: APPROVED r2 @908d2ae - adversary
+
+## QA gate (r2 delta)
+
+Delta re-confirmation on doc-only fix 908d2ae (parent 2eb4da2). Scope verified:
+`git diff --stat` shows only this plan doc changed; no source/test/content file
+touched, so r1's verified test/lint/correctness results still hold.
+
+- WARNING (em dashes) - FIXED as prescribed. `grep -nP '[\x{2013}\x{2014}]'` on the
+  file returns zero matches.
+- SUGGESTION (stale "golden hashes regenerated") - FIXED as prescribed. R3, the
+  acceptance replay line, and the status log now state the BASELINE hashes pin only
+  the pre-first-boss prefix and stay unchanged, and the post-boss replay tests
+  self-compare (same seed/build) - matching the code verified in r1.
+
+No new findings introduced by the doc edit.
+
+Gate: APPROVED r2 @908d2ae - qa
