@@ -711,6 +711,11 @@ TRAITS = {
 }
 CAPS = {
     "wildcard": "star", "transmute": "drop", "letter-bank": "shield",
+    # Passive capabilities (more-capabilities wave, 2026-09-21): a themed glyph kind per id, seeded by
+    # the id so each is distinct and reproducible, same as the templated items and traits.
+    "osmosis": "wave", "chitin": "shield", "catalyst": "cluster", "mitosis": "ring",
+    "vesicle": "blob", "cilia": "spike", "vacuole": "drop", "spines": "spike",
+    "elongation": "rod", "first-contact": "cluster",
 }
 
 

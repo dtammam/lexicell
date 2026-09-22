@@ -60,7 +60,7 @@ import { cellDef, collectEffects, itemDef, traitDef } from './hooks';
 import { createRng, nextInt, pick, weightedPick, type Rng } from './rng';
 import { scoreWord } from './scoring';
 import type { Solver } from './solver';
-import { CAPABILITIES, GRID_SIZE, type Capability, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EnemyTraits, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
+import { CAPABILITIES, GRID_SIZE, type Capability, type CapabilityDef, type Content, type Encounter, type EncounterDef, type EncounterKind, type EnemyDef, type EnemyTraits, type EventDef, type Rarity, type RunMode, type RunState, type Tile, type TraitDef, type TurnReport } from './types';
 
 export interface EngineContext {
   readonly dictionary: Dictionary;
@@ -292,7 +292,7 @@ export function letterBias(state: RunState, ctx: EngineContext): LetterBias {
   const bump = (letter: string, value: number) => {
     bias[letter] = (bias[letter] ?? 1) * value;
   };
-  for (const e of collectEffects('onTileDraw', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits)) {
+  for (const e of collectEffects('onTileDraw', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits, state.evolution.caps)) {
     if (e.type === 'vowelWeight') for (const v of 'aeiou') bump(v, e.value);
     if (e.type === 'letterWeight') for (const l of new Set(e.letters)) if (l >= 'a' && l <= 'z') bump(l, e.value);
   }
@@ -637,7 +637,7 @@ function eventChoice(state: RunState, index: number, ctx: EngineContext): RunSta
  * first so a poison that finishes the enemy ends the fight before the venom bites.
  */
 function turnStart(state: RunState, ctx: EngineContext, report: TurnReport): RunState {
-  const effects = collectEffects('onTurnStart', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits);
+  const effects = collectEffects('onTurnStart', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits, state.evolution.caps);
   const a = applyEffects(state, effects, ctx);
   let s: RunState = {
     ...a.state,
@@ -723,7 +723,7 @@ function venomBite(state: RunState, venomMax: number): RunState {
 }
 
 function endEncounter(state: RunState, ctx: EngineContext): RunState {
-  const effects = collectEffects('onEncounterEnd', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits);
+  const effects = collectEffects('onEncounterEnd', state.player.items, ctx.content, conditionCtx(state, ctx), state.cell, state.player.traits, state.evolution.caps);
   const a = applyEffects(state, effects, ctx);
   const s: RunState = {
     ...a.state,
@@ -773,22 +773,39 @@ function pickTrait(state: RunState, index: number, ctx: EngineContext): RunState
 }
 
 /**
- * Evolution capability offer (v11): after the trait pick (or makeEvolve's no-trait fallback), offer
- * every capability the player does NOT yet hold, in fixed content order. No RNG is drawn (there are
- * only three, so the offer is deterministic). The pick is MANDATORY (Dean 2026-09-11): pickCapability
- * takes one, there is no skip. With all held (Endless, bosses recur) the offer is empty and the flow
- * falls straight through to the cursable post-boss item offer, exactly as before the track existed;
- * an empty content.capabilities does the same. The byte-identical-to-main guarantee rests on a run
- * that NEVER reaches a boss (never evolves, caps stays empty), not on declining the offer.
+ * Evolution capability offer: after the trait pick (or makeEvolve's no-trait fallback), draw up to
+ * OFFER_SIZE (3) capabilities the player does NOT yet hold, without replacement, by the run RNG. This
+ * is the same withRng plumbing as makeEvolve's trait draw (more-capabilities wave, 2026-09-21): before
+ * this wave the offer was every unheld cap in content order and consumed no RNG, so with three bosses
+ * and three caps every run grabbed all three and wildcard (first, strongest) at boss one. The random
+ * draw makes each cap one option among many. Fewer than three unheld => offer what remains; ZERO unheld
+ * => draw nothing (the while loop never runs, so the RNG stream is untouched) and fall straight through
+ * to the cursable post-boss item offer, exactly as before the track existed; an empty
+ * content.capabilities does the same. The pick is MANDATORY (Dean 2026-09-11): pickCapability takes one,
+ * there is no skip. The byte-identical-to-main guarantee rests on a run that NEVER reaches a boss (this
+ * function is only reached after a boss), so no capability RNG is consumed pre-boss.
  */
 function makeCapabilityOffer(state: RunState, ctx: EngineContext): RunState {
   const held = new Set(state.evolution.caps);
-  const offer = ctx.content.capabilities.filter((c) => !held.has(c.id)).map((c) => c.id);
-  if (offer.length === 0) return makeOffer({ ...state, encounter: null }, ctx, undefined, true);
-  return { ...state, phase: 'capability', offer, curses: null, encounter: null };
+  let pool = ctx.content.capabilities.filter((c) => !held.has(c.id));
+  const offer: string[] = [];
+  let rng = state.rng;
+  while (offer.length < OFFER_SIZE && pool.length > 0) {
+    let chosen: CapabilityDef;
+    [chosen, rng] = pick(rng, pool);
+    offer.push(chosen.id);
+    pool = pool.filter((c) => c.id !== chosen.id);
+  }
+  const s = withRng(state, rng);
+  if (offer.length === 0) return makeOffer({ ...s, encounter: null }, ctx, undefined, true);
+  return { ...s, phase: 'capability', offer, curses: null, encounter: null };
 }
 
-/** The chosen capability joins evolution.caps (pick order), then the cursable post-boss item offer. */
+/**
+ * The chosen capability joins evolution.caps (pick order), then the cursable post-boss item offer.
+ * Passive capabilities carry no onPick effect (their hooks fire at onWordScored / onDamageTaken /
+ * onTurnStart through collectEffects like any item or trait), so nothing is applied at pick time.
+ */
 function pickCapability(state: RunState, index: number, ctx: EngineContext): RunState {
   if (state.phase !== 'capability' || !state.offer) return reject(state, 'not choosing a capability');
   const id = state.offer[index];
@@ -997,7 +1014,7 @@ function submitWord(state: RunState, ctx: EngineContext, spendBank = false): Run
 
   // Player attack: the word's score, plus the gold on the tiles played (step 4), then armour, then resist.
   const cctx = conditionCtx(state, ctx, scored);
-  const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits);
+  const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits, state.evolution.caps);
   const score = scoreWord(scored, effects, ctx.content.tuning);
   const gold = selectionGold(enc);
   // Armour (variety wave): a word shorter than the enemy's armour deals half, floored. Resist (challenge
@@ -1120,7 +1137,7 @@ export function landedDamage(state: RunState, ctx: EngineContext, word: string):
   const enc = state.encounter;
   if (!enc) return 0;
   const cctx = conditionCtx(state, ctx, word);
-  const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits);
+  const effects = collectEffects('onWordScored', state.player.items, ctx.content, cctx, state.cell, state.player.traits, state.evolution.caps);
   const score = scoreWord(word, effects, ctx.content.tuning);
   const traits = enemyDefOf(ctx, enc.enemy.id).traits;
   return resistHit(armourHit(word, score.damage + selectionGold(enc), traits?.armour ?? 0), traits?.resist, cctx);
@@ -1197,7 +1214,7 @@ function enemyTurn(state: RunState, ctx: EngineContext, report: TurnReport): { s
       // in which the player keeps stunning still ends, because the enemy attacks anyway from
       // turn enrageAfter + 1 on. The stun count is left alone: it is simply not honoured.
       if (enc2.enemy.stunned > 0) s = { ...s, encounter: { ...enc2, enemy: { ...enc2.enemy, stunned: enc2.enemy.stunned - 1 } } };
-      const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx), s.cell, s.player.traits);
+      const taken = collectEffects('onDamageTaken', s.player.items, ctx.content, conditionCtx(s, ctx), s.cell, s.player.traits, s.evolution.caps);
       // The roll (variety wave): one RNG draw inside the range, threaded like every other draw.
       const [lo, hi] = hitRange(enc2.enemy.damage, enemyDef.variance);
       let dmg = lo;
