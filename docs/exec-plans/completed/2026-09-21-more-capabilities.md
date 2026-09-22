@@ -3,8 +3,8 @@ plan: more-capabilities
 harness: v2 · lean
 branch: feat/more-capabilities
 anchor: spec
-status: Gate:APPROVED r2 @908d2ae
-next: Dean to merge feat/more-capabilities; then move this plan to completed/ on Shipped
+status: Shipped build 114 (PR #113)
+next: done; the next PR fills this plan's release-note sha (currently pending)
 design: Approved 2026-09-21 @908d2ae
 gate: APPROVED r2 @908d2ae (Adversary + QA)
 ---
